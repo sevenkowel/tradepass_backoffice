@@ -58,8 +58,8 @@ export default function CreateTenantPage() {
       return;
     }
 
-    // 创建成功后跳转到 onboarding 流程，完成租户初始化配置
-    router.push("/console/onboarding");
+    // 创建成功后跳转到 Console 首页
+    router.push("/console");
   }
 
   return (

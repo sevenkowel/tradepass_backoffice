@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Demo 租户数据
-const DEMO_TENANTS = [
+// 基础 Demo 租户
+const DEMO_TENANTS: any[] = [
   {
     id: 'demo-broker',
     name: 'Demo Broker',
@@ -40,16 +40,19 @@ const DEMO_TENANTS = [
   },
 ];
 
+// 内存储存，支持 POST 新增
+const tenantStore = new Map<string, any>();
+DEMO_TENANTS.forEach(t => tenantStore.set(t.id, t));
+
 export async function GET(_req: NextRequest) {
-  // 直接返回 Demo 租户数据
-  return NextResponse.json({ tenants: DEMO_TENANTS });
+  const all = Array.from(tenantStore.values());
+  return NextResponse.json({ tenants: all });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name } = body;
 
-  // 创建一个新的 Demo 租户
   const newTenant = {
     id: `tenant-${Date.now()}`,
     name: name || 'New Broker',
@@ -69,8 +72,11 @@ export async function POST(req: NextRequest) {
     onboardingCompletedAt: null,
   };
 
+  // 存入内存，后续 GET 能读到
+  tenantStore.set(newTenant.id, newTenant);
+
   const res = NextResponse.json({ tenant: newTenant });
-  res.cookies.set("onboarding_completed", "false", { httpOnly: false, path: "/", maxAge: 86400 });
+  res.cookies.set("onboarding_completed", "true", { httpOnly: false, path: "/", maxAge: 86400 });
   res.cookies.set("portal_tenant", newTenant.id, { httpOnly: false, path: "/", maxAge: 86400 });
 
   return res;

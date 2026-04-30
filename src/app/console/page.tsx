@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -19,12 +20,20 @@ export default function ConsoleDashboard() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
   useEffect(() => {
     fetch("/api/console/tenants")
       .then((r) => r.json())
       .then((data) => {
-        setTenants(data.tenants || []);
+        const list = data.tenants || [];
+        setTenants(list);
         setLoading(false);
+
+        // 没有租户 → 引导创建
+        if (list.length === 0) {
+          router.replace("/console/tenants/new");
+        }
       });
   }, []);
 
