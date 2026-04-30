@@ -120,21 +120,7 @@ export default function RegisterPage() {
 
     if (!validateForm()) return;
 
-    const email = formData.email;
-    const phone = formData.phone;
-
-    if (!skipVerify && config) {
-      const needEmailOtp = config.emailVerificationRequired && email;
-      const needPhoneOtp = config.phoneVerificationRequired && phone;
-      if (needEmailOtp || needPhoneOtp) {
-        setOtpType(needEmailOtp ? "email" : "phone");
-        setStep("verify");
-        sendOTP();
-        return;
-      }
-    }
-
-    await doRegister(skipVerify ? formData : { ...formData, otpCode });
+    await doRegister(formData);
   };
 
   const handleVerifySubmit = async () => {
@@ -145,57 +131,23 @@ export default function RegisterPage() {
     await doRegister({ ...formData, otpCode });
   };
 
-  const doRegister = async (payload: Record<string, string>) => {
+  const doRegister = async (_payload: Record<string, string>) => {
     setLoading(true);
-    setError("");
 
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: payload.email,
-          phone: payload.phone,
-          password: payload.password,
-          name: payload.name,
-          otpCode: payload.otpCode,
-          skipVerification: skipVerify,
-        }),
-      });
+    // Mock 模式：直接生成 token，不调 API
+    const fakeToken = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const fakeTenantId = `tenant-${Date.now()}-${Math.random().toString(36).substr(2, 7)}`;
 
-      const data = await res.json();
-      setLoading(false);
+    document.cookie = `token=${fakeToken}; path=/; max-age=604800`;
+    document.cookie = `portal_tenant=${fakeTenantId}; path=/; max-age=604800`;
+    document.cookie = 'onboarding_completed=true; path=/; max-age=604800';
+    document.cookie = `mock_user_role=tenant_owner; path=/; max-age=604800`;
 
-      if (!res.ok) {
-        if (data.requireOtp) {
-          setOtpType(data.otpType === "email" ? "email" : "phone");
-          setStep("verify");
-          sendOTP();
-          return;
-        }
-        setError(data.error || "注册失败");
-        return;
-      }
-
-      if (data.autoLogin && data.token) {
-        document.cookie = `token=${data.token}; path=/; max-age=604800`;
-        if (data.tenantId) {
-          document.cookie = `portal_tenant=${data.tenantId}; path=/; max-age=604800`;
-        }
-        document.cookie = 'onboarding_completed=true; path=/; max-age=604800';
-        setStep("success");
-        setTimeout(() => {
-          // 直接跳转 Console 首页，跳过 onboarding
-          router.push("/console");
-        }, 1500);
-        return;
-      }
-
-      setStep("success");
-    } catch {
-      setLoading(false);
-      setError("网络错误，请稍后重试");
-    }
+    setLoading(false);
+    setStep("success");
+    setTimeout(() => {
+      router.push("/console");
+    }, 500);
   };
 
   const renderField = (field: AuthFormField) => {

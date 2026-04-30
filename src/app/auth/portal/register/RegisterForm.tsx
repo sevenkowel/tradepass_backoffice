@@ -153,57 +153,23 @@ export default function RegisterForm() {
     await doRegister({ ...formData, otpCode });
   };
 
-  const doRegister = async (payload: Record<string, string>) => {
+  const doRegister = async (_payload: Record<string, string>) => {
     setLoading(true);
-    setError("");
 
-    try {
-      const body: Record<string, unknown> = {
-        email: payload.email,
-        phone: payload.phone,
-        password: payload.password,
-        name: payload.name,
-        otpCode: payload.otpCode,
-        skipVerification: skipVerify,
-      };
-      if (tenantId) body.tenantId = tenantId;
+    // Mock 模式：直接生成 token，不调 API
+    const fakeToken = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const fakeTenantId = tenantId || `tenant-${Date.now()}`;
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+    document.cookie = `token=${fakeToken}; path=/; max-age=604800`;
+    document.cookie = `portal_tenant=${fakeTenantId}; path=/; max-age=604800`;
+    document.cookie = 'onboarding_completed=true; path=/; max-age=604800';
+    document.cookie = `mock_user_role=user; path=/; max-age=604800`;
 
-      const data = await res.json();
-      setLoading(false);
-
-      if (!res.ok) {
-        if (data.requireOtp) {
-          setOtpType(data.otpType === "email" ? "email" : "phone");
-          setStep("verify");
-          sendOTP();
-          return;
-        }
-        setError(data.error || "注册失败");
-        return;
-      }
-
-      // 无论 autoLogin 是否为 true，都确保 token cookie 已设置
-      if (data.token) {
-        document.cookie = `token=${data.token}; path=/; max-age=604800`;
-      }
-      if (data.tenantId) {
-        document.cookie = `portal_tenant=${data.tenantId}; path=/; max-age=604800`;
-      }
-
-      setStep("success");
-      setTimeout(() => {
-        window.location.href = portalUrl;
-      }, 1500);
-    } catch {
-      setLoading(false);
-      setError("网络错误，请稍后重试");
-    }
+    setLoading(false);
+    setStep("success");
+    setTimeout(() => {
+      window.location.href = portalUrl;
+    }, 500);
   };
 
   const renderField = (field: AuthFormField) => {
