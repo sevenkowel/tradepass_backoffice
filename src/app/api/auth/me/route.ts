@@ -1,32 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
 
+/**
+ * GET /api/auth/me
+ * Mock 模式：返回当前登录用户信息
+ */
 export async function GET(req: NextRequest) {
-  try {
-    const token = req.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        status: true,
-        kycStatus: true,
-      },
-    });
-
-    if (!user || user.status === "suspended") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    return NextResponse.json({ user });
-  } catch {
+  const token = req.cookies.get("token")?.value;
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Mock 模式：只要 token 存在就返回用户
+  const tenantId = req.cookies.get("portal_tenant")?.value || "";
+  const mockUserRole = req.cookies.get("mock_user_role")?.value || "tenant_owner";
+
+  return NextResponse.json({
+    user: {
+      id: `user-${Date.now()}`,
+      email: "user@tradepass.io",
+      name: "TradePass User",
+      role: mockUserRole,
+      status: "active",
+      tenantId,
+    },
+  });
 }
