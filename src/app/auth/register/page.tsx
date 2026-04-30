@@ -179,9 +179,14 @@ export default function RegisterPage() {
 
       if (data.autoLogin && data.token) {
         document.cookie = `token=${data.token}; path=/; max-age=604800`;
+        if (data.tenantId) {
+          document.cookie = `portal_tenant=${data.tenantId}; path=/; max-age=604800`;
+        }
+        document.cookie = 'onboarding_completed=true; path=/; max-age=604800';
         setStep("success");
         setTimeout(() => {
-          router.push("/console/onboarding");
+          // 直接跳转 Console 首页，跳过 onboarding
+          router.push("/console");
         }, 1500);
         return;
       }

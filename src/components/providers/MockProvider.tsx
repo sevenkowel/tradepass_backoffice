@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { enableMockMode } from '@/lib/mock';
 
 /**
- * MockProvider - 启用纯前端 Mock 模式
- * 
+ * MockProvider - 纯前端 Demo 模式（默认启用）
+ *
  * 功能：
  * 1. 自动启用 API Mock
  * 2. 提供全局调试工具
@@ -15,22 +15,12 @@ export function MockProvider({ children }: { children: React.ReactNode }) {
   const [isMockEnabled, setIsMockEnabled] = useState(false);
 
   useEffect(() => {
-    // 检查是否开启 Mock 模式
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasMockParam = urlParams.get('mock') === 'true';
-    const hasMockCookie = document.cookie.includes('mock_mode=true');
-    
-    if (hasMockParam || hasMockCookie) {
-      enableMockMode();
-      setIsMockEnabled(true);
-      
-      // 移除 URL 中的 mock 参数（避免分享链接时带参数）
-      if (hasMockParam) {
-        urlParams.delete('mock');
-        const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '');
-        window.history.replaceState({}, '', newUrl);
-      }
-    }
+    // 默认启用 Mock 模式
+    enableMockMode();
+    setIsMockEnabled(true);
+
+    // 设置 mock_mode cookie（用于 API 路由识别）
+    document.cookie = 'mock_mode=true; path=/; max-age=86400';
   }, []);
 
   return (
@@ -47,17 +37,6 @@ export function MockProvider({ children }: { children: React.ReactNode }) {
 function MockIndicator() {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // 获取当前用户角色
-  const getRolePath = (buttonRole: string) => {
-    const paths: Record<string, string> = {
-      'platform_admin': '/backoffice',
-      'tenant_owner': '/console',
-      'tenant_admin': '/crm',
-      'default_user': '/portal',
-    };
-    return paths[buttonRole] || '/';
-  };
-
   return (
     <div className="fixed bottom-4 right-4 z-[9999] flex flex-col items-end gap-2">
       {isExpanded && (
@@ -66,7 +45,7 @@ function MockIndicator() {
           <p className="text-slate-300 mb-3">
             所有数据存储在浏览器 LocalStorage 中，刷新不丢失。
           </p>
-          
+
           <div className="space-y-2">
             <div className="flex gap-2">
               <button
@@ -109,13 +88,13 @@ function MockIndicator() {
               </button>
             </div>
           </div>
-          
+
           <p className="text-slate-500 text-xs mt-3">
             控制台输入 MockTools 查看更多命令
           </p>
         </div>
       )}
-      
+
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 font-medium"
