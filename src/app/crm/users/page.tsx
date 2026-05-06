@@ -29,16 +29,16 @@ export default function UsersPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/backoffice/users");
+      const res = await fetch("/api/crm/users");
       const data = await res.json();
       if (data.success) {
-        setUsers(data.items);
-        // Calculate stats
-        const active = data.items.filter((u: BackofficeUser) => u.status === "active").length;
-        const pendingKyc = data.items.filter((u: BackofficeUser) => u.kycStatus === "pending" || u.kycStatus === "not_submitted").length;
-        const frozen = data.items.filter((u: BackofficeUser) => u.status === "frozen").length;
+        const items = data.items || [];
+        setUsers(items);
+        const active = items.filter((u: BackofficeUser) => u.status === "active").length;
+        const pendingKyc = items.filter((u: BackofficeUser) => u.kycStatus === "pending" || u.kycStatus === "not_submitted").length;
+        const frozen = items.filter((u: BackofficeUser) => u.status === "frozen").length;
         setStats({
-          total: data.total,
+          total: data.total || items.length,
           active,
           pendingKyc,
           frozen,
@@ -46,8 +46,9 @@ export default function UsersPage() {
       } else {
         setError(data.error || "加载失败");
       }
-    } catch {
-      setError("网络错误，请稍后重试");
+    } catch (err) {
+      console.error("Fetch Error:", err);
+      setError(`网络错误: ${err instanceof Error ? err.message : "请稍后重试"}`);
     } finally {
       setLoading(false);
     }
@@ -69,7 +70,7 @@ export default function UsersPage() {
       width: "100px",
       sortable: true,
       render: (row) => (
-        <Link href={`/backoffice/users/${row.id}`} className="font-mono text-blue-600 hover:underline">
+        <Link href={`/crm/users/${row.id}`} className="font-mono text-blue-600 hover:underline">
           {row.uid}
         </Link>
       ),

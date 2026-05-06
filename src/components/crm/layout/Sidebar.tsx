@@ -28,10 +28,14 @@ import {
   UserCog,
   Puzzle,
   Monitor,
+  SlidersHorizontal,
+  Building,
   type LucideIcon,
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
+import { useDepartmentStore } from "@/store/crm/departmentStore";
+import { mockStaff } from "@/lib/backoffice/mock-staff";
 import type { PermissionModule } from "@/types/backoffice/role";
 import { BrandConfig } from "@/lib/brand";
 
@@ -55,37 +59,37 @@ interface MenuGroup {
 // 应用子页面配置
 const APP_SUB_PAGES: Record<string, { label: string; href: string }[]> = {
   ai_signals: [
-    { label: "Signal List", href: "/backoffice/ai-signals" },
-    { label: "Usage Control", href: "/backoffice/ai-signals/usage" },
-    { label: "Signal Pool", href: "/backoffice/ai-signals/pool" },
+    { label: "Signal List", href: "/crm/ai-signals" },
+    { label: "Usage Control", href: "/crm/ai-signals/usage" },
+    { label: "Signal Pool", href: "/crm/ai-signals/pool" },
   ],
   copy_trading: [
-    { label: "Traders", href: "/backoffice/copy-trading/traders" },
-    { label: "Followers", href: "/backoffice/copy-trading/followers" },
-    { label: "Settings", href: "/backoffice/copy-trading/settings" },
-    { label: "Profit Sharing", href: "/backoffice/copy-trading/profits" },
+    { label: "Traders", href: "/crm/copy-trading/traders" },
+    { label: "Followers", href: "/crm/copy-trading/followers" },
+    { label: "Settings", href: "/crm/copy-trading/settings" },
+    { label: "Profit Sharing", href: "/crm/copy-trading/profits" },
   ],
   ib_referral: [
-    { label: "IB List", href: "/backoffice/ib" },
-    { label: "Referral Tree", href: "/backoffice/ib/tree" },
-    { label: "Commission Records", href: "/backoffice/ib/commissions" },
-    { label: "Commission Settings", href: "/backoffice/ib/settings" },
+    { label: "IB List", href: "/crm/ib" },
+    { label: "Referral Tree", href: "/crm/ib/tree" },
+    { label: "Commission Records", href: "/crm/ib/commissions" },
+    { label: "Commission Settings", href: "/crm/ib/settings" },
   ],
   advanced_reports: [
-    { label: "Financial Reports", href: "/backoffice/reports/financial" },
-    { label: "Trading Reports", href: "/backoffice/reports/trading" },
-    { label: "User Reports", href: "/backoffice/reports/users" },
+    { label: "Financial Reports", href: "/crm/reports/financial" },
+    { label: "Trading Reports", href: "/crm/reports/trading" },
+    { label: "User Reports", href: "/crm/reports/users" },
   ],
   risk_enhanced: [
-    { label: "Risk Dashboard", href: "/backoffice/risk" },
-    { label: "Risk Rules", href: "/backoffice/risk/rules" },
-    { label: "Margin Alerts", href: "/backoffice/risk/margin" },
-    { label: "NBP Protection", href: "/backoffice/risk/nbp" },
+    { label: "Risk Dashboard", href: "/crm/risk" },
+    { label: "Risk Rules", href: "/crm/risk/rules" },
+    { label: "Margin Alerts", href: "/crm/risk/margin" },
+    { label: "NBP Protection", href: "/crm/risk/nbp" },
   ],
   multi_terminal: [
-    { label: "MT Accounts", href: "/backoffice/accounts" },
-    { label: "Account Groups", href: "/backoffice/accounts/groups" },
-    { label: "Leverage Settings", href: "/backoffice/accounts/leverage" },
+    { label: "MT Accounts", href: "/crm/accounts" },
+    { label: "Account Groups", href: "/crm/accounts/groups" },
+    { label: "Leverage Settings", href: "/crm/accounts/leverage" },
   ],
 };
 
@@ -96,9 +100,9 @@ const menuGroups: MenuGroup[] = [
     icon: LayoutDashboard,
     permission: "dashboard",
     items: [
-      { label: "Overview", href: "/backoffice", icon: LayoutDashboard, permission: "dashboard" },
-      { label: "Real-time Monitor", href: "/backoffice/monitor", icon: TrendingUp, permission: "dashboard" },
-      { label: "Conversion Funnel", href: "/backoffice/funnel", icon: BarChart3, permission: "dashboard" },
+      { label: "Overview", href: "/crm", icon: LayoutDashboard, permission: "dashboard" },
+      { label: "Real-time Monitor", href: "/crm/monitor", icon: TrendingUp, permission: "dashboard" },
+      { label: "Conversion Funnel", href: "/crm/funnel", icon: BarChart3, permission: "dashboard" },
     ],
   },
   {
@@ -106,9 +110,9 @@ const menuGroups: MenuGroup[] = [
     icon: Users,
     permission: "accounts",
     items: [
-      { label: "User List", href: "/backoffice/users", icon: Users, permission: "accounts" },
-      { label: "User Tags", href: "/backoffice/users/tags", icon: Users, permission: "accounts" },
-      { label: "User Levels", href: "/backoffice/users/levels", icon: Users, permission: "accounts" },
+      { label: "User List", href: "/crm/users", icon: Users, permission: "accounts" },
+      { label: "User Tags", href: "/crm/users/tags", icon: Users, permission: "accounts" },
+      { label: "User Levels", href: "/crm/users/levels", icon: Users, permission: "accounts" },
     ],
   },
   {
@@ -116,11 +120,11 @@ const menuGroups: MenuGroup[] = [
     icon: ShieldCheck,
     permission: "compliance",
     items: [
-      { label: "KYC Review", href: "/backoffice/compliance/kyc-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Supplemental KYC", href: "/backoffice/compliance/supplemental-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Risk Control", href: "/backoffice/compliance/risk", icon: AlertTriangle, permission: "compliance" },
-      { label: "Blacklist", href: "/backoffice/compliance/blacklist", icon: ShieldCheck, permission: "compliance" },
-      { label: "Audit Logs", href: "/backoffice/compliance/audit", icon: ShieldCheck, permission: "compliance" },
+      { label: "KYC Review", href: "/crm/compliance/kyc-review", icon: ShieldCheck, permission: "compliance" },
+      { label: "Supplemental KYC", href: "/crm/compliance/supplemental-review", icon: ShieldCheck, permission: "compliance" },
+      { label: "Risk Control", href: "/crm/compliance/risk", icon: AlertTriangle, permission: "compliance" },
+      { label: "Blacklist", href: "/crm/compliance/blacklist", icon: ShieldCheck, permission: "compliance" },
+      { label: "Audit Logs", href: "/crm/compliance/audit", icon: ShieldCheck, permission: "compliance" },
     ],
   },
   {
@@ -128,9 +132,9 @@ const menuGroups: MenuGroup[] = [
     icon: Briefcase,
     permission: "accounts",
     items: [
-      { label: "MT Accounts", href: "/backoffice/accounts", icon: Briefcase, permission: "accounts" },
-      { label: "Account Groups", href: "/backoffice/accounts/groups", icon: Briefcase, permission: "accounts" },
-      { label: "Leverage Settings", href: "/backoffice/accounts/leverage", icon: Briefcase, permission: "accounts" },
+      { label: "MT Accounts", href: "/crm/accounts", icon: Briefcase, permission: "accounts" },
+      { label: "Account Groups", href: "/crm/accounts/groups", icon: Briefcase, permission: "accounts" },
+      { label: "Leverage Settings", href: "/crm/accounts/leverage", icon: Briefcase, permission: "accounts" },
     ],
   },
   {
@@ -138,10 +142,10 @@ const menuGroups: MenuGroup[] = [
     icon: Wallet,
     permission: "funds",
     items: [
-      { label: "Deposit Orders", href: "/backoffice/funds/deposits", icon: Wallet, permission: "funds" },
-      { label: "Withdrawal Requests", href: "/backoffice/funds/withdrawal-review", icon: Wallet, permission: "funds" },
-      { label: "Transactions", href: "/backoffice/funds/transactions", icon: Wallet, permission: "funds" },
-      { label: "Payment Channels", href: "/backoffice/funds/channels", icon: Wallet, permission: "funds" },
+      { label: "Deposit Orders", href: "/crm/funds/deposits", icon: Wallet, permission: "funds" },
+      { label: "Withdrawal Requests", href: "/crm/funds/withdrawal-review", icon: Wallet, permission: "funds" },
+      { label: "Transactions", href: "/crm/funds/transactions", icon: Wallet, permission: "funds" },
+      { label: "Payment Channels", href: "/crm/funds/channels", icon: Wallet, permission: "funds" },
     ],
   },
   {
@@ -149,10 +153,10 @@ const menuGroups: MenuGroup[] = [
     icon: TrendingUp,
     permission: "trading",
     items: [
-      { label: "Orders", href: "/backoffice/trading/orders", icon: TrendingUp, permission: "trading" },
-      { label: "Positions", href: "/backoffice/trading/positions", icon: TrendingUp, permission: "trading" },
-      { label: "Instruments", href: "/backoffice/trading/instruments", icon: TrendingUp, permission: "trading" },
-      { label: "Trading Settings", href: "/backoffice/trading/settings", icon: TrendingUp, permission: "trading" },
+      { label: "Orders", href: "/crm/trading/orders", icon: TrendingUp, permission: "trading" },
+      { label: "Positions", href: "/crm/trading/positions", icon: TrendingUp, permission: "trading" },
+      { label: "Instruments", href: "/crm/trading/instruments", icon: TrendingUp, permission: "trading" },
+      { label: "Trading Settings", href: "/crm/trading/settings", icon: TrendingUp, permission: "trading" },
     ],
   },
 
@@ -161,10 +165,10 @@ const menuGroups: MenuGroup[] = [
     icon: AlertTriangle,
     permission: "risk",
     items: [
-      { label: "Risk Dashboard", href: "/backoffice/risk", icon: AlertTriangle, permission: "risk" },
-      { label: "Risk Rules", href: "/backoffice/risk/rules", icon: AlertTriangle, permission: "risk" },
-      { label: "Margin Alerts", href: "/backoffice/risk/margin", icon: AlertTriangle, permission: "risk" },
-      { label: "NBP Protection", href: "/backoffice/risk/nbp", icon: AlertTriangle, permission: "risk" },
+      { label: "Risk Dashboard", href: "/crm/risk", icon: AlertTriangle, permission: "risk" },
+      { label: "Risk Rules", href: "/crm/risk/rules", icon: AlertTriangle, permission: "risk" },
+      { label: "Margin Alerts", href: "/crm/risk/margin", icon: AlertTriangle, permission: "risk" },
+      { label: "NBP Protection", href: "/crm/risk/nbp", icon: AlertTriangle, permission: "risk" },
     ],
   },
   {
@@ -172,9 +176,9 @@ const menuGroups: MenuGroup[] = [
     icon: Headphones,
     permission: "accounts",
     items: [
-      { label: "Tickets", href: "/backoffice/crm/tickets", icon: Headphones, permission: "accounts" },
-      { label: "Interaction Logs", href: "/backoffice/crm/logs", icon: Headphones, permission: "accounts" },
-      { label: "Feedback", href: "/backoffice/crm/feedback", icon: Headphones, permission: "accounts" },
+      { label: "Tickets", href: "/crm/crm/tickets", icon: Headphones, permission: "accounts" },
+      { label: "Interaction Logs", href: "/crm/crm/logs", icon: Headphones, permission: "accounts" },
+      { label: "Feedback", href: "/crm/crm/feedback", icon: Headphones, permission: "accounts" },
     ],
   },
   {
@@ -182,10 +186,10 @@ const menuGroups: MenuGroup[] = [
     icon: Megaphone,
     permission: "marketing",
     items: [
-      { label: "Campaigns", href: "/backoffice/marketing/campaigns", icon: Megaphone, permission: "marketing" },
-      { label: "Messages", href: "/backoffice/marketing/messages", icon: Megaphone, permission: "marketing" },
-      { label: "Banner Management", href: "/backoffice/marketing/banners", icon: Megaphone, permission: "marketing" },
-      { label: "News / Insights", href: "/backoffice/marketing/news", icon: Megaphone, permission: "marketing" },
+      { label: "Campaigns", href: "/crm/marketing/campaigns", icon: Megaphone, permission: "marketing" },
+      { label: "Messages", href: "/crm/marketing/messages", icon: Megaphone, permission: "marketing" },
+      { label: "Banner Management", href: "/crm/marketing/banners", icon: Megaphone, permission: "marketing" },
+      { label: "News / Insights", href: "/crm/marketing/news", icon: Megaphone, permission: "marketing" },
     ],
   },
   {
@@ -193,9 +197,17 @@ const menuGroups: MenuGroup[] = [
     icon: BarChart3,
     permission: "reports",
     items: [
-      { label: "Financial Reports", href: "/backoffice/reports/financial", icon: BarChart3, permission: "reports" },
-      { label: "Trading Reports", href: "/backoffice/reports/trading", icon: BarChart3, permission: "reports" },
-      { label: "User Reports", href: "/backoffice/reports/users", icon: BarChart3, permission: "reports" },
+      { label: "Financial Reports", href: "/crm/reports/financial", icon: BarChart3, permission: "reports" },
+      { label: "Trading Reports", href: "/crm/reports/trading", icon: BarChart3, permission: "reports" },
+      { label: "User Reports", href: "/crm/reports/users", icon: BarChart3, permission: "reports" },
+    ],
+  },
+  {
+    group: "Business Config",
+    icon: SlidersHorizontal,
+    permission: "system",
+    items: [
+      { label: "Dashboard", href: "/crm/business-config", icon: SlidersHorizontal, permission: "system" },
     ],
   },
   {
@@ -203,13 +215,12 @@ const menuGroups: MenuGroup[] = [
     icon: Settings,
     permission: "system",
     items: [
-      { label: "Roles & Permissions", href: "/backoffice/system/roles", icon: Settings, permission: "system" },
-      { label: "Staff Management", href: "/backoffice/system/staff", icon: UserCog, permission: "system" },
-      { label: "Security Settings", href: "/backoffice/system/security", icon: Shield, permission: "system" },
-      { label: "KYC Config", href: "/backoffice/system/kyc-config", icon: Settings, permission: "system" },
-      { label: "Config Center", href: "/backoffice/system/config", icon: Settings, permission: "system" },
-      { label: "API Management", href: "/backoffice/system/api", icon: Settings, permission: "system" },
-      { label: "Operation Logs", href: "/backoffice/system/logs", icon: Settings, permission: "system" },
+      { label: "Roles & Permissions", href: "/crm/system/roles", icon: Settings, permission: "system" },
+      { label: "Staff Management", href: "/crm/system/staff", icon: UserCog, permission: "system" },
+      { label: "Departments", href: "/crm/system/departments", icon: Building, permission: "system" },
+      { label: "Security Settings", href: "/crm/system/security", icon: Shield, permission: "system" },
+      { label: "Operation Logs", href: "/crm/system/logs", icon: Settings, permission: "system" },
+      { label: "API Management", href: "/crm/system/api", icon: Settings, permission: "system" },
     ],
   },
   {
@@ -217,7 +228,7 @@ const menuGroups: MenuGroup[] = [
     icon: Puzzle,
     permission: "system",
     items: [
-      { label: "App Center", href: "/backoffice/apps", icon: Puzzle, permission: "system" },
+      { label: "App Center", href: "/crm/apps", icon: Puzzle, permission: "system" },
     ],
   },
 ];
@@ -472,8 +483,9 @@ interface SidebarProps {
 export function Sidebar({ brand, brandInitials }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useCrmSidebarStore();
-  const { hasPermission } = useAuthStore();
-  const [expandedGroup, setExpandedGroup] = useState<string | null>("Dashboard");
+  const { hasPermission, user } = useAuthStore();
+  const { departments, fetchDepartments } = useDepartmentStore();
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [installedApps, setInstalledApps] = useState<string[]>([]);
 
@@ -491,7 +503,8 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
         setInstalledApps(data.installedApps || []);
       })
       .catch(() => {});
-  }, []);
+    fetchDepartments();
+  }, [fetchDepartments]);
 
   const APP_ICON_MAP: Record<string, LucideIcon> = {
     copy_trading: Copy,
@@ -503,12 +516,12 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
   };
 
   const APP_ROUTE_MAP: Record<string, string> = {
-    copy_trading: "/backoffice/copy-trading/traders",
-    ai_signals: "/backoffice/ai-signals",
-    ib_referral: "/backoffice/ib",
-    advanced_reports: "/backoffice/reports/financial",
-    risk_enhanced: "/backoffice/risk",
-    multi_terminal: "/backoffice/accounts",
+    copy_trading: "/crm/copy-trading/traders",
+    ai_signals: "/crm/ai-signals",
+    ib_referral: "/crm/ib",
+    advanced_reports: "/crm/reports/financial",
+    risk_enhanced: "/crm/risk",
+    multi_terminal: "/crm/accounts",
   };
 
   const APP_LABEL_MAP: Record<string, string> = {
@@ -520,12 +533,35 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
     multi_terminal: "Multi Terminal",
   };
 
-  // Filter menu groups based on permissions and installed apps
+  // Filter menu groups based on permissions, installed apps, and department module access
   const filteredMenuGroups = useMemo(() => {
+    // Get current user's department module access (union of all departments)
+    let allowedModules: string[] | null = null;
+    if (user?.email) {
+      const staffMember = mockStaff.find((s) => s.email === user.email);
+      if (staffMember?.departmentIds && staffMember.departmentIds.length > 0) {
+        const userModules = new Set<string>();
+        for (const deptId of staffMember.departmentIds) {
+          const dept = departments.find((d) => d.id === deptId || d.name === deptId);
+          if (dept) {
+            dept.moduleAccess.forEach((m) => userModules.add(m));
+          }
+        }
+        if (userModules.size > 0) {
+          allowedModules = Array.from(userModules);
+        }
+      }
+    }
+
     const groups = menuGroups
       .map((group) => {
         // Hide groups that require an app not installed
         if (group.appId && !installedApps.includes(group.appId)) {
+          return null;
+        }
+
+        // Filter by department module access
+        if (allowedModules && !allowedModules.includes(group.group as any)) {
           return null;
         }
 
@@ -588,21 +624,25 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
     // 精确匹配
     if (pathname === href) return true;
     // 子路径匹配：href 必须以 "/" 结尾，或者 pathname 在 href 后紧跟 "/"
-    // 避免 /backoffice 匹配 /backoffice/xxx，但允许 /backoffice/accounts 匹配 /backoffice/accounts/groups
-    if (href === "/backoffice") {
-      // /backoffice 只精确匹配首页，不匹配子路径
-      return pathname === "/backoffice";
+    // 避免 /crm 匹配 /crm/xxx，但允许 /crm/accounts 匹配 /crm/accounts/groups
+    if (href === "/crm") {
+      // /crm 只精确匹配首页，不匹配子路径
+      return pathname === "/crm";
     }
     return pathname.startsWith(href + "/");
   };
 
-  // 根据当前路径自动展开对应的分组
-  const currentGroup = filteredMenuGroups.find((g) => g.items.some((item) => isActive(item.href)));
-
-  // 初始化展开状态
-  if (currentGroup && expandedGroup !== currentGroup.group) {
-    // 静默更新，不要触发重新渲染
-  }
+  // 根据当前路径自动展开对应的分组（仅在 pathname 变化时执行）
+  useEffect(() => {
+    const currentGroup = filteredMenuGroups.find((g) =>
+      g.items.some((item) => isActive(item.href) ||
+        (item.children?.some(child => pathname === child.href))
+      )
+    );
+    if (currentGroup) {
+      setExpandedGroup(currentGroup.group);
+    }
+  }, [pathname, filteredMenuGroups]);
 
   return (
     <>
@@ -624,7 +664,7 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
       >
         {/* Logo + Collapse Button - 使用租户品牌配置 */}
         <div className="h-[64px] flex items-center border-b border-slate-100/80 relative px-3">
-          <Link href="/backoffice" className="flex items-center gap-2.5 flex-1 min-w-0">
+          <Link href="/crm" className="flex items-center gap-2.5 flex-1 min-w-0">
             {brandLogo ? (
               <img
                 src={brandLogo}

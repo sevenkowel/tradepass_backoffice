@@ -25,7 +25,7 @@ const tools = [
     icon: Globe,
     platforms: ["全平台"],
     action: "打开",
-    href: "/portal/trading/web",
+    href: "/portal/accounts/web",
     color: "bg-violet-500",
     bgColor: "bg-violet-50",
   },
@@ -54,7 +54,7 @@ export function ToolsDownload() {
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-900">交易工具</h3>
           <Link
-            href="/portal/trading"
+            href="/portal/accounts"
             className="text-sm text-slate-500 hover:text-slate-900 flex items-center gap-0.5 transition-colors"
           >
             更多工具

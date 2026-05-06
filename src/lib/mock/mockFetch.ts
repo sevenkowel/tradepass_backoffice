@@ -18,12 +18,20 @@ class MockResponse {
     return this.data;
   }
 
+  async text() {
+    return typeof this.data === 'string' ? this.data : JSON.stringify(this.data);
+  }
+
   get ok() {
     return this.statusCode >= 200 && this.statusCode < 300;
   }
 
   get status() {
     return this.statusCode;
+  }
+
+  get statusText() {
+    return this.statusCode === 200 ? 'OK' : this.statusCode === 404 ? 'Not Found' : 'Error';
   }
 }
 
@@ -190,13 +198,33 @@ const routes: Record<string, RouteHandler> = {
       return new MockResponse({ error: '子域名已被使用' }, 409);
     }
     
+    const slug = (subdomain || generateId('slug')).toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const newTenant: MockTenant = {
       id: generateId('tenant'),
       name,
+      slug,
       subdomain,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       status: 'trial',
       ownerId: mockDB.getCurrentUser()?.id || '',
+      region: 'VN',
+      plan: 'starter',
+      settings: {
+        kycLevel: 'standard',
+        features: ['portal', 'crm'],
+      },
+      onboardingCompleted: false,
+      onboardingStatus: 'not_started',
+      onboardingPhases: {
+        branding: false,
+        auth: false,
+        kyc: false,
+        payments: false,
+        trading: false,
+        accounts: false,
+      },
+      onboardingTasks: [],
     };
     
     mockDB.insert('tenants', newTenant);
@@ -428,6 +456,32 @@ const routes: Record<string, RouteHandler> = {
         lastLoginAt: u.lastLoginAt,
       }))
     });
+  },
+  // GET /api/crm/users - CRM 用户列表
+  'GET /api/crm/users': async () => {
+    const users = mockDB.getCollection<MockUser>('users') || [];
+    const items = users.map((u, i) => ({
+      id: u.id,
+      uid: `USR${String(i + 1).padStart(3, "0")}`,
+      name: u.name,
+      email: u.email,
+      phone: (u as any).phone || "+86 138****0000",
+      status: u.status === "suspended" ? "frozen" : (u.status || "active"),
+      kycStatus: u.kycStatus || "not_submitted",
+      level: "standard",
+      balance: Math.floor(Math.random() * 100000),
+      equity: Math.floor(Math.random() * 100000),
+      createdAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt || u.createdAt,
+      tags: [],
+      country: "CN",
+    }));
+    return new MockResponse({ success: true, items, total: items.length });
+  },
+
+  // GET /api/tenant/apps
+  'GET /api/tenant/apps': async () => {
+    return new MockResponse({ installedApps: ["copy_trading", "ai_signals", "ib_referral"] });
   },
 };
 

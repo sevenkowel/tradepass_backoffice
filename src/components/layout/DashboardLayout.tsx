@@ -12,6 +12,7 @@ import {
   X,
   LucideIcon,
   ExternalLink,
+  ArrowLeft,
 } from "lucide-react";
 
 export interface NavItem {
@@ -27,6 +28,7 @@ interface DashboardLayoutProps {
   sidebarBg?: string; // e.g. "bg-slate-900"
   redirectTo?: string;
   portalUrl?: string; // 租户官网入口 URL
+  consoleUrl?: string; // 返回控制台 URL
 }
 
 export default function DashboardLayout({
@@ -36,8 +38,10 @@ export default function DashboardLayout({
   sidebarBg = "bg-slate-900",
   redirectTo,
   portalUrl,
+  consoleUrl,
 }: DashboardLayoutProps) {
-  const { user, loading } = useUser({ redirectTo });
+  // Demo 模式：禁用认证检查
+  const { user, loading } = useUser({ redirectTo: undefined });
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -88,6 +92,15 @@ export default function DashboardLayout({
       </nav>
 
       <div className="p-4 border-t border-white/10">
+        {consoleUrl && (
+          <Link
+            href={consoleUrl}
+            className="flex items-center gap-3 px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors w-full mb-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            返回控制台
+          </Link>
+        )}
         {portalUrl && (
           <a
             href={portalUrl}
@@ -100,7 +113,7 @@ export default function DashboardLayout({
           </a>
         )}
         <div className="px-4 py-2 text-sm text-slate-300 truncate">
-          {user?.email}
+          {user?.email || "Demo User"}
         </div>
         <button
           onClick={async () => {
@@ -172,7 +185,7 @@ export default function DashboardLayout({
             </h1>
           </div>
           <div className="text-sm text-slate-500 truncate hidden sm:block">
-            {user?.name || user?.email}
+            {user?.name || user?.email || "Demo User"}
           </div>
         </header>
         <div className="flex-1 p-4 lg:p-8 overflow-auto">{children}</div>

@@ -36,6 +36,7 @@ interface StaffState {
   updateStaff: (id: string, data: UpdateStaffRequest) => Promise<Staff | null>;
   deleteStaff: (id: string) => Promise<boolean>;
   resetPassword: (id: string) => Promise<string | null>;
+  reset2fa: (id: string) => Promise<boolean>;
   toggleStaffStatus: (id: string) => Promise<boolean>;
   setCurrentStaff: (staff: Staff | null) => void;
 
@@ -71,7 +72,6 @@ export const useStaffStore = create<StaffState>((set, get) => ({
           const keyword = filter.keyword.toLowerCase();
           filteredStaff = filteredStaff.filter(
             (s) =>
-              s.username.toLowerCase().includes(keyword) ||
               s.fullName.toLowerCase().includes(keyword) ||
               s.email.toLowerCase().includes(keyword)
           );
@@ -86,7 +86,7 @@ export const useStaffStore = create<StaffState>((set, get) => ({
         }
 
         if (filter.department) {
-          filteredStaff = filteredStaff.filter((s) => s.department === filter.department);
+          filteredStaff = filteredStaff.filter((s) => s.departmentIds?.includes(filter.department as string));
         }
       }
 
@@ -194,6 +194,32 @@ export const useStaffStore = create<StaffState>((set, get) => ({
       const tempPassword = Math.random().toString(36).slice(-8);
 
       return tempPassword;
+    } finally {
+      set({ isSubmitting: false });
+    }
+  },
+
+  // Reset 2FA
+  reset2fa: async (id) => {
+    set({ isSubmitting: true });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const staff = mockStaff.find((s) => s.id === id);
+      if (!staff) return false;
+
+      staff.twoFactorEnabled = false;
+      staff.twoFactorSecret = undefined;
+
+      // Update currentStaff if viewing the same user
+      const state = get();
+      if (state.currentStaff?.id === id) {
+        state.currentStaff.twoFactorEnabled = false;
+        state.currentStaff.twoFactorSecret = undefined;
+        set({ currentStaff: { ...state.currentStaff } });
+      }
+
+      return true;
     } finally {
       set({ isSubmitting: false });
     }

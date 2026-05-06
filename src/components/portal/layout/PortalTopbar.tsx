@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, Moon, Sun, Monitor, ChevronDown, X } from "lucide-react";
+import { Bell, Search, Moon, Sun, Monitor, ChevronDown, X, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "@/components/ui/ThemeProvider";
 import { useState } from "react";
@@ -51,6 +52,15 @@ export function PortalTopbar({ breadcrumbs, tenantName }: PortalTopbarProps) {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        {/* Back to Console */}
+        <Link
+          href="/console"
+          className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-[var(--tp-surface)] text-[var(--tp-muted)] hover:text-[var(--tp-fg)] transition-colors border border-transparent hover:border-[var(--tp-border)] text-sm"
+        >
+          <ArrowLeft size={16} />
+          <span>返回控制台</span>
+        </Link>
+
         {/* Theme Toggle */}
         <div className="relative">
           <button

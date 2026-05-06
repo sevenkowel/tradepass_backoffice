@@ -10,6 +10,7 @@ import {
   UserCheck,
   UserX,
   Shield,
+  ShieldOff,
   Clock,
   MapPin,
   Monitor,
@@ -39,6 +40,7 @@ import {
 import { StaffForm } from "@/components/crm/staff/StaffForm";
 import { useStaffStore } from "@/store/crm/staffStore";
 import { useRoleStore } from "@/store/crm/roleStore";
+import { useDepartmentStore } from "@/store/crm/departmentStore";
 import type { Staff, StaffLoginLog, StaffStatus } from "@/types/backoffice/staff";
 
 export default function StaffDetailPage() {
@@ -54,14 +56,17 @@ export default function StaffDetailPage() {
     fetchStaffById,
     fetchLoginLogs,
     resetPassword,
+    reset2fa,
     toggleStaffStatus,
     setCurrentStaff,
   } = useStaffStore();
 
   const { roles, fetchRoles } = useRoleStore();
+  const { departments: deptList, fetchDepartments } = useDepartmentStore();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [isReset2faDialogOpen, setIsReset2faDialogOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -70,7 +75,8 @@ export default function StaffDetailPage() {
     fetchStaffById(staffId);
     fetchLoginLogs({ staffId });
     fetchRoles();
-  }, [staffId, fetchStaffById, fetchLoginLogs, fetchRoles]);
+    fetchDepartments();
+  }, [staffId, fetchStaffById, fetchLoginLogs, fetchRoles, fetchDepartments]);
 
   // Handle edit
   const handleEdit = () => {
@@ -96,6 +102,30 @@ export default function StaffDetailPage() {
       if (password) {
         setTempPassword(password);
         setIsResetPasswordDialogOpen(true);
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle reset 2FA
+  const handleReset2faClick = () => {
+    if (!currentStaff) return;
+    setIsReset2faDialogOpen(true);
+  };
+
+  const handleConfirmReset2fa = async () => {
+    if (!currentStaff) return;
+    setIsReset2faDialogOpen(false);
+    setIsProcessing(true);
+    try {
+      const success = await reset2fa(currentStaff.id);
+      if (success) {
+        toast({
+          title: "2FA 已重置",
+          description: `员工 "${currentStaff.fullName}" 的双重验证已清除`,
+        });
+        fetchStaffById(staffId);
       }
     } finally {
       setIsProcessing(false);
@@ -261,6 +291,12 @@ export default function StaffDetailPage() {
               <Key className="w-4 h-4" />
               重置密码
             </Button>
+            {currentStaff.twoFactorEnabled && (
+              <Button variant="secondary" onClick={handleReset2faClick} disabled={isProcessing}>
+                <ShieldOff className="w-4 h-4" />
+                重置 2FA
+              </Button>
+            )}
             <Button
               variant={currentStaff.status === "active" ? "danger" : "primary"}
               onClick={handleToggleStatus}
@@ -286,14 +322,21 @@ export default function StaffDetailPage() {
       <Card className="!p-6">
         <div className="flex items-start gap-6">
           <img
-            src={currentStaff.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStaff.username}`}
+            src={currentStaff.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentStaff.email}`}
             alt={currentStaff.fullName}
             className="w-24 h-24 rounded-2xl bg-slate-100"
           />
           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
-              <p className="text-sm text-slate-500">用户名</p>
-              <p className="font-mono text-slate-900 dark:text-white">{currentStaff.username}</p>
+              <p className="text-sm text-slate-500">昵称</p>
+              <p className="text-slate-900 dark:text-white">{currentStaff.nickname || "-"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">性别</p>
+              <p className="text-slate-900 dark:text-white">{
+                currentStaff.gender === "male" ? "男" :
+                currentStaff.gender === "female" ? "女" : "保密"
+              }</p>
             </div>
             <div>
               <p className="text-sm text-slate-500">角色</p>
@@ -301,7 +344,24 @@ export default function StaffDetailPage() {
             </div>
             <div>
               <p className="text-sm text-slate-500">部门</p>
-              <p className="text-slate-900 dark:text-white">{currentStaff.department || "-"}</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {(currentStaff.departmentIds || []).length > 0 ? (
+                  currentStaff.departmentIds.map((deptId: string) => {
+                    const dept = deptList?.find((d: { id: string }) => d.id === deptId);
+                    const isPrimary = deptId === currentStaff.primaryDepartment;
+                    return (
+                      <span key={deptId} className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full ${
+                        isPrimary ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-600"
+                      }`}>
+                        {dept?.name || deptId}
+                        {isPrimary && <span className="ml-0.5 text-[10px]">默认</span>}
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-slate-400">-</span>
+                )}
+              </div>
             </div>
             <div>
               <p className="text-sm text-slate-500">状态</p>
@@ -391,6 +451,38 @@ export default function StaffDetailPage() {
           <div className="flex justify-end gap-3 mt-4">
             <Button variant="secondary" onClick={() => setIsResetPasswordDialogOpen(false)}>
               关闭
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset 2FA Confirm Dialog */}
+      <Dialog open={isReset2faDialogOpen} onOpenChange={setIsReset2faDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <ShieldOff className="w-5 h-5" />
+              重置双重验证
+            </DialogTitle>
+            <DialogDescription className="pt-4">
+              <p className="text-sm text-slate-600">
+                确认重置 <strong>&quot;{currentStaff?.fullName}&quot;</strong> 的双重验证？
+              </p>
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                <p>此操作将：</p>
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>清除当前 2FA 绑定</li>
+                  <li>员工下次登录需重新绑定 2FA</li>
+                </ul>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="secondary" onClick={() => setIsReset2faDialogOpen(false)}>
+              取消
+            </Button>
+            <Button variant="danger" onClick={handleConfirmReset2fa}>
+              确认重置
             </Button>
           </div>
         </DialogContent>

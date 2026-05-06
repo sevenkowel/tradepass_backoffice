@@ -1,18 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useMemo } from "react";
 import { Sidebar, TopBar } from "@/components/crm/layout";
-import { useAuthStore } from "@/store/crm";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { ToastContextProvider } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { TenantValidator } from "./TenantValidator";
-import { useBrand, BrandConfig } from "@/lib/brand";
+import { useBrand } from "@/lib/brand";
 
+// Demo 模式：跳过认证检查
 function BackofficeContent({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
   const { sidebarCollapsed } = useCrmSidebarStore();
   const brand = useBrand();
 
@@ -25,20 +22,6 @@ function BackofficeContent({ children }: { children: React.ReactNode }) {
       .slice(0, 2)
       .toUpperCase();
   }, [brand.brandName]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/crm/login");
-    }
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-      </div>
-    );
-  }
 
   return (
     <ToastContextProvider>
@@ -64,16 +47,8 @@ export default function BackofficeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
-        </div>
-      }
-    >
-      <TenantValidator>
-        <BackofficeContent>{children}</BackofficeContent>
-      </TenantValidator>
-    </Suspense>
+    <TenantValidator>
+      <BackofficeContent>{children}</BackofficeContent>
+    </TenantValidator>
   );
 }

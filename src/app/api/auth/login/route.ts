@@ -50,8 +50,10 @@ export async function POST(req: NextRequest) {
 // Mock 模式登录处理
 async function handleMockLogin(
   req: NextRequest,
-  { email }: { email?: string }
+  { email, password }: { email?: string; password?: string }
 ) {
+  // 忽略 password 参数，Mock 模式下无需验证密码
+  void password;
   // 动态导入避免服务端加载
   const { mockDB } = await import('@/lib/mock');
   
@@ -99,7 +101,7 @@ async function handleMockLogin(
   });
 
   if (user.tenantId) {
-    setSecureCookie(res, "portal_tenant", user.tenantId, {
+    setSecureCookie(res, "portal_tenant", String(user.tenantId), {
       maxAge: 24 * 60 * 60,
     });
   }

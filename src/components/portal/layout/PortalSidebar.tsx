@@ -30,6 +30,7 @@ import {
   Landmark,
   HelpCircle,
   Gift,
+  Bell,
 } from "lucide-react";
 import { usePortalStore } from "@/store/portalStore";
 import { clsx, type ClassValue } from "clsx";
@@ -64,15 +65,26 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    href: "/portal/trading",
-    icon: BarChart3,
-    label: "Trading",
+    href: "/portal/markets",
+    icon: TrendingUp,
+    label: "Markets",
     children: [
-      { href: "/portal/trading/accounts", icon: Briefcase, label: "Accounts" },
-      { href: "/portal/trading/positions", icon: TrendingUp, label: "Positions" },
-      { href: "/portal/trading/orders", icon: TrendingUp, label: "Orders" },
-      { href: "/portal/trading/history", icon: History, label: "History" },
-      { href: "/portal/trading/mt5", icon: Briefcase, label: "MT5 Access" },
+      { href: "/portal/markets", icon: BarChart3, label: "Quotes" },
+      { href: "/portal/markets/signals", icon: Sparkles, label: "AI Signals" },
+      { href: "/portal/markets/alerts", icon: Bell, label: "Price Alerts" },
+    ],
+  },
+  {
+    href: "/portal/accounts",
+    icon: Briefcase,
+    label: "Accounts",
+    children: [
+      { href: "/portal/accounts", icon: Briefcase, label: "Dashboard" },
+      { href: "/portal/accounts/accounts", icon: Briefcase, label: "My Accounts" },
+      { href: "/portal/accounts/positions", icon: TrendingUp, label: "Positions" },
+      { href: "/portal/accounts/orders", icon: TrendingUp, label: "Orders" },
+      { href: "/portal/accounts/history", icon: History, label: "History" },
+      { href: "/portal/accounts/mt5", icon: Briefcase, label: "MT5 Access" },
     ],
   },
   {

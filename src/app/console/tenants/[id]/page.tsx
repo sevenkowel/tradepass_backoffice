@@ -99,14 +99,10 @@ export default function TenantDetailPage() {
     );
   }
 
-  // 构建业务系统链接
-  const baseUrl = typeof window !== "undefined" ? window.location.protocol + "//" : "http://";
-  const host = typeof window !== "undefined" ? window.location.host : "localhost:3002";
-  const mainDomain = host.replace(/^[^.]+\./, "");
-
-  const websiteUrl = `${baseUrl}${tenant.subdomain}.${mainDomain}`;
-  const portalUrl = `${baseUrl}portal.${tenant.subdomain}.${mainDomain}`;
-  const crmUrl = `${baseUrl}crm.${tenant.subdomain}.${mainDomain}/crm`;
+  // 构建业务系统链接（纯路径路由格式）
+  const brokerUrl = `/broker?t=${tenant.id}`;
+  const portalUrl = `/portal?t=${tenant.id}`;
+  const crmUrl = `/crm?t=${tenant.id}`;
 
   return (
     <div className="space-y-6 w-full">
@@ -151,33 +147,27 @@ export default function TenantDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <a
-              href={websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={brokerUrl}
               className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 transition-all group"
             >
-              <span className="text-sm font-medium">租户官网</span>
+              <span className="text-sm font-medium">Broker 交易端</span>
               <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-            </a>
-            <a
+            </Link>
+            <Link
               href={portalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 transition-all group"
             >
-              <span className="text-sm font-medium">Portal 门户</span>
+              <span className="text-sm font-medium">Portal 用户门户</span>
               <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-            </a>
-            <a
+            </Link>
+            <Link
               href={crmUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 transition-all group"
             >
-              <span className="text-sm font-medium">CRM 后台</span>
+              <span className="text-sm font-medium">CRM 运营后台</span>
               <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
-            </a>
+            </Link>
           </CardContent>
         </Card>
 

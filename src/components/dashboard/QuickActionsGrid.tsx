@@ -50,7 +50,7 @@ const quickActions: QuickAction[] = [
     id: "trade",
     icon: BarChart3,
     label: "交易",
-    href: "/portal/trading/accounts",
+    href: "/portal/accounts/accounts",
     color: "text-amber-600",
     bgColor: "bg-amber-50",
   },

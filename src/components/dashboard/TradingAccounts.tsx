@@ -88,13 +88,13 @@ function AccountMenu({ accountId, isOpen, onClose, triggerRef }: AccountMenuProp
 
   const menuItems: Array<{ icon: LucideIcon; label: string; href: string; color: string; danger?: boolean } | { divider: true }> = [
     { icon: ArrowLeftRight, label: "账户间转账", href: `/portal/wallet/transfer?from=${accountId}`, color: "text-slate-700" },
-    { icon: Settings, label: "调整杠杆", href: `/portal/trading/accounts/${accountId}/leverage`, color: "text-slate-700" },
-    { icon: Key, label: "交易密码", href: `/portal/trading/accounts/${accountId}/password`, color: "text-slate-700" },
-    { icon: Eye, label: "只读密码", href: `/portal/trading/accounts/${accountId}/readonly`, color: "text-slate-700" },
-    { icon: FileText, label: "查看详情", href: `/portal/trading/accounts/${accountId}`, color: "text-slate-700" },
+    { icon: Settings, label: "调整杠杆", href: `/portal/accounts/accounts/${accountId}/leverage`, color: "text-slate-700" },
+    { icon: Key, label: "交易密码", href: `/portal/accounts/accounts/${accountId}/password`, color: "text-slate-700" },
+    { icon: Eye, label: "只读密码", href: `/portal/accounts/accounts/${accountId}/readonly`, color: "text-slate-700" },
+    { icon: FileText, label: "查看详情", href: `/portal/accounts/accounts/${accountId}`, color: "text-slate-700" },
     { divider: true },
-    { icon: Archive, label: "存档账户", href: `/portal/trading/accounts/${accountId}/archive`, color: "text-slate-500" },
-    { icon: Trash2, label: "删除账户", href: `/portal/trading/accounts/${accountId}/delete`, color: "text-red-600", danger: true },
+    { icon: Archive, label: "存档账户", href: `/portal/accounts/accounts/${accountId}/archive`, color: "text-slate-500" },
+    { icon: Trash2, label: "删除账户", href: `/portal/accounts/accounts/${accountId}/delete`, color: "text-red-600", danger: true },
   ];
 
   return (
@@ -209,7 +209,7 @@ export function TradingAccounts({ user }: TradingAccountsProps) {
             <p className="text-slate-600 font-medium mb-2">还没有交易账户</p>
             <p className="text-sm text-slate-400 mb-4">创建账户后即可开始交易</p>
             <Link
-              href="/portal/trading/open-account"
+              href="/portal/accounts/open-account"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-xl hover:bg-slate-800 transition-colors"
             >
               <Plus size={16} />
@@ -273,7 +273,7 @@ export function TradingAccounts({ user }: TradingAccountsProps) {
               </div>
             )}
             <Link
-              href="/portal/trading/open-account"
+              href="/portal/accounts/open-account"
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
             >
               <Plus size={16} />
@@ -369,7 +369,7 @@ export function TradingAccounts({ user }: TradingAccountsProps) {
                       出金
                     </Link>
                     <Link
-                      href="/portal/trading"
+                      href="/portal/accounts"
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors"
                     >
                       <ExternalLink size={14} />

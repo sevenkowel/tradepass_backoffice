@@ -21,20 +21,44 @@ interface Metrics {
   }[];
 }
 
+// Demo 默认数据
+const DEFAULT_METRICS: Metrics = {
+  users: { total: 0, active: 0 },
+  tenants: { total: 0, trial: 0 },
+  licenses: { total: 0, active: 0 },
+  invoices: { total: 0, paid: 0, revenue: 0 },
+  recentUsers: [],
+  recentTenants: [],
+};
+
 export default function AdminDashboard() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [metrics, setMetrics] = useState<Metrics>(DEFAULT_METRICS);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/backoffice/metrics")
       .then((r) => r.json())
       .then((data) => {
-        setMetrics(data);
-        setLoading(false);
-      });
+        // 合并默认数据，防止 undefined
+        setMetrics({
+          ...DEFAULT_METRICS,
+          ...data,
+          users: { ...DEFAULT_METRICS.users, ...data.users },
+          tenants: { ...DEFAULT_METRICS.tenants, ...data.tenants },
+          licenses: { ...DEFAULT_METRICS.licenses, ...data.licenses },
+          invoices: { ...DEFAULT_METRICS.invoices, ...data.invoices },
+          recentUsers: data.recentUsers || [],
+          recentTenants: data.recentTenants || [],
+        });
+      })
+      .catch(() => {
+        // API 失败时使用默认数据
+        setMetrics(DEFAULT_METRICS);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading || !metrics) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-slate-400 mr-2" />

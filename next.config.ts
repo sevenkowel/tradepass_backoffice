@@ -3,6 +3,31 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   distDir: ".next",
+
+  // 性能优化
+  experimental: {
+    // 启用 Turbopack (Next.js 15+)
+    turbo: {
+      rules: {
+        "*.svg": {
+          loaders: ["@svgr/webpack"],
+          as: "*.js",
+        },
+      },
+    },
+    // 优化包体积
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@radix-ui/react-icons",
+    ],
+  },
+
+  // 构建缓存优化
+  generateBuildId: async () => {
+    return "build-" + Date.now();
+  },
+
   images: {
     remotePatterns: [
       {
@@ -12,6 +37,36 @@ const nextConfig: NextConfig = {
     ],
   },
   poweredByHeader: false,
+
+  // 编译优化
+  compiler: {
+    // 移除 console 和 debugger (生产环境)
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error"] } : false,
+  },
+
+  // 模块打包优化
+  webpack: (config, { dev, isServer }) => {
+    // 开发环境优化
+    if (dev) {
+      // 减少 source map 生成范围
+      config.devtool = "eval-cheap-module-source-map";
+
+      // 优化文件监听
+      config.watchOptions = {
+        ...config.watchOptions,
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: [
+          "**/node_modules/**",
+          "**/.next/**",
+          "**/tests/**",
+          "**/docs/**",
+        ],
+      };
+    }
+
+    return config;
+  },
   async headers() {
     return [
       {
@@ -28,18 +83,17 @@ const nextConfig: NextConfig = {
       // Phase 6: Legacy Route Redirects to Subdomains
       // ============================================
 
-      // Broker → Tenant Website (subdomain)
-      // /broker/* → tenant.localhost:3002/*
-      {
-        source: "/broker",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/broker/:path*",
-        destination: "/:path*",
-        permanent: true,
-      },
+      // Demo 模式：注释掉 broker 重定向，允许直接访问 /broker
+      // {
+      //   source: "/broker",
+      //   destination: "/",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/broker/:path*",
+      //   destination: "/:path*",
+      //   permanent: true,
+      // },
 
       // Old redirects (keep for compatibility)
       { source: "/admin", destination: "/backoffice", permanent: true },

@@ -47,15 +47,14 @@ export function enableMockMode(): void {
           // 记录当前用户角色，方便前端做自动跳转
           document.cookie = `mock_user_role=${user.role}; path=/`;
           document.cookie = `onboarding_completed=${user.role === 'tenant_owner' ? 'false' : 'true'}; path=/`;
-          // 菜单展开状态
-          setIsExpanded(false);
           // 根据角色跳转
-          const rolePath = {
+          const rolePathMap: Record<string, string> = {
             'platform_admin': '/backoffice',
             'tenant_owner': '/console',
             'tenant_admin': '/crm',
             'user': '/portal',
-          }[user.role] || '/';
+          };
+          const rolePath = rolePathMap[user.role as string] || '/';
           window.location.href = rolePath;
         } else {
           console.warn(`[MockTools] User not found: ${email}`);

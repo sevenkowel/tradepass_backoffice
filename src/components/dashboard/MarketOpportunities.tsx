@@ -98,7 +98,7 @@ export function MarketOpportunities() {
                 查看详情
               </Link>
               <Link
-                href="/portal/trading"
+                href="/portal/accounts"
                 className="flex-1 text-center px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded hover:bg-gray-800"
               >
                 立即交易

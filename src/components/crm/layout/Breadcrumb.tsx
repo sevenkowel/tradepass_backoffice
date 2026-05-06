@@ -24,7 +24,7 @@ export function Breadcrumb({ items = [], className }: BreadcrumbProps) {
   return (
     <nav className={cn("flex items-center gap-1 text-sm", className)}>
       <Link
-        href="/backoffice"
+        href="/crm"
         className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
       >
         <Home className="w-4 h-4" />
@@ -58,8 +58,8 @@ function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
     const segment = segments[i];
     currentPath += `/${segment}`;
 
-    // Skip 'backoffice' in path display
-    if (segment === "backoffice") continue;
+    // Skip 'backoffice' or 'crm' in path display
+    if (segment === "backoffice" || segment === "crm") continue;
 
     // Format segment label
     const label = segment

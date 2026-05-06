@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/auth";
+import { mockDB } from "@/lib/mock/mockDB";
 
 /**
  * GET /api/console/tenants/:id
- * 获取租户详情（包含订阅、成员统计）
+ * 获取租户详情（纯前端 Mock 模式）
  */
 export async function GET(
   req: NextRequest,
@@ -13,116 +12,51 @@ export async function GET(
   try {
     const { id: tenantId } = await params;
 
-    // 验证用户身份
-    const token = req.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = verifyToken(token);
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-    });
-
-    if (!user || user.status !== "active") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 验证用户是否有权访问该租户
-    const membership = await prisma.tenantMember.findUnique({
-      where: {
-        tenantId_userId: {
-          tenantId,
-          userId: user.id,
-        },
-      },
-    });
-
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: tenantId },
-    });
+    // 从 MockDB 获取租户
+    const tenant = mockDB.findById('tenants', tenantId);
 
     if (!tenant) {
       return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
     }
 
-    // 检查权限：成员或所有者
-    if (!membership && tenant.ownerId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // 获取租户配置
-    const tenantConfig = await prisma.tenantConfig.findUnique({
-      where: { tenantId },
-    });
-
-    let brand = {
-      brandName: tenant.brandName || tenant.name,
-      logoUrl: tenant.logoUrl,
+    // 构建品牌配置
+    const brand = {
+      brandName: tenant.name,
+      logoUrl: tenant.logo || null,
       primaryColor: tenant.primaryColor || "#1a73e8",
     };
 
-    if (tenantConfig?.brand) {
-      try {
-        const brandConfig = JSON.parse(tenantConfig.brand);
-        brand = {
-          brandName: brandConfig.brandName || brand.brandName,
-          logoUrl: brandConfig.logoUrl || brand.logoUrl,
-          primaryColor: brandConfig.primaryColor || brand.primaryColor,
-        };
-      } catch {
-        // use default
-      }
-    }
+    // 获取订阅 (License)
+    const licenses = mockDB.find('licenses', (l: any) => l.tenantId === tenantId);
 
-    // 获取订阅信息 (License)
-    const licenses = await prisma.license.findMany({
-      where: { tenantId },
-      orderBy: { issuedAt: "desc" },
-    });
-
-    // 获取产品信息
-    const productCodes = [...new Set(licenses.map((l) => l.productCode))];
-    const products = await prisma.product.findMany({
-      where: { code: { in: productCodes } },
-      select: { code: true, name: true },
-    });
-    const productMap = new Map(products.map((p) => [p.code, p.name]));
-
-    // 获取成员统计
-    const memberCount = await prisma.tenantMember.count({
-      where: { tenantId },
-    });
-
-    // 获取当前激活的 Business 订阅
-    const businessLicense = licenses.find(
-      (s) => s.productCode === "trade_pass_business" && s.status === "active"
-    );
+    // 获取成员统计（从 users 集合中统计）
+    const users = mockDB.find('users', (u: any) => u.tenantId === tenantId);
+    const memberCount = users.length;
 
     return NextResponse.json({
       success: true,
       tenant: {
         id: tenant.id,
         name: tenant.name,
-        slug: tenant.slug,
-        subdomain: tenant.subdomain,
+        slug: tenant.subdomain || tenant.id,
+        subdomain: tenant.subdomain || tenant.id,
         status: tenant.status,
-        plan: businessLicense ? "business" : null,
+        plan: (tenant as any).subscription?.plan || "trial",
         createdAt: tenant.createdAt,
         brand,
         stats: {
           members: memberCount,
           subscriptions: licenses.length,
         },
-        subscriptions: licenses.map((s) => ({
+        subscriptions: licenses.map((s: any) => ({
           id: s.id,
-          productCode: s.productCode,
-          productName: productMap.get(s.productCode) || s.productCode,
-          plan: "default", // License 没有 plan 字段，使用默认值
+          productCode: s.type === 'MT4' ? 'mt4_license' : s.type === 'MT5' ? 'mt5_license' : 'ctrader_license',
+          productName: `${s.type} License`,
+          plan: "default",
           status: s.status,
-          startsAt: s.issuedAt,
+          startsAt: s.createdAt,
           endsAt: s.expiresAt,
-          autoRenew: false, // License 没有 autoRenew 字段
+          autoRenew: false,
         })),
       },
     });

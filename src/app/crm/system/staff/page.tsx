@@ -37,8 +37,8 @@ import {
 import { StaffForm } from "@/components/crm/staff/StaffForm";
 import { useStaffStore } from "@/store/crm/staffStore";
 import { useRoleStore } from "@/store/crm/roleStore";
+import { useDepartmentStore } from "@/store/crm/departmentStore";
 import type { Staff, StaffStatus } from "@/types/backoffice/staff";
-import { departments } from "@/lib/backoffice/mock-staff";
 
 export default function StaffPage() {
   const { toast } = useToast();
@@ -54,6 +54,7 @@ export default function StaffPage() {
   } = useStaffStore();
 
   const { roles, fetchRoles } = useRoleStore();
+  const { departments: allDepartments, fetchDepartments } = useDepartmentStore();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -66,7 +67,8 @@ export default function StaffPage() {
   useEffect(() => {
     fetchStaff();
     fetchRoles();
-  }, [fetchStaff, fetchRoles]);
+    fetchDepartments();
+  }, [fetchStaff, fetchRoles, fetchDepartments]);
 
   // Handle create
   const handleCreate = () => {
@@ -179,24 +181,28 @@ export default function StaffPage() {
       render: (row) => (
         <div className="flex items-center gap-3">
           <img
-            src={row.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.username}`}
+            src={row.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.email}`}
             alt={row.fullName}
             className="w-10 h-10 rounded-full bg-slate-100"
           />
           <div>
             <p className="font-medium text-slate-900 dark:text-white">{row.fullName}</p>
             <p className="text-xs text-slate-500">{row.email}</p>
+            {row.nickname && <p className="text-xs text-slate-400">昵称: {row.nickname}</p>}
           </div>
         </div>
       ),
     },
     {
-      key: "username",
-      title: "用户名",
-      width: "120px",
-      render: (row) => (
-        <span className="font-mono text-sm text-slate-600">{row.username}</span>
-      ),
+      key: "gender",
+      title: "性别",
+      width: "60px",
+      align: "center",
+      render: (row) => {
+        const labels: Record<string, string> = { male: "男", female: "女", secret: "-" };
+        const colors: Record<string, string> = { male: "text-blue-600", female: "text-pink-600", secret: "text-slate-300" };
+        return <span className={`text-sm ${colors[row.gender] || "text-slate-300"}`}>{labels[row.gender] || "-"}</span>;
+      },
     },
     {
       key: "roleName",
@@ -211,10 +217,26 @@ export default function StaffPage() {
     {
       key: "department",
       title: "部门",
-      width: "100px",
-      render: (row) => (
-        <span className="text-sm text-slate-600">{row.department || "-"}</span>
-      ),
+      width: "120px",
+      render: (row) => {
+        const depts = (row.departmentIds || []).map((id) => allDepartments.find(d => d.id === id)).filter(Boolean) as { name: string; id: string }[];
+        const primaryName = row.primaryDepartment
+          ? allDepartments.find(d => d.id === row.primaryDepartment)?.name
+          : null;
+        const additional = depts.filter((d) => d.id !== row.primaryDepartment);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm text-slate-600">
+              {primaryName || depts[0]?.name || "-"}
+            </span>
+            {additional.length > 0 && (
+              <span className="text-xs text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">
+                +{additional.length}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "status",
@@ -262,7 +284,7 @@ export default function StaffPage() {
       label: "查看详情",
       icon: <Eye className="w-4 h-4" />,
       onClick: (row) => {
-        window.location.href = `/backoffice/system/staff/${row.id}`;
+        window.location.href = `/crm/system/staff/${row.id}`;
       },
     },
     {
@@ -362,12 +384,12 @@ export default function StaffPage() {
             key: "department",
             label: "部门",
             type: "select",
-            options: [{ label: "全部", value: "" }, ...departments.map((d) => ({ label: d, value: d }))],
+            options: [{ label: "全部", value: "" }, ...allDepartments.filter(d => d.status === "active").map((d) => ({ label: d.name, value: d.id }))],
           },
         ]}
         searchable
-        searchKeys={["fullName", "username", "email"]}
-        searchPlaceholder="搜索姓名、用户名或邮箱..."
+        searchKeys={["fullName", "email"]}
+        searchPlaceholder="搜索姓名或邮箱..."
       />
 
       {/* Data Table */}

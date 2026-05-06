@@ -17,11 +17,22 @@ const initialData: MockDatabase = {
       logo: '/logos/demo-broker.png',
       primaryColor: '#2563eb',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       status: 'active',
       ownerId: 'tenant-owner-1',
+      region: 'VN',
+      plan: 'enterprise',
       subscription: {
         plan: 'professional',
         expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      settings: {
+        kycLevel: 'standard',
+        features: ['portal', 'crm', 'mt5'],
+        branding: {
+          logo: '/logos/demo-broker.png',
+          primaryColor: '#2563eb',
+        },
       },
     },
     {
@@ -30,10 +41,20 @@ const initialData: MockDatabase = {
       subdomain: 'acme',
       primaryColor: '#dc2626',
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       status: 'trial',
       ownerId: 'tenant-owner-2',
+      region: 'TH',
+      plan: 'starter',
+      settings: {
+        kycLevel: 'basic',
+        features: ['portal'],
+        branding: {
+          primaryColor: '#dc2626',
+        },
+      },
     },
-  ],
+  ] as any,
   users: [
     {
       id: 'platform-admin-1',
@@ -132,6 +153,7 @@ const initialData: MockDatabase = {
       completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
   ],
+  licenses: [] as any,
   tradingAccounts: [
     {
       id: 'acc-1',

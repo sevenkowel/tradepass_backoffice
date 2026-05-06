@@ -69,7 +69,7 @@ export default function StaffLogsPage() {
       title: "操作人",
       width: "120px",
       render: (row) => (
-        <Link href={`/backoffice/system/staff/${row.staffId}`} className="text-sm font-medium text-blue-600 hover:underline">
+        <Link href={`/crm/system/staff/${row.staffId}`} className="text-sm font-medium text-blue-600 hover:underline">
           {row.staffName}
         </Link>
       ),

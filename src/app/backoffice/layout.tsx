@@ -29,7 +29,7 @@ export default function AdminLayout({
       navItems={navItems}
       title="Admin"
       sidebarBg="bg-slate-950"
-      redirectTo="/auth/login"
+      consoleUrl="/console"
     >
       {children}
     </DashboardLayout>

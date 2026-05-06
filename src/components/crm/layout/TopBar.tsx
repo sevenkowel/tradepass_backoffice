@@ -18,6 +18,7 @@ import {
   Sun,
   Monitor,
   Menu,
+  ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +48,7 @@ export function TopBar({ brand, brandInitials }: TopBarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/backoffice/search?q=${encodeURIComponent(searchQuery)}`);
+      router.push(`/crm/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchOpen(false);
       setSearchQuery("");
     }
@@ -55,7 +56,7 @@ export function TopBar({ brand, brandInitials }: TopBarProps) {
 
   const handleLogout = () => {
     logout();
-    router.push("/backoffice/login");
+    router.push("/crm/login");
   };
 
   // Ctrl+K 快捷键聚焦搜索框
@@ -129,7 +130,14 @@ export function TopBar({ brand, brandInitials }: TopBarProps) {
 
       {/* Right Section */}
       <div className="flex items-center gap-2">
-
+        {/* Back to Console */}
+        <Link
+          href="/console"
+          className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>返回控制台</span>
+        </Link>
 
         {/* Notifications */}
         <div className="relative">
@@ -182,7 +190,7 @@ export function TopBar({ brand, brandInitials }: TopBarProps) {
                   ))}
                 </div>
                 <Link
-                  href="/backoffice/notifications"
+                  href="/crm/notifications"
                   className="block px-4 py-3 text-center text-sm text-blue-600 hover:bg-blue-50 font-medium"
                 >
                   View All Notifications
@@ -225,14 +233,14 @@ export function TopBar({ brand, brandInitials }: TopBarProps) {
                 </div>
                 <div className="py-1">
                   <Link
-                    href="/backoffice/profile"
+                    href="/crm/profile"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <User className="w-4 h-4" />
                     Profile
                   </Link>
                   <Link
-                    href="/backoffice/settings"
+                    href="/crm/settings"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <Settings className="w-4 h-4" />

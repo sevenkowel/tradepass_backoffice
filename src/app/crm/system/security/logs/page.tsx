@@ -120,7 +120,7 @@ export default function SecurityLogsPage() {
       render: (row) =>
         row.staffName ? (
           <Link
-            href={`/backoffice/system/staff/${row.staffId}`}
+            href={`/crm/system/staff/${row.staffId}`}
             className="text-sm font-medium text-blue-600 hover:underline"
           >
             {row.staffName}
