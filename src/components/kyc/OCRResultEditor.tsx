@@ -99,10 +99,8 @@ export function OCRResultEditor({
   const handleConfirm = () => {
     const confirmData: Record<string, string> = {};
     fieldConfigs.forEach((config) => {
-      const value = editedData[config.key];
-      if (value) {
-        confirmData[config.key] = value;
-      }
+      // 传递所有字段（包括空字符串），让后端做必填校验
+      confirmData[config.key] = editedData[config.key] ?? "";
     });
     onConfirm(confirmData as Partial<OCRResult>, editedFields);
   };

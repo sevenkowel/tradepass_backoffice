@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * 悬浮开发工具箱 - 简化调试版本
+ * 悬浮开发工具箱 - 支持拖拽
  */
 
-import { useState } from "react";
-import { Wrench, X, Eye, ShieldCheck, Wallet, UserPlus, Megaphone } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Wrench, X, Eye, ShieldCheck, Wallet, UserPlus, Megaphone, GripVertical } from "lucide-react";
 import { PerspectiveSwitcher } from "./PerspectiveSwitcher";
 import { KYCDevPanel } from "./KYCDevPanel";
 import { AccountCountSwitcher } from "./AccountCountSwitcher";
@@ -15,6 +15,40 @@ import { BannerDevPanel } from "./BannerDevPanel";
 export function FloatingDevToolbox() {
   const [open, setOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const dragRef = useRef({ isDragging: false, startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!dragRef.current.isDragging) return;
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      setPos({
+        x: dragRef.current.initialX + dx,
+        y: dragRef.current.initialY + dy,
+      });
+    };
+    const handleUp = () => {
+      dragRef.current.isDragging = false;
+    };
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
+
+  const startDrag = (e: React.MouseEvent) => {
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: pos.x,
+      initialY: pos.y,
+    };
+  };
 
   const tools = [
     { id: "perspective", name: "用户视角", icon: Eye, component: PerspectiveSwitcher },
@@ -28,10 +62,11 @@ export function FloatingDevToolbox() {
 
   return (
     <div
-      className="fixed z-[9999]"
+      ref={containerRef}
+      className="fixed z-[9999] select-none"
       style={{ 
-        right: "20px", 
-        bottom: "84px",
+        right: `${20 - pos.x}px`, 
+        bottom: `${84 - pos.y}px`,
       }}
     >
       {!open ? (
@@ -44,11 +79,17 @@ export function FloatingDevToolbox() {
         </button>
       ) : (
         <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-72">
-          {/* 头部 */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <span className="text-sm font-medium text-gray-900">
-              {activeTool ? tools.find(t => t.id === activeTool)?.name : "开发工具箱"}
-            </span>
+          {/* 头部 - 可拖拽 */}
+          <div 
+            className="flex items-center justify-between px-4 py-3 border-b border-gray-100 cursor-grab active:cursor-grabbing"
+            onMouseDown={startDrag}
+          >
+            <div className="flex items-center gap-2">
+              <GripVertical size={16} className="text-gray-400" />
+              <span className="text-sm font-medium text-gray-900">
+                {activeTool ? tools.find(t => t.id === activeTool)?.name : "开发工具箱"}
+              </span>
+            </div>
             <button onClick={() => { setOpen(false); setActiveTool(null); }}>
               <X size={16} className="text-gray-500" />
             </button>
