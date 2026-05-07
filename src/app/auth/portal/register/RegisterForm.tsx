@@ -139,6 +139,11 @@ function EmailVerifySection({
           )}
         </>
       )}
+
+      {/* 仅绑定模式说明 */}
+      {!needVerify && (
+        <p className="text-xs text-gray-400">用于接收账户通知和交易提醒</p>
+      )}
     </div>
   );
 }
@@ -246,6 +251,11 @@ function PhoneVerifySection({
             <p className="text-xs text-gray-500">{phoneField.hint}</p>
           )}
         </>
+      )}
+
+      {/* 仅绑定模式说明 */}
+      {!needVerify && (
+        <p className="text-xs text-gray-400">用于接收账户通知和交易提醒</p>
       )}
     </div>
   );

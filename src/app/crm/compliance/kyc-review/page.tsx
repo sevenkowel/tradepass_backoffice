@@ -514,7 +514,16 @@ export default function KYCReviewPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const fetchRecords = useCallback(async () => {
+    // Cancel previous request to prevent race conditions
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -522,16 +531,21 @@ export default function KYCReviewPage() {
       if (filterRisk !== "all") params.append("risk", filterRisk);
       if (searchQuery) params.append("search", searchQuery);
 
-      const res = await fetch(`/api/crm/kyc/review?${params}`);
+      const res = await fetch(`/api/crm/kyc/review?${params}`, {
+        signal: controller.signal,
+      });
       const data = await res.json();
       if (data.success) {
         setRecords(data.items);
         setStats(data.stats);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       showToast("error", "获取数据失败，请稍后重试");
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) {
+        setLoading(false);
+      }
     }
   }, [filterStatus, filterRisk, searchQuery]);
 
