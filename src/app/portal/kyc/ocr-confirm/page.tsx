@@ -7,7 +7,7 @@ import { ArrowLeft, AlertCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { OCRResultEditor } from "@/components/kyc/OCRResultEditor";
 import { useKYCStore } from "@/lib/kyc/store";
-import { useOCRValidation } from "@/lib/kyc/hooks/useOCRValidation";
+import { devFetch } from "@/lib/kyc/dev-fetch";
 import type { OCRResult, DocumentType } from "@/lib/kyc/types";
 
 // 验证错误类型
@@ -55,8 +55,8 @@ export default function OCRCConfirmPage() {
     setValidationErrors([]);
 
     try {
-      // 调用确认 API
-      const response = await fetch("/api/kyc/ocr/confirm", {
+      // 调用确认 API（使用 devFetch 以兼容 mock 拦截器）
+      const response = await devFetch("/api/kyc/ocr/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,8 +71,10 @@ export default function OCRCConfirmPage() {
 
       if (!result.success) {
         // 验证失败
-        if (result.errors) {
+        if (result.errors && result.errors.length > 0) {
           setValidationErrors(result.errors);
+        } else {
+          setValidationErrors([{ field: "global", message: result.message || result.error || "确认失败，请重试" }]);
         }
         return;
       }
