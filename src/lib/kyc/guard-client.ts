@@ -23,26 +23,24 @@ export function useKYCGuard(targetStep: number): GuardResult {
   const [allowed, setAllowed] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
-  const { kycData, regionCode } = useKYCStore();
+  const { kycData, regionCode, hasHydrated } = useKYCStore();
 
   useEffect(() => {
-    // 延迟检查，等待 Zustand persist 从 localStorage 恢复完成
-    const timer = setTimeout(() => {
-      const result = checkStepPermission(targetStep, regionCode, kycData);
-      if (!result.allowed) {
-        if (result.missingStep === 0) setRedirectTo("/portal/kyc");
-        else if (result.missingStep === 1) setRedirectTo("/portal/kyc/document");
-        else if (result.missingStep === 2) setRedirectTo("/portal/kyc/liveness");
-        else if (result.missingStep === 3) setRedirectTo("/portal/kyc/personal-info");
-        setAllowed(false);
-      } else {
-        setAllowed(true);
-      }
-      setChecking(false);
-    }, 100);
+    // 等待 Zustand persist 从 localStorage 恢复完成
+    if (!hasHydrated) return;
 
-    return () => clearTimeout(timer);
-  }, [targetStep, kycData, regionCode]);
+    const result = checkStepPermission(targetStep, regionCode, kycData);
+    if (!result.allowed) {
+      if (result.missingStep === 0) setRedirectTo("/portal/kyc");
+      else if (result.missingStep === 1) setRedirectTo("/portal/kyc/document");
+      else if (result.missingStep === 2) setRedirectTo("/portal/kyc/liveness");
+      else if (result.missingStep === 3) setRedirectTo("/portal/kyc/personal-info");
+      setAllowed(false);
+    } else {
+      setAllowed(true);
+    }
+    setChecking(false);
+  }, [targetStep, kycData, regionCode, hasHydrated]);
 
   // 如果检测到不允许，执行重定向
   useEffect(() => {
