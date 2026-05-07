@@ -189,6 +189,8 @@ export default function AgreementsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const {
     setAgreementSignatures,
     setStatus,
@@ -206,8 +208,6 @@ export default function AgreementsPage() {
       </div>
     );
   }
-
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (signatures: { agreementId: string; signature: string }[]) => {
     setIsSubmitting(true);
