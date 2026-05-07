@@ -46,7 +46,7 @@ function validateOTP(_target: string, code: string): boolean {
   return code === today;
 }
 
-type OTPChannel = "sms" | "whatsapp" | "voice";
+export type OTPChannel = "sms" | "whatsapp" | "voice";
 
 const CHANNEL_CONFIG: Record<OTPChannel, { label: string; desc: string }> = {
   sms: { label: "短信", desc: "通过短信接收验证码" },
@@ -54,7 +54,7 @@ const CHANNEL_CONFIG: Record<OTPChannel, { label: string; desc: string }> = {
   voice: { label: "语音电话", desc: "通过语音电话接收验证码" },
 };
 
-interface OTPField {
+export interface OTPField {
   type: "email" | "phone";
   target: string;
   verified: boolean;
@@ -63,6 +63,208 @@ interface OTPField {
   sending: boolean;
   countdown: number;
   channel: OTPChannel;
+}
+
+// ===== 邮箱验证区域（独立组件，避免重渲染丢失焦点） =====
+function EmailVerifySection({
+  emailValue,
+  emailField,
+  onEmailChange,
+  onSendOTP,
+  onUpdateOTP,
+  onComplete,
+}: {
+  emailValue: string;
+  emailField: OTPField;
+  onEmailChange: (v: string) => void;
+  onSendOTP: () => void;
+  onUpdateOTP: (updates: Partial<OTPField>) => void;
+  onComplete: (code: string) => void;
+}) {
+  if (emailField.verified) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-emerald-600">
+        <CheckCircle2 className="w-4 h-4" />
+        <span>邮箱已验证</span>
+      </div>
+    );
+  }
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
+
+  return (
+    <div className="space-y-4">
+      {/* Step 1: 邮箱输入 */}
+      <div>
+        <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
+        <div className="mt-1.5">
+          <EmailInput value={emailValue} onChange={onEmailChange} placeholder="your@email.com" className="h-11" />
+        </div>
+      </div>
+
+      {/* Step 2: 发送按钮（有效邮箱后才高亮） */}
+      {emailValid && !emailField.hint && (
+        <Button
+          type="button"
+          onClick={onSendOTP}
+          disabled={emailField.sending}
+          className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
+        >
+          {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
+        </Button>
+      )}
+
+      {/* 视觉隔离：发送后展开区域 */}
+      {emailField.hint && (
+        <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
+          <div className="text-sm text-gray-600">
+            验证码已发送至 <span className="font-medium text-gray-900">{emailValue}</span>
+          </div>
+
+          <OTPInput
+            value={emailField.code}
+            onChange={(code) => onUpdateOTP({ code })}
+            onComplete={(code) => onComplete(code)}
+            autoFocus
+          />
+
+          <div className="flex items-center justify-between text-sm">
+            {emailField.countdown > 0 ? (
+              <span className="text-gray-400">{emailField.countdown}s 后可重新发送</span>
+            ) : (
+              <button
+                type="button"
+                onClick={onSendOTP}
+                disabled={emailField.sending}
+                className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                重新发送
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== 手机验证区域（独立组件，避免重渲染丢失焦点） =====
+function PhoneVerifySection({
+  phoneValue,
+  phoneField,
+  region,
+  onPhoneChange,
+  onSendOTP,
+  onUpdateOTP,
+  onComplete,
+}: {
+  phoneValue: string;
+  phoneField: OTPField;
+  region: RegionConfig;
+  onPhoneChange: (v: string) => void;
+  onSendOTP: () => void;
+  onUpdateOTP: (updates: Partial<OTPField>) => void;
+  onComplete: (code: string) => void;
+}) {
+  if (phoneField.verified) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-emerald-600">
+        <CheckCircle2 className="w-4 h-4" />
+        <span>手机已验证</span>
+      </div>
+    );
+  }
+
+  const availableChannels = region.otpMethods as OTPChannel[];
+  const canSend = phoneValue.length >= 7;
+
+  return (
+    <div className="space-y-4">
+      {/* Step 1: 手机号输入 */}
+      <div>
+        <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
+        <div className="mt-1.5">
+          <PhoneInput value={phoneValue} onChange={onPhoneChange} defaultCountry={region.code} className="h-11" />
+        </div>
+      </div>
+
+      {/* Step 2: 验证码接收方式（单选框） */}
+      {canSend && availableChannels.length > 0 && !phoneField.hint && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">接收验证码方式</label>
+          <div className="space-y-1.5">
+            {availableChannels.map((ch) => {
+              const cfg = CHANNEL_CONFIG[ch];
+              const active = phoneField.channel === ch;
+              return (
+                <label
+                  key={ch}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    active ? "border-primary bg-primary/5" : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="phone-otp-channel"
+                    checked={active}
+                    onChange={() => onUpdateOTP({ channel: ch })}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <span className={`text-sm ${active ? "text-primary font-medium" : "text-gray-700"}`}>{cfg.label}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{cfg.desc}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: 发送按钮 */}
+      {canSend && !phoneField.hint && (
+        <Button
+          type="button"
+          onClick={onSendOTP}
+          disabled={phoneField.sending}
+          className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
+        >
+          {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
+        </Button>
+      )}
+
+      {/* 视觉隔离：发送后展开区域 */}
+      {phoneField.hint && (
+        <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
+          <div className="text-sm text-gray-600">
+            验证码已通过 <span className="font-medium">{CHANNEL_CONFIG[phoneField.channel].label}</span> 发送至 <span className="font-medium text-gray-900">{phoneValue}</span>
+          </div>
+
+          <OTPInput
+            value={phoneField.code}
+            onChange={(code) => onUpdateOTP({ code })}
+            onComplete={(code) => onComplete(code)}
+            autoFocus
+          />
+
+          <div className="flex items-center justify-between text-sm">
+            {phoneField.countdown > 0 ? (
+              <span className="text-gray-400">{phoneField.countdown}s 后可重新发送</span>
+            ) : (
+              <button
+                type="button"
+                onClick={onSendOTP}
+                disabled={phoneField.sending}
+                className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                重新发送
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function RegisterForm() {
@@ -280,178 +482,6 @@ export default function RegisterForm() {
 
   const policy = config?.passwordPolicy || { minLength: 8, requireUppercase: true, requireLowercase: true, requireNumber: true, requireSpecial: true };
 
-  // ===== 邮箱验证区域（内联展开 + 视觉隔离） =====
-  const EmailVerifySection = () => {
-    if (emailField.verified) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-emerald-600">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>邮箱已验证</span>
-        </div>
-      );
-    }
-
-    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
-
-    return (
-      <div className="space-y-4">
-        {/* Step 1: 邮箱输入 */}
-        <div>
-          <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
-          <div className="mt-1.5">
-            <EmailInput value={emailValue} onChange={setEmailValue} placeholder="your@email.com" className="h-11" />
-          </div>
-        </div>
-
-        {/* Step 2: 发送按钮（有效邮箱后才高亮） */}
-        {emailValid && !emailField.hint && (
-          <Button
-            type="button"
-            onClick={() => sendOTP(emailValue, "email")}
-            disabled={emailField.sending}
-            className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
-          >
-            {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
-          </Button>
-        )}
-
-        {/* 视觉隔离：发送后展开区域 */}
-        {emailField.hint && (
-          <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
-            <div className="text-sm text-gray-600">
-              验证码已发送至 <span className="font-medium text-gray-900">{emailValue}</span>
-            </div>
-
-            <OTPInput
-              value={emailField.code}
-              onChange={(code) => updateOTPField(emailValue, { code })}
-              onComplete={(code) => handleOTPComplete(emailValue, code)}
-              autoFocus
-            />
-
-            <div className="flex items-center justify-between text-sm">
-              {emailField.countdown > 0 ? (
-                <span className="text-gray-400">{emailField.countdown}s 后可重新发送</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => sendOTP(emailValue, "email")}
-                  disabled={emailField.sending}
-                  className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  重新发送
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ===== 手机验证区域（内联展开 + 视觉隔离） =====
-  const PhoneVerifySection = () => {
-    if (phoneField.verified) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-emerald-600">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>手机已验证</span>
-        </div>
-      );
-    }
-
-    const availableChannels = region.otpMethods as OTPChannel[];
-    const canSend = phoneValue.length >= 7;
-
-    return (
-      <div className="space-y-4">
-        {/* Step 1: 手机号输入 */}
-        <div>
-          <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
-          <div className="mt-1.5">
-            <PhoneInput value={phoneValue} onChange={setPhoneValue} defaultCountry={region.code} className="h-11" />
-          </div>
-        </div>
-
-        {/* Step 2: 验证码接收方式（单选框） */}
-        {canSend && availableChannels.length > 0 && !phoneField.hint && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">接收验证码方式</label>
-            <div className="space-y-1.5">
-              {availableChannels.map((ch) => {
-                const cfg = CHANNEL_CONFIG[ch];
-                const active = phoneField.channel === ch;
-                return (
-                  <label
-                    key={ch}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                      active ? "border-primary bg-primary/5" : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="phone-otp-channel"
-                      checked={active}
-                      onChange={() => updateOTPField(phoneValue, { channel: ch })}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <span className={`text-sm ${active ? "text-primary font-medium" : "text-gray-700"}`}>{cfg.label}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{cfg.desc}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: 发送按钮 */}
-        {canSend && !phoneField.hint && (
-          <Button
-            type="button"
-            onClick={() => sendOTP(phoneValue, "phone", phoneField.channel)}
-            disabled={phoneField.sending}
-            className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
-          >
-            {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
-          </Button>
-        )}
-
-        {/* 视觉隔离：发送后展开区域 */}
-        {phoneField.hint && (
-          <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
-            <div className="text-sm text-gray-600">
-              验证码已通过 <span className="font-medium">{CHANNEL_CONFIG[phoneField.channel].label}</span> 发送至 <span className="font-medium text-gray-900">{phoneValue}</span>
-            </div>
-
-            <OTPInput
-              value={phoneField.code}
-              onChange={(code) => updateOTPField(phoneValue, { code })}
-              onComplete={(code) => handleOTPComplete(phoneValue, code)}
-              autoFocus
-            />
-
-            <div className="flex items-center justify-between text-sm">
-              {phoneField.countdown > 0 ? (
-                <span className="text-gray-400">{phoneField.countdown}s 后可重新发送</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => sendOTP(phoneValue, "phone", phoneField.channel)}
-                  disabled={phoneField.sending}
-                  className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  重新发送
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
       <Card className="w-full max-w-[460px] shadow-lg">
@@ -476,7 +506,14 @@ export default function RegisterForm() {
                   {modeFields.needEmailVerify ? "验证邮箱" : "电子邮箱"}
                 </span>
               </div>
-              <EmailVerifySection />
+              <EmailVerifySection
+                emailValue={emailValue}
+                emailField={emailField}
+                onEmailChange={setEmailValue}
+                onSendOTP={() => sendOTP(emailValue, "email")}
+                onUpdateOTP={(updates) => updateOTPField(emailValue, updates)}
+                onComplete={(code) => handleOTPComplete(emailValue, code)}
+              />
             </div>
           )}
 
@@ -488,7 +525,15 @@ export default function RegisterForm() {
                   {modeFields.needPhoneVerify ? "验证手机" : "手机号码"}
                 </span>
               </div>
-              <PhoneVerifySection />
+              <PhoneVerifySection
+                phoneValue={phoneValue}
+                phoneField={phoneField}
+                region={region}
+                onPhoneChange={setPhoneValue}
+                onSendOTP={() => sendOTP(phoneValue, "phone", phoneField.channel)}
+                onUpdateOTP={(updates) => updateOTPField(phoneValue, updates)}
+                onComplete={(code) => handleOTPComplete(phoneValue, code)}
+              />
             </div>
           )}
 
