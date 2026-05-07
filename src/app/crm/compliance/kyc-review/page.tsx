@@ -522,7 +522,7 @@ export default function KYCReviewPage() {
       if (filterRisk !== "all") params.append("risk", filterRisk);
       if (searchQuery) params.append("search", searchQuery);
 
-      const res = await fetch(`/api/backoffice/kyc/review?${params}`);
+      const res = await fetch(`/api/crm/kyc/review?${params}`);
       const data = await res.json();
       if (data.success) {
         setRecords(data.items);
@@ -545,7 +545,7 @@ export default function KYCReviewPage() {
   ) => {
     if (!selectedRecord) return;
     try {
-      const res = await fetch("/api/backoffice/kyc/review", {
+      const res = await fetch("/api/crm/kyc/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selectedRecord.id, action, reason }),

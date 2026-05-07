@@ -94,7 +94,7 @@ function EmailVerifySection({
 
   return (
     <div className="space-y-4">
-      {/* Step 1: 邮箱输入 */}
+      {/* 邮箱输入（常驻） */}
       <div>
         <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
         <div className="mt-1.5">
@@ -102,48 +102,31 @@ function EmailVerifySection({
         </div>
       </div>
 
-      {/* Step 2: 发送按钮（有效邮箱后才高亮） */}
-      {emailValid && !emailField.hint && (
-        <Button
-          type="button"
-          onClick={onSendOTP}
-          disabled={emailField.sending}
-          className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
-        >
-          {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
-        </Button>
-      )}
+      {/* 发送按钮（常驻，邮箱无效时禁用） */}
+      <Button
+        type="button"
+        onClick={onSendOTP}
+        disabled={emailField.sending || !emailValid}
+        className="w-full h-11 bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
+      >
+        {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重新发送验证码" : "发送验证码"}
+      </Button>
 
-      {/* 视觉隔离：发送后展开区域 */}
-      {emailField.hint && (
-        <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
-          <div className="text-sm text-gray-600">
-            验证码已发送至 <span className="font-medium text-gray-900">{emailValue}</span>
-          </div>
-
+      {/* 验证码输入（常驻） */}
+      <div>
+        <label className="text-sm font-medium text-gray-700">验证码</label>
+        <div className="mt-1.5">
           <OTPInput
             value={emailField.code}
             onChange={(code) => onUpdateOTP({ code })}
             onComplete={(code) => onComplete(code)}
-            autoFocus
           />
-
-          <div className="flex items-center justify-between text-sm">
-            {emailField.countdown > 0 ? (
-              <span className="text-gray-400">{emailField.countdown}s 后可重新发送</span>
-            ) : (
-              <button
-                type="button"
-                onClick={onSendOTP}
-                disabled={emailField.sending}
-                className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                重新发送
-              </button>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* 提示文字 */}
+      {emailField.hint && (
+        <p className="text-xs text-gray-500">{emailField.hint}</p>
       )}
     </div>
   );
@@ -181,7 +164,7 @@ function PhoneVerifySection({
 
   return (
     <div className="space-y-4">
-      {/* Step 1: 手机号输入 */}
+      {/* 手机号输入（常驻） */}
       <div>
         <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
         <div className="mt-1.5">
@@ -189,8 +172,8 @@ function PhoneVerifySection({
         </div>
       </div>
 
-      {/* Step 2: 验证码接收方式（单选框） */}
-      {canSend && availableChannels.length > 0 && !phoneField.hint && (
+      {/* 验证码接收方式（常驻） */}
+      {availableChannels.length > 0 && (
         <div className="space-y-2">
           <label className="text-sm font-medium text-gray-700">接收验证码方式</label>
           <div className="space-y-1.5">
@@ -220,48 +203,31 @@ function PhoneVerifySection({
         </div>
       )}
 
-      {/* Step 3: 发送按钮 */}
-      {canSend && !phoneField.hint && (
-        <Button
-          type="button"
-          onClick={onSendOTP}
-          disabled={phoneField.sending}
-          className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
-        >
-          {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
-        </Button>
-      )}
+      {/* 发送按钮（常驻，手机号无效时禁用） */}
+      <Button
+        type="button"
+        onClick={onSendOTP}
+        disabled={phoneField.sending || !canSend}
+        className="w-full h-11 bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
+      >
+        {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重新发送验证码" : "发送验证码"}
+      </Button>
 
-      {/* 视觉隔离：发送后展开区域 */}
-      {phoneField.hint && (
-        <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
-          <div className="text-sm text-gray-600">
-            验证码已通过 <span className="font-medium">{CHANNEL_CONFIG[phoneField.channel].label}</span> 发送至 <span className="font-medium text-gray-900">{phoneValue}</span>
-          </div>
-
+      {/* 验证码输入（常驻） */}
+      <div>
+        <label className="text-sm font-medium text-gray-700">验证码</label>
+        <div className="mt-1.5">
           <OTPInput
             value={phoneField.code}
             onChange={(code) => onUpdateOTP({ code })}
             onComplete={(code) => onComplete(code)}
-            autoFocus
           />
-
-          <div className="flex items-center justify-between text-sm">
-            {phoneField.countdown > 0 ? (
-              <span className="text-gray-400">{phoneField.countdown}s 后可重新发送</span>
-            ) : (
-              <button
-                type="button"
-                onClick={onSendOTP}
-                disabled={phoneField.sending}
-                className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                重新发送
-              </button>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* 提示文字 */}
+      {phoneField.hint && (
+        <p className="text-xs text-gray-500">{phoneField.hint}</p>
       )}
     </div>
   );
