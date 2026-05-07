@@ -26,7 +26,7 @@ export default function DocumentPage() {
   } = useKYCStore();
 
   // Step guard
-  const { allowed, checking } = useKYCGuard(1);
+  const { allowed, checking } = useKYCGuard("document");
 
   if (checking) {
     return (

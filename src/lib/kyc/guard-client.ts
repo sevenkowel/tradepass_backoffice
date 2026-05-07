@@ -8,7 +8,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKYCStore } from "./store";
-import { checkStepPermission } from "./guard";
+import { checkStepPermission, type StepName } from "./guard";
+
+const STEP_ROUTES: Record<StepName, string> = {
+  region: "/portal/kyc",
+  document: "/portal/kyc/document",
+  liveness: "/portal/kyc/liveness",
+  "address-proof": "/portal/kyc/address-proof",
+  experience: "/portal/kyc/experience",
+  agreement: "/portal/kyc/agreements",
+};
 
 interface GuardResult {
   allowed: boolean;
@@ -17,7 +26,7 @@ interface GuardResult {
 }
 
 /** 检查用户是否可以访问指定步骤 */
-export function useKYCGuard(targetStep: number): GuardResult {
+export function useKYCGuard(targetStep: StepName): GuardResult {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
@@ -31,10 +40,7 @@ export function useKYCGuard(targetStep: number): GuardResult {
 
     const result = checkStepPermission(targetStep, regionCode, kycData);
     if (!result.allowed) {
-      if (result.missingStep === 0) setRedirectTo("/portal/kyc");
-      else if (result.missingStep === 1) setRedirectTo("/portal/kyc/document");
-      else if (result.missingStep === 2) setRedirectTo("/portal/kyc/liveness");
-      else if (result.missingStep === 3) setRedirectTo("/portal/kyc/personal-info");
+      setRedirectTo(STEP_ROUTES[result.missingStep!]);
       setAllowed(false);
     } else {
       setAllowed(true);

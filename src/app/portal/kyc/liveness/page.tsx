@@ -16,7 +16,7 @@ export default function LivenessPage() {
   const { setLivenessResult, setCurrentStep, regionCode } = useKYCStore();
 
   // Step guard
-  const { allowed, checking } = useKYCGuard(2);
+  const { allowed, checking } = useKYCGuard("liveness");
 
   if (checking) {
     return (

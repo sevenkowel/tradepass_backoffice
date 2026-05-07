@@ -1,56 +1,77 @@
 /**
- * KYC Step Guard — 步骤守卫工具（服务端 + 客户端通用）
- * 确保用户不能跳过前置步骤
+ * KYC Step Guard — 服务端/客户端通用步骤守卫
+ * 支持动态 6 步流程（按地区配置）
  */
 
 import { getRegionConfig } from "./region-config";
 import type { RegionCode } from "./region-config";
+import type { UserKYC } from "./types";
 
-/** 服务端检查步骤权限（用于 API 路由和客户端） */
+export type StepName = "region" | "document" | "liveness" | "address-proof" | "experience" | "agreement";
+
+/** 获取当前地区激活的步骤列表 */
+export function getEnabledSteps(regionCode: RegionCode | null): StepName[] {
+  if (!regionCode) return ["region"];
+  const cfg = getRegionConfig(regionCode);
+  const steps: StepName[] = ["region", "document"];
+  if (cfg.features.livenessRequired) steps.push("liveness");
+  if (cfg.features.addressProofRequired) steps.push("address-proof");
+  steps.push("experience", "agreement");
+  return steps;
+}
+
+/** 检查步骤是否完成 */
+export function isStepComplete(step: StepName, kycData: Partial<UserKYC> | null): boolean {
+  if (!kycData) return false;
+  switch (step) {
+    case "region":       return true;
+    case "document":     return !!(kycData.ocrData && kycData.personalInfo);
+    case "liveness":     return !!kycData.livenessPassed;
+    case "address-proof": return !!kycData.addressProofUrl;
+    case "experience":   return !!kycData.experienceInfo;
+    case "agreement":    return !!(kycData.agreementsSigned && kycData.agreementsSigned.length > 0);
+    default:             return false;
+  }
+}
+
+/** 获取当前应该进入的步骤 */
+export function getCurrentStepName(regionCode: RegionCode | null, kycData: Partial<UserKYC> | null): StepName {
+  const steps = getEnabledSteps(regionCode);
+  for (const step of steps) {
+    if (!isStepComplete(step, kycData)) return step;
+  }
+  return steps[steps.length - 1]; // 所有步骤都完成了
+}
+
+export interface GuardResult {
+  allowed: boolean;
+  missingStep?: StepName;
+  message: string;
+}
+
+/** 检查步骤权限 */
 export function checkStepPermission(
-  targetStep: number,
+  targetStep: StepName,
   regionCode: RegionCode | null,
-  kycData: Partial<import("./types").UserKYC> | null
-): { allowed: boolean; missingStep?: number; message: string } {
-  if (targetStep === 1) {
-    if (!regionCode) return { allowed: false, missingStep: 0, message: "请先选择地区" };
+  kycData: Partial<UserKYC> | null
+): GuardResult {
+  if (targetStep === "region") {
     return { allowed: true, message: "OK" };
   }
 
-  if (targetStep === 2) {
-    if (!regionCode) return { allowed: false, missingStep: 0, message: "请先选择地区" };
-    if (!kycData?.documentFrontUrl || !kycData?.ocrData) {
-      return { allowed: false, missingStep: 1, message: "请先完成证件上传" };
-    }
-    return { allowed: true, message: "OK" };
+  if (!regionCode) {
+    return { allowed: false, missingStep: "region", message: "请先选择地区" };
   }
 
-  if (targetStep === 3) {
-    if (!regionCode) return { allowed: false, missingStep: 0, message: "请先选择地区" };
-    if (!kycData?.documentFrontUrl || !kycData?.ocrData) {
-      return { allowed: false, missingStep: 1, message: "请先完成证件上传" };
+  const steps = getEnabledSteps(regionCode);
+  
+  // 检查前序步骤是否完成
+  for (const step of steps) {
+    if (step === targetStep) break;
+    if (!isStepComplete(step, kycData)) {
+      return { allowed: false, missingStep: step, message: `请先完成"${step}"步骤` };
     }
-    const regionConfig = getRegionConfig(regionCode);
-    if ((regionConfig.features?.livenessRequired ?? true) && !kycData?.livenessPassed) {
-      return { allowed: false, missingStep: 2, message: "请先完成活体检测" };
-    }
-    return { allowed: true, message: "OK" };
   }
 
-  if (targetStep === 4) {
-    if (!regionCode) return { allowed: false, missingStep: 0, message: "请先选择地区" };
-    if (!kycData?.documentFrontUrl || !kycData?.ocrData) {
-      return { allowed: false, missingStep: 1, message: "请先完成证件上传" };
-    }
-    const regionConfig = getRegionConfig(regionCode);
-    if ((regionConfig.features?.livenessRequired ?? true) && !kycData?.livenessPassed) {
-      return { allowed: false, missingStep: 2, message: "请先完成活体检测" };
-    }
-    if (!kycData?.personalInfo) {
-      return { allowed: false, missingStep: 3, message: "请先完成个人信息" };
-    }
-    return { allowed: true, message: "OK" };
-  }
-
-  return { allowed: false, message: "Invalid step" };
+  return { allowed: true, message: "OK" };
 }

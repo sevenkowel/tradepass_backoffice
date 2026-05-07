@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { checkStepPermission } from "@/lib/kyc/guard";
+import { checkStepPermission, type StepName, getEnabledSteps } from "@/lib/kyc/guard";
 import { createKYCRecord } from "@/lib/kyc/state-machine";
 import type { RegionCode } from "@/lib/kyc/region-config";
 
@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { step, data } = body;
 
-    if (!step || typeof step !== "number" || step < 1 || step > 4) {
-      return NextResponse.json({ error: "Invalid step. Must be 1-4." }, { status: 400 });
+    if (!step || typeof step !== "number" || step < 1 || step > 6) {
+      return NextResponse.json({ error: "Invalid step. Must be 1-6." }, { status: 400 });
     }
 
     if (!data || typeof data !== "object") {
@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
 
     // 检查步骤权限
     const regionCode = (record.regionCode as RegionCode) || null;
+    const steps = getEnabledSteps(regionCode);
+    const stepName: StepName = steps[step - 1] || "region";
+    
     const kycData = {
       documentFrontUrl: record.documentFrontUrl || undefined,
       documentBackUrl: record.documentBackUrl || undefined,
@@ -77,7 +80,7 @@ export async function POST(req: NextRequest) {
       personalInfo: record.personalInfo ? JSON.parse(record.personalInfo as string) : undefined,
     };
 
-    const permission = checkStepPermission(step, regionCode, kycData as Record<string, unknown>);
+    const permission = checkStepPermission(stepName, regionCode, kycData as Record<string, unknown>);
     if (!permission.allowed) {
       return NextResponse.json(
         { error: permission.message, missingStep: permission.missingStep },

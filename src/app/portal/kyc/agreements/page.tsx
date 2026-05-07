@@ -199,7 +199,7 @@ export default function AgreementsPage() {
   } = useKYCStore();
 
   // Step guard
-  const { allowed, checking } = useKYCGuard(4);
+  const { allowed, checking } = useKYCGuard("agreement");
 
   if (checking) {
     return (

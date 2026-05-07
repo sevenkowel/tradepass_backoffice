@@ -8,24 +8,31 @@ import type { RegionCode, KYCLevel, DocumentType } from "./region-config";
 // KYC 状态
 export type KYCStatus =
   | "not_started"           // 未开始
+  | "region_selected"       // 已选择地区
   | "document_uploaded"     // 证件已上传
   | "ocr_processing"        // OCR 识别中
-  | "ocr_completed"         // OCR 完成
-  | "liveness_pending"      // 待活体检测
-  | "liveness_completed"    // 活体检测完成
+  | "ocr_completed"         // OCR 完成（含个人信息确认）
   | "personal_info_pending" // 待填写个人信息
   | "personal_info_completed" // 个人信息已完成
+  | "liveness_pending"      // 待活体检测
+  | "liveness_completed"    // 活体检测完成
+  | "address_proof_pending" // 待上传地址证明
+  | "address_proof_completed" // 地址证明完成
+  | "experience_pending"    // 待填写经验信息
+  | "experience_completed"  // 经验信息完成
   | "agreement_pending"     // 待签署协议
   | "submitted"             // 已提交审核
   | "under_review"          // 审核中
   | "approved"              // 已通过
   | "rejected";             // 已拒绝
 
-// KYC 步骤
+// KYC 步骤（按新流程 6 步）
 export type KYCStep =
+  | "region"
   | "document"
   | "liveness"
-  | "personal_info"
+  | "address-proof"
+  | "experience"
   | "agreement";
 
 // 用户 KYC 记录
@@ -54,11 +61,20 @@ export interface UserKYC {
   livenessAttempts?: number;
   livenessVideoUrl?: string;
   
-  // 个人信息
+  // 个人信息（基础，在 Step 2 确认 OCR 时填写）
   personalInfo?: PersonalInfo;
   
-  // 协议签署
+  // Step 4: 地址证明
+  addressProofUrl?: string;
+  addressProofType?: string;
+  addressProofUploadedAt?: string;
+  
+  // Step 5: 经验信息
+  experienceInfo?: ExperienceInfo;
+  
+  // Step 6: 协议签署
   agreementsSigned?: AgreementSignature[];
+  signatureType?: "handwritten" | "text";  // 签名方式
   
   // 审核信息
   submittedAt?: string;
@@ -143,6 +159,40 @@ export interface FinancialStatus {
   netWorth: "below_50k" | "50k_to_100k" | "100k_to_500k" | "500k_to_1m" | "above_1m";
   sourceOfFunds: string;
   investmentObjectives: string[];
+}
+
+// 经验信息（Step 5 聚合）
+export interface ExperienceInfo {
+  // 就业
+  employment?: EmploymentInfo;
+  // 教育
+  education?: EducationInfo;
+  // 投资经验
+  investmentExperience?: InvestmentExperience;
+  // 财务状况
+  financialStatus?: FinancialStatus;
+  // 专业知识
+  professionalKnowledge?: ProfessionalKnowledge;
+  // 声明
+  declarations?: Declarations;
+}
+
+// 就业信息
+export interface EmploymentInfo {
+  employmentStatus: "employed" | "self_employed" | "retired" | "student" | "unemployed";
+  occupation?: string;
+  employer?: string;
+  position?: string;
+  yearsInCurrentJob?: string;
+}
+
+// 专业知识
+export interface ProfessionalKnowledge {
+  financeKnowledge: "none" | "basic" | "intermediate" | "advanced" | "expert";
+  tradingKnowledge: "none" | "basic" | "intermediate" | "advanced" | "expert";
+  hasProfessionalCertification: boolean;
+  certificationDetails?: string;
+  investmentGoal: "income" | "growth" | "speculation" | "hedging" | "diversification";
 }
 
 // 声明

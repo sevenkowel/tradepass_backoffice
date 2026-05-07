@@ -27,7 +27,7 @@ export default function PersonalInfoPage() {
   } = useKYCStore();
 
   // Step guard
-  const { allowed, checking: guardChecking } = useKYCGuard(3);
+  const { allowed, checking: guardChecking } = useKYCGuard("experience");
 
   useEffect(() => {
     if (regionCode) {
