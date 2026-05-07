@@ -482,36 +482,47 @@ export default function RegisterForm() {
             <RegionSelect value={region} options={defaultRegions} onChange={(r) => handleRegionChange(r.code)} />
           </div>
 
-          {/* ===== 邮箱验证 ===== */}
-          {(modeFields.needEmailVerify || modeFields.needEmailBind) && (
-            <div className={`p-4 rounded-xl border ${emailField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
-              <EmailVerifySection
-                emailValue={emailValue}
-                emailField={emailField}
-                needVerify={modeFields.needEmailVerify}
-                onEmailChange={setEmailValue}
-                onSendOTP={() => sendOTP(emailValue, "email")}
-                onUpdateOTP={(updates) => updateOTPField(emailValue, updates)}
-                onComplete={(code) => handleOTPComplete(emailValue, code)}
-              />
-            </div>
-          )}
+          {/* ===== 邮箱/手机验证（按优先级排序：需要OTP验证的在前） ===== */}
+          {(() => {
+            const emailSection = (modeFields.needEmailVerify || modeFields.needEmailBind) ? (
+              <div key="email" className={`p-4 rounded-xl border ${emailField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
+                <EmailVerifySection
+                  emailValue={emailValue}
+                  emailField={emailField}
+                  needVerify={modeFields.needEmailVerify}
+                  onEmailChange={setEmailValue}
+                  onSendOTP={() => sendOTP(emailValue, "email")}
+                  onUpdateOTP={(updates) => updateOTPField(emailValue, updates)}
+                  onComplete={(code) => handleOTPComplete(emailValue, code)}
+                />
+              </div>
+            ) : null;
 
-          {/* ===== 手机验证 ===== */}
-          {(modeFields.needPhoneVerify || modeFields.needPhoneBind) && (
-            <div className={`p-4 rounded-xl border ${phoneField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
-              <PhoneVerifySection
-                phoneValue={phoneValue}
-                phoneField={phoneField}
-                region={region}
-                needVerify={modeFields.needPhoneVerify}
-                onPhoneChange={setPhoneValue}
-                onSendOTP={() => sendOTP(phoneValue, "phone", phoneField.channel)}
-                onUpdateOTP={(updates) => updateOTPField(phoneValue, updates)}
-                onComplete={(code) => handleOTPComplete(phoneValue, code)}
-              />
-            </div>
-          )}
+            const phoneSection = (modeFields.needPhoneVerify || modeFields.needPhoneBind) ? (
+              <div key="phone" className={`p-4 rounded-xl border ${phoneField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
+                <PhoneVerifySection
+                  phoneValue={phoneValue}
+                  phoneField={phoneField}
+                  region={region}
+                  needVerify={modeFields.needPhoneVerify}
+                  onPhoneChange={setPhoneValue}
+                  onSendOTP={() => sendOTP(phoneValue, "phone", phoneField.channel)}
+                  onUpdateOTP={(updates) => updateOTPField(phoneValue, updates)}
+                  onComplete={(code) => handleOTPComplete(phoneValue, code)}
+                />
+              </div>
+            ) : null;
+
+            // 需要OTP验证的排前面；都需要或都不需要时，默认先邮箱后手机
+            if (modeFields.needEmailVerify && !modeFields.needPhoneVerify) {
+              return <>{emailSection}{phoneSection}</>;
+            }
+            if (modeFields.needPhoneVerify && !modeFields.needEmailVerify) {
+              return <>{phoneSection}{emailSection}</>;
+            }
+            // 都需要验证（模式C）或都不需要验证：先邮箱后手机
+            return <>{emailSection}{phoneSection}</>;
+          })()}
 
           {/* ===== 密码设置 ===== */}
           <div className="space-y-3">
