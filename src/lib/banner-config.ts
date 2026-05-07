@@ -57,14 +57,17 @@ function checkConditions(
 }
 
 // 获取当前激活的 Banner 列表
-export function getActiveBanners(perspective: UserPerspective): BannerConfig[] {
+export function getActiveBanners(
+  perspective: UserPerspective,
+  storeState?: Pick<BannerState, "overrides" | "welcomeRegisteredDays" | "welcomeClaimed" | "dismissed" | "stackMode">
+): BannerConfig[] {
   const {
     overrides,
     welcomeRegisteredDays,
     welcomeClaimed,
     dismissed,
     stackMode,
-  } = useBannerStore.getState() as BannerState;
+  } = storeState ?? (useBannerStore.getState() as BannerState);
 
   const active: BannerConfig[] = [];
 
