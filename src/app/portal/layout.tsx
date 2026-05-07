@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { PortalShell } from "@/components/portal/layout/PortalShell";
 import { TenantCookieSetter } from "@/components/portal/layout/TenantCookieSetter";
 import { DevConfigProvider } from "@/lib/dev-config";
+import { FloatingDevToolbox } from "@/components/dev-tools/FloatingDevToolbox";
 import { prisma } from "@/lib/prisma";
 import { getTenantBrandById, BrandConfig } from "@/lib/brand";
 
@@ -97,6 +98,7 @@ export default async function PortalLayout({
         <PortalShell tenant={tenant || undefined} brand={brand}>
           {children}
         </PortalShell>
+        <FloatingDevToolbox />
       </DevConfigProvider>
     </>
   );

@@ -58,6 +58,8 @@ const mockAccounts: Record<string, TradingAccount[]> = {
 };
 
 // 开发者配置状态
+export type RegisterMode = "A" | "B" | "C" | "D" | "E";
+
 interface DevConfigState {
   currentPerspective: UserPerspective;
   toolboxOpen: boolean;
@@ -66,6 +68,8 @@ interface DevConfigState {
   preVerifiedPhone: string;
   preVerifiedEmail: string;
   accountCount: "single" | "multiple";
+  registerMode: RegisterMode;
+  captchaEnabled: boolean;
 }
 
 // Context 类型
@@ -87,6 +91,10 @@ interface DevConfigContextType extends DevConfigState {
 
   // 账户数量切换
   setAccountCount: (count: "single" | "multiple") => void;
+
+  // 注册流程控制
+  setRegisterMode: (mode: RegisterMode) => void;
+  setCaptchaEnabled: (enabled: boolean) => void;
 }
 
 // 默认位置（右下角：right/bottom 偏移，正值表示距边缘的距离）
@@ -104,6 +112,8 @@ const DEFAULT_STATE: DevConfigState = {
   preVerifiedPhone: "",
   preVerifiedEmail: "",
   accountCount: "single",
+  registerMode: "A",
+  captchaEnabled: false,
 };
 
 // Provider 组件
@@ -137,6 +147,8 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
         preVerifiedPhone: parsed.preVerifiedPhone ?? "",
         preVerifiedEmail: parsed.preVerifiedEmail ?? "",
         accountCount,
+        registerMode: parsed.registerMode ?? "A",
+        captchaEnabled: parsed.captchaEnabled ?? false,
       });
     } catch {
       // 读取失败时保持默认值
@@ -228,6 +240,16 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // 设置注册流程模式
+  const setRegisterMode = useCallback((mode: RegisterMode) => {
+    setState(prev => ({ ...prev, registerMode: mode }));
+  }, []);
+
+  // 设置人机验证开关
+  const setCaptchaEnabled = useCallback((enabled: boolean) => {
+    setState(prev => ({ ...prev, captchaEnabled: enabled }));
+  }, []);
+
   const value: DevConfigContextType = {
     ...state,
     setPerspective,
@@ -240,6 +262,8 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     setPreVerifiedPhone,
     setPreVerifiedEmail,
     setAccountCount,
+    setRegisterMode,
+    setCaptchaEnabled,
   };
 
   return (

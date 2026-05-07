@@ -26,7 +26,8 @@ export function useKYCGuard(targetStep: number): GuardResult {
   const { kycData, regionCode } = useKYCStore();
 
   useEffect(() => {
-    const check = () => {
+    // 延迟检查，等待 Zustand persist 从 localStorage 恢复完成
+    const timer = setTimeout(() => {
       const result = checkStepPermission(targetStep, regionCode, kycData);
       if (!result.allowed) {
         if (result.missingStep === 0) setRedirectTo("/portal/kyc");
@@ -38,9 +39,9 @@ export function useKYCGuard(targetStep: number): GuardResult {
         setAllowed(true);
       }
       setChecking(false);
-    };
+    }, 100);
 
-    check();
+    return () => clearTimeout(timer);
   }, [targetStep, kycData, regionCode]);
 
   // 如果检测到不允许，执行重定向

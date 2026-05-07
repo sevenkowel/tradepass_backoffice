@@ -5,10 +5,12 @@
  */
 
 import { useState } from "react";
-import { Wrench, X, Eye, ShieldCheck, Wallet } from "lucide-react";
+import { Wrench, X, Eye, ShieldCheck, Wallet, UserPlus, Megaphone } from "lucide-react";
 import { PerspectiveSwitcher } from "./PerspectiveSwitcher";
 import { KYCDevPanel } from "./KYCDevPanel";
 import { AccountCountSwitcher } from "./AccountCountSwitcher";
+import { RegisterDevPanel } from "./RegisterDevPanel";
+import { BannerDevPanel } from "./BannerDevPanel";
 
 export function FloatingDevToolbox() {
   const [open, setOpen] = useState(false);
@@ -18,6 +20,8 @@ export function FloatingDevToolbox() {
     { id: "perspective", name: "用户视角", icon: Eye, component: PerspectiveSwitcher },
     { id: "accounts", name: "账户数量", icon: Wallet, component: AccountCountSwitcher },
     { id: "kyc", name: "KYC 控制", icon: ShieldCheck, component: KYCDevPanel },
+    { id: "register", name: "注册控制", icon: UserPlus, component: RegisterDevPanel },
+    { id: "banner", name: "Banner 控制", icon: Megaphone, component: BannerDevPanel },
   ];
 
   const ActiveComponent = activeTool ? tools.find(t => t.id === activeTool)?.component : null;
@@ -27,7 +31,7 @@ export function FloatingDevToolbox() {
       className="fixed z-[9999]"
       style={{ 
         right: "20px", 
-        bottom: "20px",
+        bottom: "84px",
       }}
     >
       {!open ? (

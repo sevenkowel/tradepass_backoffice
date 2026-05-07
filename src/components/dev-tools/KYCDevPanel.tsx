@@ -12,7 +12,7 @@
 import { useRouter } from "next/navigation";
 import { useKYCStore } from "@/lib/kyc/store";
 import { useKYCMockConfig } from "@/lib/kyc/dev-mock-config";
-import { regionKYCConfigs } from "@/lib/kyc/region-config";
+import { regionKYCConfigs, getRegionConfig } from "@/lib/kyc/region-config";
 import type { RegionCode } from "@/lib/kyc/region-config";
 import type { ReviewResult } from "@/lib/kyc/mock-service";
 import type { KYCTierLevel, VerificationStage } from "@/lib/kyc/config-types";
@@ -144,8 +144,14 @@ export function KYCDevPanel() {
   const { config: unifiedConfig, loading: configLoading } = useKYCSystemConfig();
   const [activeTab, setActiveTab] = useState<"snapshots" | "tiers" | "config">("snapshots");
 
-  const currentRegionConfig = regionKYCConfigs[mockConfig.regionCode];
-  const currentUnifiedRegion = unifiedConfig?.regions[mockConfig.regionCode];
+  const currentRegionConfig = (() => {
+    try {
+      return getRegionConfig(mockConfig.regionCode);
+    } catch {
+      return null;
+    }
+  })();
+  const currentUnifiedRegion = unifiedConfig?.regions?.[mockConfig.regionCode];
 
   // ── 快照应用函数 ──
 

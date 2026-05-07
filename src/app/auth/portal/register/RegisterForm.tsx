@@ -1,223 +1,259 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Loader2, ArrowRight, Shield } from "lucide-react";
-import type { AuthConfig, AuthFormField } from "@/lib/auth-config";
+import { AlertCircle, CheckCircle2, Loader2, Shield, RotateCcw } from "lucide-react";
+import EmailInput from "@/components/auth/EmailInput";
+import PhoneInput from "@/components/auth/PhoneInput";
+import PasswordInput from "@/components/auth/PasswordInput";
+import CaptchaChallenge from "@/components/auth/CaptchaChallenge";
+import OTPInput from "@/components/auth/OTPInput";
+import RegionSelect from "@/components/auth/RegionSelect";
+import { useDevConfig } from "@/lib/dev-config";
+import type { AuthConfig, RegionConfig } from "@/lib/auth-config";
+import { defaultRegions } from "@/lib/auth-config";
+
+// ===== OTP 防刷工具 =====
+const OTP_SEND_LIMIT = 5;
+const OTP_COOLDOWN = 60;
+
+function getOTPCount(target: string): number {
+  if (typeof window === "undefined") return 0;
+  const key = `otp_count_${target}`;
+  const raw = localStorage.getItem(key);
+  if (!raw) return 0;
+  const { count, time } = JSON.parse(raw);
+  if (Date.now() - time > 3600000) { localStorage.removeItem(key); return 0; }
+  return count;
+}
+
+function incrementOTPCount(target: string): number {
+  const key = `otp_count_${target}`;
+  const raw = localStorage.getItem(key);
+  const current = raw ? JSON.parse(raw) : { count: 0, time: Date.now() };
+  current.count += 1;
+  current.time = Date.now();
+  localStorage.setItem(key, JSON.stringify(current));
+  return current.count;
+}
+
+function validateOTP(_target: string, code: string): boolean {
+  if (code === "1234") return true;
+  const today = `${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}`;
+  return code === today;
+}
+
+type OTPChannel = "sms" | "whatsapp" | "voice";
+
+const CHANNEL_CONFIG: Record<OTPChannel, { label: string; desc: string }> = {
+  sms: { label: "短信", desc: "通过短信接收验证码" },
+  whatsapp: { label: "WhatsApp", desc: "通过 WhatsApp 接收验证码" },
+  voice: { label: "语音电话", desc: "通过语音电话接收验证码" },
+};
+
+interface OTPField {
+  type: "email" | "phone";
+  target: string;
+  verified: boolean;
+  code: string;
+  hint: string;
+  sending: boolean;
+  countdown: number;
+  channel: OTPChannel;
+}
 
 export default function RegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tenantId = searchParams.get("tenantId");
-
-  // 注册成功后跳转到 Portal（纯路径模式）
   const portalUrl = "/portal";
+  const devConfig = useDevConfig();
 
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
 
-  const [step, setStep] = useState<"form" | "verify" | "success">("form");
+  const [region, setRegion] = useState<RegionConfig>(defaultRegions[0]);
+  const [otpState, setOtpState] = useState<Record<string, OTPField>>({});
+  const [password, setPassword] = useState("");
+  const [agreements, setAgreements] = useState<Record<string, boolean>>({});
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaPassed, setCaptchaPassed] = useState(false);
+  const [forceCaptcha, setForceCaptcha] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [registered, setRegistered] = useState(false);
 
-  const [formData, setFormData] = useState<Record<string, string>>({});
-  const [agreements, setAgreements] = useState<Record<string, boolean>>({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [skipVerify, setSkipVerify] = useState(true);
+  const [emailValue, setEmailValue] = useState("");
+  const [phoneValue, setPhoneValue] = useState("");
 
-  const [otpCode, setOtpCode] = useState("");
-  const [otpTarget, setOtpTarget] = useState("");
-  const [otpType, setOtpType] = useState<"email" | "phone">("email");
-  const [otpHint, setOtpHint] = useState("");
-  const [otpSending, setOtpSending] = useState(false);
+  // 倒计时
+  useEffect(() => {
+    const timers = Object.entries(otpState).filter(([, v]) => v.countdown > 0);
+    if (timers.length === 0) return;
+    const interval = setInterval(() => {
+      setOtpState((prev) => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(next)) {
+          if (v.countdown > 0) next[k] = { ...v, countdown: v.countdown - 1 };
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [otpState]);
 
+  // 加载配置
   useEffect(() => {
     async function loadConfig() {
       try {
-        const url = tenantId
-          ? `/api/config/auth?tenantId=${tenantId}`
-          : "/api/config/auth";
+        const url = tenantId ? `/api/config/auth?tenantId=${tenantId}` : "/api/config/auth";
         const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
           setConfig(data.data);
-          const initialAgreements: Record<string, boolean> = {};
-          data.data.agreements.forEach((a: { id: string }) => {
-            initialAgreements[a.id] = false;
-          });
-          setAgreements(initialAgreements);
+          const initAgr: Record<string, boolean> = {};
+          data.data.agreements.forEach((a: { id: string }) => { initAgr[a.id] = false; });
+          setAgreements(initAgr);
         }
-      } catch {
-        // fallback
-      } finally {
-        setConfigLoading(false);
-      }
+      } catch { /* fallback */ }
+      finally { setConfigLoading(false); }
     }
     loadConfig();
   }, [tenantId]);
 
-  const handleFieldChange = useCallback((name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
+  // DevTools 强制人机验证
+  useEffect(() => {
+    const check = () => setForceCaptcha(localStorage.getItem("dev_force_captcha") === "true");
+    check();
+    window.addEventListener("storage", check);
+    return () => window.removeEventListener("storage", check);
   }, []);
 
-  const validateForm = useCallback((): boolean => {
-    if (!config) return false;
-    const errors: Record<string, string> = {};
+  const getRegionConfig = useCallback((code: string): RegionConfig => {
+    return defaultRegions.find((r) => r.code === code) || defaultRegions[0];
+  }, []);
 
-    for (const field of config.registerFields) {
-      const value = formData[field.name];
-      if (field.required && (!value || value.trim() === "")) {
-        errors[field.name] = `${field.label} 为必填项`;
-      }
-      if (field.type === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        errors[field.name] = "请输入有效的邮箱地址";
-      }
-      if (field.type === "password" && value) {
-        const policy = config.passwordPolicy;
-        if (value.length < policy.minLength) {
-          errors[field.name] = `密码至少 ${policy.minLength} 位`;
-        }
-      }
+  const handleRegionChange = (code: string) => {
+    const rc = getRegionConfig(code);
+    setRegion(rc);
+    setOtpState({});
+    setError("");
+  };
+
+  const getOTPField = (target: string, type: "email" | "phone"): OTPField => {
+    return otpState[target] || {
+      type, target, verified: false, code: "", hint: "",
+      sending: false, countdown: 0,
+      channel: type === "phone" ? (region.otpMethods[0] as OTPChannel) : "sms",
+    };
+  };
+
+  const updateOTPField = (target: string, updates: Partial<OTPField>) => {
+    setOtpState((prev) => ({
+      ...prev,
+      [target]: {
+        ...(prev[target] || { type: "email", target, verified: false, code: "", hint: "", sending: false, countdown: 0, channel: "sms" }),
+        ...updates,
+      },
+    }));
+  };
+
+  const sendOTP = useCallback(async (target: string, type: "email" | "phone", channel?: OTPChannel) => {
+    if (!target) { setError(type === "email" ? "请先填写邮箱" : "请先填写手机号"); return; }
+
+    if (type === "email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(target)) { setError("请输入有效的邮箱地址"); return; }
     }
 
-    for (const agr of config.agreements) {
-      if (agr.required && !agreements[agr.id]) {
-        errors[`agreement_${agr.id}`] = `请同意 ${agr.title}`;
-      }
+    const count = getOTPCount(target);
+    if (count >= OTP_SEND_LIMIT) {
+      if (devConfig.captchaEnabled || forceCaptcha) { setShowCaptcha(true); return; }
+      setError("发送过于频繁，请稍后再试"); return;
     }
 
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [config, formData, agreements]);
+    updateOTPField(target, { sending: true });
+    setError("");
 
-  const sendOTP = useCallback(async () => {
-    const target = otpType === "email" ? formData.email : formData.phone;
-    if (!target) return;
-    setOtpSending(true);
     try {
       const res = await fetch("/api/auth/otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "otp", target, action: "register" }),
+        body: JSON.stringify({ type, target, action: "register", channel }),
       });
       const data = await res.json();
       if (data.success) {
-        setOtpHint(data.hint);
-        setOtpTarget(target);
+        incrementOTPCount(target);
+        updateOTPField(target, { hint: data.hint || `验证码已发送至 ${target}`, countdown: OTP_COOLDOWN, sending: false, code: "" });
+      } else {
+        setError(data.error || "发送失败");
+        updateOTPField(target, { sending: false });
       }
     } catch {
-      setOtpHint("发送验证码失败，请重试");
-    } finally {
-      setOtpSending(false);
+      setError("网络错误");
+      updateOTPField(target, { sending: false });
     }
-  }, [otpType, formData]);
+  }, [devConfig.captchaEnabled, forceCaptcha]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleOTPComplete = (target: string, code: string) => {
+    if (validateOTP(target, code)) {
+      updateOTPField(target, { verified: true, code });
+      setError("");
+    } else if (code.length >= 6) {
+      setError("验证码错误，请重新输入");
+    }
+  };
 
-    if (!validateForm()) return;
+  const modeFields = useMemo(() => {
+    const m = devConfig.registerMode;
+    return {
+      needEmailVerify: m === "A" || m === "C" || m === "D",
+      needPhoneVerify: m === "B" || m === "C" || m === "E",
+      needEmailBind: m === "E",
+      needPhoneBind: m === "D",
+    };
+  }, [devConfig.registerMode]);
 
-    const email = formData.email;
-    const phone = formData.phone;
+  const emailField = getOTPField(emailValue, "email");
+  const phoneField = getOTPField(phoneValue, "phone");
 
-    if (!skipVerify && config) {
-      const needEmailOtp = config.emailVerificationRequired && email;
-      const needPhoneOtp = config.phoneVerificationRequired && phone;
-      if (needEmailOtp || needPhoneOtp) {
-        setOtpType(needEmailOtp ? "email" : "phone");
-        setStep("verify");
-        sendOTP();
-        return;
+  const validateForm = (): string | null => {
+    if (modeFields.needEmailVerify && !emailField.verified) return "请完成邮箱验证";
+    if (modeFields.needPhoneVerify && !phoneField.verified) return "请完成手机验证";
+    if (modeFields.needEmailBind && !emailValue) return "请填写邮箱";
+    if (modeFields.needPhoneBind && !phoneValue) return "请填写手机号";
+
+    const policy = config?.passwordPolicy || { minLength: 8, requireUppercase: true, requireLowercase: true, requireNumber: true, requireSpecial: true };
+    if (password.length < policy.minLength) return `密码至少 ${policy.minLength} 位`;
+    if (policy.requireUppercase && !/[A-Z]/.test(password)) return "密码需包含大写字母";
+    if (policy.requireLowercase && !/[a-z]/.test(password)) return "密码需包含小写字母";
+    if (policy.requireNumber && !/\d/.test(password)) return "密码需包含数字";
+    if (policy.requireSpecial && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return "密码需包含特殊字符";
+
+    if (config) {
+      for (const agr of config.agreements) {
+        if (agr.required && !agreements[agr.id]) return `请同意《${agr.title}》`;
       }
     }
-
-    await doRegister(skipVerify ? formData : { ...formData, otpCode });
+    return null;
   };
 
-  const handleVerifySubmit = async () => {
-    if (!otpCode.trim()) {
-      setError("请输入验证码");
-      return;
-    }
-    await doRegister({ ...formData, otpCode });
-  };
+  const handleSubmit = async () => {
+    const err = validateForm();
+    if (err) { setError(err); return; }
+    if ((devConfig.captchaEnabled || forceCaptcha) && !captchaPassed) { setShowCaptcha(true); return; }
 
-  const doRegister = async (_payload: Record<string, string>) => {
-    setLoading(true);
-
-    // Mock 模式：直接生成 token，不调 API
+    setLoading(true); setError("");
     const fakeToken = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const fakeTenantId = tenantId || `tenant-${Date.now()}`;
-
     document.cookie = `token=${fakeToken}; path=/; max-age=604800`;
     document.cookie = `portal_tenant=${fakeTenantId}; path=/; max-age=604800`;
-    document.cookie = 'onboarding_completed=true; path=/; max-age=604800';
+    document.cookie = "onboarding_completed=true; path=/; max-age=604800";
     document.cookie = `mock_user_role=user; path=/; max-age=604800`;
-
-    setLoading(false);
-    setStep("success");
-    setTimeout(() => {
-      window.location.href = portalUrl;
-    }, 500);
-  };
-
-  const renderField = (field: AuthFormField) => {
-    const value = formData[field.name] || "";
-    const errorMsg = fieldErrors[field.name];
-
-    if (field.type === "select" && field.options) {
-      return (
-        <select
-          value={value}
-          onChange={(e) => handleFieldChange(field.name, e.target.value)}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-        >
-          <option value="">{field.placeholder || `请选择${field.label}`}</option>
-          {field.options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      );
-    }
-
-    if (field.type === "checkbox") {
-      return (
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!value}
-            onChange={(e) => handleFieldChange(field.name, e.target.checked ? "true" : "")}
-            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-          />
-          <span className="text-sm text-gray-600">{field.placeholder || field.label}</span>
-        </label>
-      );
-    }
-
-    return (
-      <Input
-        name={field.name}
-        type={field.type === "password" && !showPassword ? "password" : field.type === "password" ? "text" : field.type}
-        value={value}
-        onChange={(e) => handleFieldChange(field.name, e.target.value)}
-        placeholder={field.placeholder}
-        required={field.required}
-        className={errorMsg ? "border-red-300 focus:border-red-400" : ""}
-      />
-    );
+    setLoading(false); setRegistered(true);
+    setTimeout(() => (window.location.href = portalUrl), 800);
   };
 
   if (configLoading) {
@@ -228,7 +264,7 @@ export default function RegisterForm() {
     );
   }
 
-  if (step === "success") {
+  if (registered) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
         <Card className="w-full max-w-md">
@@ -242,178 +278,277 @@ export default function RegisterForm() {
     );
   }
 
-  if (step === "verify") {
+  const policy = config?.passwordPolicy || { minLength: 8, requireUppercase: true, requireLowercase: true, requireNumber: true, requireSpecial: true };
+
+  // ===== 邮箱验证区域（内联展开 + 视觉隔离） =====
+  const EmailVerifySection = () => {
+    if (emailField.verified) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-emerald-600">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>邮箱已验证</span>
+        </div>
+      );
+    }
+
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
+
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 space-y-5">
-            <div className="text-center">
-              <Shield className="w-10 h-10 text-primary mx-auto mb-2" />
-              <h1 className="text-xl font-bold text-gray-900">验证您的{otpType === "email" ? "邮箱" : "手机"}</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                验证码已发送至 {otpTarget}
-              </p>
+      <div className="space-y-4">
+        {/* Step 1: 邮箱输入 */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
+          <div className="mt-1.5">
+            <EmailInput value={emailValue} onChange={setEmailValue} placeholder="your@email.com" className="h-11" />
+          </div>
+        </div>
+
+        {/* Step 2: 发送按钮（有效邮箱后才高亮） */}
+        {emailValid && !emailField.hint && (
+          <Button
+            type="button"
+            onClick={() => sendOTP(emailValue, "email")}
+            disabled={emailField.sending}
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
+          >
+            {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
+          </Button>
+        )}
+
+        {/* 视觉隔离：发送后展开区域 */}
+        {emailField.hint && (
+          <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
+            <div className="text-sm text-gray-600">
+              验证码已发送至 <span className="font-medium text-gray-900">{emailValue}</span>
             </div>
 
-            {otpHint && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                <p className="font-medium">Demo 模式</p>
-                <p>{otpHint}</p>
-                <p className="text-xs mt-1">今天的验证码：{new Date().getMonth() + 1}月{new Date().getDate()}日 → <span className="font-mono font-bold">{String(new Date().getMonth() + 1).padStart(2, "0")}{String(new Date().getDate()).padStart(2, "0")}</span></p>
-              </div>
-            )}
+            <OTPInput
+              value={emailField.code}
+              onChange={(code) => updateOTPField(emailValue, { code })}
+              onComplete={(code) => handleOTPComplete(emailValue, code)}
+              autoFocus
+            />
 
-            <div>
-              <label className="text-sm font-medium text-gray-700">验证码</label>
-              <Input
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="请输入4位验证码"
-                maxLength={4}
-                className="mt-1 text-center text-lg tracking-widest"
-              />
+            <div className="flex items-center justify-between text-sm">
+              {emailField.countdown > 0 ? (
+                <span className="text-gray-400">{emailField.countdown}s 后可重新发送</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => sendOTP(emailValue, "email")}
+                  disabled={emailField.sending}
+                  className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  重新发送
+                </button>
+              )}
             </div>
-
-            {error && (
-              <div className="flex items-start gap-2 text-sm text-red-600">
-                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                variant="ghost"
-                className="flex-1"
-                onClick={() => setStep("form")}
-                disabled={loading}
-              >
-                返回
-              </Button>
-              <Button
-                className="flex-1 bg-primary hover:bg-primary-dark text-white"
-                onClick={handleVerifySubmit}
-                disabled={loading || otpCode.length < 4}
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "验证并注册"}
-              </Button>
-            </div>
-
-            <button
-              onClick={sendOTP}
-              disabled={otpSending}
-              className="w-full text-sm text-primary hover:underline"
-            >
-              {otpSending ? "发送中..." : "重新发送验证码"}
-            </button>
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </div>
     );
-  }
+  };
+
+  // ===== 手机验证区域（内联展开 + 视觉隔离） =====
+  const PhoneVerifySection = () => {
+    if (phoneField.verified) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-emerald-600">
+          <CheckCircle2 className="w-4 h-4" />
+          <span>手机已验证</span>
+        </div>
+      );
+    }
+
+    const availableChannels = region.otpMethods as OTPChannel[];
+    const canSend = phoneValue.length >= 7;
+
+    return (
+      <div className="space-y-4">
+        {/* Step 1: 手机号输入 */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
+          <div className="mt-1.5">
+            <PhoneInput value={phoneValue} onChange={setPhoneValue} defaultCountry={region.code} className="h-11" />
+          </div>
+        </div>
+
+        {/* Step 2: 验证码接收方式（单选框） */}
+        {canSend && availableChannels.length > 0 && !phoneField.hint && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">接收验证码方式</label>
+            <div className="space-y-1.5">
+              {availableChannels.map((ch) => {
+                const cfg = CHANNEL_CONFIG[ch];
+                const active = phoneField.channel === ch;
+                return (
+                  <label
+                    key={ch}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      active ? "border-primary bg-primary/5" : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="phone-otp-channel"
+                      checked={active}
+                      onChange={() => updateOTPField(phoneValue, { channel: ch })}
+                      className="w-4 h-4 text-primary"
+                    />
+                    <span className={`text-sm ${active ? "text-primary font-medium" : "text-gray-700"}`}>{cfg.label}</span>
+                    <span className="text-xs text-gray-400 ml-auto">{cfg.desc}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: 发送按钮 */}
+        {canSend && !phoneField.hint && (
+          <Button
+            type="button"
+            onClick={() => sendOTP(phoneValue, "phone", phoneField.channel)}
+            disabled={phoneField.sending}
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-white"
+          >
+            {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : "发送验证码"}
+          </Button>
+        )}
+
+        {/* 视觉隔离：发送后展开区域 */}
+        {phoneField.hint && (
+          <div className="space-y-4 pt-3 border-t border-dashed border-gray-200">
+            <div className="text-sm text-gray-600">
+              验证码已通过 <span className="font-medium">{CHANNEL_CONFIG[phoneField.channel].label}</span> 发送至 <span className="font-medium text-gray-900">{phoneValue}</span>
+            </div>
+
+            <OTPInput
+              value={phoneField.code}
+              onChange={(code) => updateOTPField(phoneValue, { code })}
+              onComplete={(code) => handleOTPComplete(phoneValue, code)}
+              autoFocus
+            />
+
+            <div className="flex items-center justify-between text-sm">
+              {phoneField.countdown > 0 ? (
+                <span className="text-gray-400">{phoneField.countdown}s 后可重新发送</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => sendOTP(phoneValue, "phone", phoneField.channel)}
+                  disabled={phoneField.sending}
+                  className="flex items-center gap-1 text-primary hover:underline disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  重新发送
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-6 space-y-5">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">开通交易账户</h1>
-            <p className="text-sm text-gray-500 mt-1">注册 TradePass 交易门户</p>
+      <Card className="w-full max-w-[460px] shadow-lg">
+        <CardContent className="p-8 space-y-6">
+          {/* Header */}
+          <div className="text-center space-y-1">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">开通交易账户</h1>
+            <p className="text-sm text-gray-400">填写以下信息完成注册</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {config?.registerFields.map((field) => (
-              <div key={field.name}>
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  {field.label}
-                  {field.required && <span className="text-red-500">*</span>}
+          {/* ===== 地区选择 ===== */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">国家/地区 <span className="text-red-500">*</span></label>
+            <RegionSelect value={region} options={defaultRegions} onChange={(r) => handleRegionChange(r.code)} />
+          </div>
+
+          {/* ===== 邮箱验证 ===== */}
+          {(modeFields.needEmailVerify || modeFields.needEmailBind) && (
+            <div className={`space-y-3 p-4 rounded-xl border ${emailField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  {modeFields.needEmailVerify ? "验证邮箱" : "电子邮箱"}
+                </span>
+              </div>
+              <EmailVerifySection />
+            </div>
+          )}
+
+          {/* ===== 手机验证 ===== */}
+          {(modeFields.needPhoneVerify || modeFields.needPhoneBind) && (
+            <div className={`space-y-3 p-4 rounded-xl border ${phoneField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">
+                  {modeFields.needPhoneVerify ? "验证手机" : "手机号码"}
+                </span>
+              </div>
+              <PhoneVerifySection />
+            </div>
+          )}
+
+          {/* ===== 密码设置 ===== */}
+          <div className="space-y-3">
+            <PasswordInput password={password} onPasswordChange={setPassword} policy={policy} />
+          </div>
+
+          {/* ===== 协议 ===== */}
+          {config && config.agreements.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">请阅读并同意以下协议：</p>
+              {config.agreements.map((agr) => (
+                <label key={agr.id} className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!agreements[agr.id]}
+                    onChange={(e) => setAgreements((prev) => ({ ...prev, [agr.id]: e.target.checked }))}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-gray-600">
+                    我已阅读并同意<span className="text-primary hover:underline">《{agr.title}》</span>
+                    {agr.required && <span className="text-red-500 ml-0.5">*</span>}
+                  </span>
                 </label>
-                <div className="mt-1">
-                  {renderField(field)}
-                </div>
-                {fieldErrors[field.name] && (
-                  <p className="text-xs text-red-500 mt-1">{fieldErrors[field.name]}</p>
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
 
-            {config?.registerFields.some((f) => f.type === "password") && (
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showPassword}
-                  onChange={(e) => setShowPassword(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-gray-600">显示密码</span>
-              </label>
-            )}
+          {/* ===== 人机验证 ===== */}
+          {(showCaptcha || forceCaptcha) && !captchaPassed && (
+            <CaptchaChallenge
+              onVerify={(success) => { if (success) { setCaptchaPassed(true); setShowCaptcha(false); setError(""); } }}
+              onCancel={() => setShowCaptcha(false)}
+            />
+          )}
 
-            {config && config.agreements.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-gray-100">
-                <p className="text-sm font-medium text-gray-700">注册协议</p>
-                {config.agreements.map((agr) => (
-                  <label key={agr.id} className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!agreements[agr.id]}
-                      onChange={(e) =>
-                        setAgreements((prev) => ({ ...prev, [agr.id]: e.target.checked }))
-                      }
-                      className="w-4 h-4 mt-0.5 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <span className="text-sm text-gray-600">
-                      我已阅读并同意
-                      <span className="text-primary hover:underline cursor-pointer">《{agr.title}》</span>
-                      {agr.required && <span className="text-red-500 ml-0.5">*</span>}
-                    </span>
-                  </label>
-                ))}
-                {fieldErrors[`agreement_${config.agreements[0]?.id}`] && (
-                  <p className="text-xs text-red-500">
-                    请阅读并同意所有必填协议
-                  </p>
-                )}
-              </div>
-            )}
+          {captchaPassed && (
+            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-sm text-emerald-700">
+              <Shield className="w-4 h-4" />
+              <span>安全验证已通过</span>
+            </div>
+          )}
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={skipVerify}
-                onChange={(e) => setSkipVerify(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-gray-600">跳过验证，直接激活（Demo 模式）</span>
-            </label>
+          {/* 错误提示 */}
+          {error && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-100 rounded-lg text-sm text-red-600">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-            {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+          {/* 提交按钮 */}
+          <Button onClick={handleSubmit} disabled={loading} className="w-full h-11 bg-primary hover:bg-primary/90 text-white text-base font-medium">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "完成注册"}
+          </Button>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-primary-dark text-white"
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  注册 <ArrowRight className="w-4 h-4 ml-1" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <p className="text-center text-sm text-gray-500">
-            已有账号？
-            <Link href={`/auth/portal/login${tenantId ? `?tenantId=${tenantId}` : ""}`} className="text-primary hover:underline">
-              立即登录
-            </Link>
+          {/* Footer */}
+          <p className="text-center text-sm text-gray-400">
+            已有账号？<Link href={`/auth/portal/login${tenantId ? `?tenantId=${tenantId}` : ""}`} className="text-primary hover:underline font-medium">立即登录</Link>
           </p>
         </CardContent>
       </Card>

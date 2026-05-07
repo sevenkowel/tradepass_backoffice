@@ -24,17 +24,25 @@ export default function OCRCConfirmPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [nameSimilarity, setNameSimilarity] = useState<number | undefined>();
+  const [isHydrating, setIsHydrating] = useState(true);
+
+  // 等待 Zustand persist hydrate 完成后再检查
+  useEffect(() => {
+    const timer = setTimeout(() => setIsHydrating(false), 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 检查是否有 OCR 数据
   useEffect(() => {
+    if (isHydrating) return;
     if (!kycData?.ocrData) {
       // 没有 OCR 数据，跳转到文档上传页
       router.replace("/portal/kyc/document");
     }
-  }, [kycData?.ocrData, router]);
+  }, [kycData?.ocrData, router, isHydrating]);
 
-  // 如果没有数据，显示加载中
-  if (!kycData?.ocrData) {
+  // 如果还在 hydrate 或没有数据，显示加载中
+  if (isHydrating || !kycData?.ocrData) {
     return (
       <div className="min-h-screen bg-[rgb(var(--tp-bg-rgb))] flex items-center justify-center">
         <div className="text-center">

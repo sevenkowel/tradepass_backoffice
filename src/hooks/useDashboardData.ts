@@ -74,6 +74,12 @@ export function useDashboardData(): UseDashboardDataReturn {
       setIsLoading(true);
       setError(null);
       const response = await fetch("/api/portal/dashboard");
+      if (response.status === 401) {
+        // 未登录状态，静默处理
+        setData(null);
+        setIsLoading(false);
+        return;
+      }
       if (!response.ok) {
         throw new Error(`Failed to fetch dashboard data: ${response.status}`);
       }

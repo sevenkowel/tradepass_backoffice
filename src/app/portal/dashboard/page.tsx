@@ -13,6 +13,7 @@ import {
   MarketNews,
   HelpCenter,
   CustomerService,
+  DashboardBannerList,
 } from "@/components/dashboard";
 import { useDevConfig } from "@/lib/dev-config";
 import { getDashboardConfig } from "@/lib/user-perspectives";
@@ -43,6 +44,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-slate-50/50">
       {/* Main Content - 宽屏布局 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* 0. Banner 横幅 - 全宽（最上方） */}
+        <DashboardBannerList />
+
         {/* 1. 用户引导（新用户显示）- 全宽 */}
         {config.showOnboarding && <OnboardingFunnel user={currentPerspective} />}
 

@@ -1,71 +1,108 @@
 /**
  * Dev-aware fetch wrapper
- * 在开发环境中自动从 KYCMockConfig store 读取配置并注入到 KYC API 请求 header 中
+ * KYC API 在开发环境中本地 mock，不走网络，不受 MockFetch 认证限制
  */
 
 /**
- * 构建 mock 配置 headers
- * 从 localStorage 读取 KYCMockConfig 的值
- * 必须在客户端调用
+ * 读取 DevTools Mock 配置
  */
-function getMockHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-
+function readMockConfig(): {
+  ocrConfidence: number;
+  ocrSimulateError: boolean;
+  livenessPassRate: number;
+  livenessForceResult: string;
+  reviewForceResult: string;
+} {
+  if (typeof window === "undefined") {
+    return { ocrConfidence: 0.95, ocrSimulateError: false, livenessPassRate: 0.9, livenessForceResult: "auto", reviewForceResult: "auto" };
+  }
   try {
     const stored = localStorage.getItem("kyc-mock-config");
-    if (!stored) return {};
-
+    if (!stored) return { ocrConfidence: 0.95, ocrSimulateError: false, livenessPassRate: 0.9, livenessForceResult: "auto", reviewForceResult: "auto" };
     const config = JSON.parse(stored);
-    const state = config?.state;
-    if (!state) return {};
-
-    const headers: Record<string, string> = {};
-
-    // OCR 配置
-    if (state.ocrConfidence !== undefined) {
-      headers["X-Mock-OCR-Confidence"] = String(state.ocrConfidence);
-    }
-    if (state.ocrSimulateError) {
-      headers["X-Mock-OCR-Error"] = "true";
-    }
-
-    // 活体检测配置
-    if (state.livenessPassRate !== undefined) {
-      headers["X-Mock-Liveness-Pass-Rate"] = String(state.livenessPassRate);
-    }
-    if (state.livenessForceResult && state.livenessForceResult !== "auto") {
-      headers["X-Mock-Liveness-Force"] = state.livenessForceResult;
-    }
-
-    // 审核配置
-    if (state.reviewForceResult && state.reviewForceResult !== "auto") {
-      headers["X-Mock-Review-Force"] = state.reviewForceResult;
-    }
-
-    return headers;
+    const state = config?.state || {};
+    return {
+      ocrConfidence: state.ocrConfidence ?? 0.95,
+      ocrSimulateError: state.ocrSimulateError ?? false,
+      livenessPassRate: state.livenessPassRate ?? 0.9,
+      livenessForceResult: state.livenessForceResult ?? "auto",
+      reviewForceResult: state.reviewForceResult ?? "auto",
+    };
   } catch {
-    return {};
+    return { ocrConfidence: 0.95, ocrSimulateError: false, livenessPassRate: 0.9, livenessForceResult: "auto", reviewForceResult: "auto" };
   }
 }
 
 /**
- * 增强的 fetch，自动为 KYC API 注入 mock 配置 headers
+ * 本地 mock OCR 响应
  */
-export function devFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  // 仅对 KYC API 注入 mock headers
-  if (typeof window !== "undefined" && url.includes("/api/kyc/")) {
-    const mockHeaders = getMockHeaders();
-    const existingHeaders = new Headers(options.headers);
+async function mockOCRResponse(body: any): Promise<Response> {
+  const config = readMockConfig();
 
-    Object.entries(mockHeaders).forEach(([key, value]) => {
-      existingHeaders.set(key, value);
-    });
-
-    return fetch(url, {
-      ...options,
-      headers: existingHeaders,
-    });
+  // DevTools: OCR 失败开关
+  if (config.ocrSimulateError) {
+    await mockDelay(600);
+    return new Response(
+      JSON.stringify({ success: false, error: "OCR engine error: Failed to extract text from image" }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   }
 
+  const docType = body?.documentType || "passport";
+  const mockNames = ["Nguyen Van A", "Tran Thi B", "Le Van C", "Pham Thi D", "Hoang Van E"];
+  const mockName = mockNames[Math.floor(Math.random() * mockNames.length)];
+  const mockId = String(Math.floor(Math.random() * 900000000) + 100000000);
+
+  await mockDelay(800);
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        documentType: docType,
+        fullName: mockName,
+        documentNumber: mockId,
+        dateOfBirth: "1990-01-01",
+        nationality: "Vietnam",
+        gender: "M",
+        expiryDate: "2030-12-31",
+        confidence: config.ocrConfidence,
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+/**
+ * 本地 mock save-step 响应
+ */
+async function mockSaveStepResponse(): Promise<Response> {
+  await mockDelay(200);
+  return new Response(
+    JSON.stringify({ success: true }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+function mockDelay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 增强的 fetch
+ * KYC API 本地 mock，其他请求正常 fetch
+ */
+export function devFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  // OCR 请求 — 本地 mock
+  if (typeof window !== "undefined" && url.includes("/api/kyc/ocr")) {
+    const body = options.body ? JSON.parse(options.body as string) : {};
+    return mockOCRResponse(body);
+  }
+
+  // save-step 请求 — 本地 mock
+  if (typeof window !== "undefined" && url.includes("/api/kyc/save-step")) {
+    return mockSaveStepResponse();
+  }
+
+  // 其他请求正常走 fetch
   return fetch(url, options);
 }

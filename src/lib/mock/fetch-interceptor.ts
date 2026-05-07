@@ -356,6 +356,253 @@ const handleUpdateKycStatus = (params: string[], body?: unknown): ApiResponse =>
   return { success: true, data: record };
 };
 
+// ==================== Backoffice KYC Review Mock Data ====================
+
+const MOCK_KYC_REVIEWS = [
+  {
+    id: 'kyc-review-001', userId: 'user-001',
+    userName: 'Nguyen Van Anh', email: 'nguyenvananh@example.com', phone: '+84 912 345 678',
+    regionCode: 'VN', country: 'Vietnam',
+    kycLevel: 'standard' as const, status: 'submitted' as const, riskLevel: 'low' as const,
+    documentType: 'id_card', documentFrontUrl: '/mock/docs/id_front.jpg', documentBackUrl: '/mock/docs/id_back.jpg', selfieUrl: '/mock/docs/selfie.jpg',
+    ocrConfidence: 0.96, livenessPassed: true,
+    submittedAt: '2026-05-05T10:30:00Z',
+    personalInfo: { fullName: 'Nguyen Van Anh', dateOfBirth: '1992-03-15', nationality: 'Vietnam', address: '123 Le Loi Street', city: 'Ho Chi Minh City', country: 'Vietnam' },
+    amlPassed: true, amlRiskScore: 12, flags: [],
+  },
+  {
+    id: 'kyc-review-002', userId: 'user-002',
+    userName: 'Somchai Jaidee', email: 'somchai@example.com', phone: '+66 81 234 5678',
+    regionCode: 'TH', country: 'Thailand',
+    kycLevel: 'enhanced' as const, status: 'under_review' as const, riskLevel: 'medium' as const,
+    documentType: 'passport', documentFrontUrl: '/mock/docs/passport.jpg',
+    ocrConfidence: 0.88, livenessPassed: true,
+    submittedAt: '2026-05-04T14:20:00Z',
+    personalInfo: { fullName: 'Somchai Jaidee', dateOfBirth: '1985-07-22', nationality: 'Thailand', address: '45 Sukhumvit Road', city: 'Bangkok', country: 'Thailand' },
+    amlPassed: true, amlRiskScore: 35, flags: ['multiple_accounts'],
+  },
+  {
+    id: 'kyc-review-003', userId: 'user-003',
+    userName: 'Budi Santoso', email: 'budi@example.com', phone: '+62 812 3456 7890',
+    regionCode: 'ID', country: 'Indonesia',
+    kycLevel: 'basic' as const, status: 'submitted' as const, riskLevel: 'high' as const,
+    documentType: 'drivers_license', documentFrontUrl: '/mock/docs/dl_front.jpg', documentBackUrl: '/mock/docs/dl_back.jpg',
+    ocrConfidence: 0.72, livenessPassed: false,
+    submittedAt: '2026-05-06T09:15:00Z',
+    personalInfo: { fullName: 'Budi Santoso', dateOfBirth: '1998-11-30', nationality: 'Indonesia', address: 'Jl. Merdeka No. 88', city: 'Jakarta', country: 'Indonesia' },
+    amlPassed: false, amlRiskScore: 72, flags: ['pep_related', 'unusual_pattern'],
+  },
+  {
+    id: 'kyc-review-004', userId: 'user-004',
+    userName: 'Chen Wei Ming', email: 'chenwm@example.com', phone: '+86 138 0000 1234',
+    regionCode: 'CN', country: 'China',
+    kycLevel: 'standard' as const, status: 'approved' as const, riskLevel: 'low' as const,
+    documentType: 'id_card', documentFrontUrl: '/mock/docs/id_front_2.jpg', documentBackUrl: '/mock/docs/id_back_2.jpg', selfieUrl: '/mock/docs/selfie_2.jpg',
+    ocrConfidence: 0.98, livenessPassed: true,
+    submittedAt: '2026-05-02T08:00:00Z', reviewedAt: '2026-05-03T10:00:00Z', reviewedBy: 'admin_001',
+    personalInfo: { fullName: 'Chen Wei Ming', dateOfBirth: '1990-01-10', nationality: 'China', address: '88 Nanjing Road', city: 'Shanghai', country: 'China' },
+    amlPassed: true, amlRiskScore: 5, flags: [],
+  },
+  {
+    id: 'kyc-review-005', userId: 'user-005',
+    userName: 'Rajesh Kumar', email: 'rajesh.k@example.com', phone: '+91 98765 43210',
+    regionCode: 'IN', country: 'India',
+    kycLevel: 'standard' as const, status: 'rejected' as const, riskLevel: 'high' as const,
+    documentType: 'passport', documentFrontUrl: '/mock/docs/passport_2.jpg',
+    ocrConfidence: 0.45, livenessPassed: false,
+    submittedAt: '2026-05-01T16:45:00Z', reviewedAt: '2026-05-02T09:30:00Z', reviewedBy: 'admin_002', rejectionReason: 'Document image quality too low, please resubmit with clearer photo',
+    personalInfo: { fullName: 'Rajesh Kumar', dateOfBirth: '1982-06-25', nationality: 'India', address: '42 MG Road', city: 'Mumbai', country: 'India' },
+    amlPassed: true, amlRiskScore: 28, flags: ['document_quality'],
+  },
+  {
+    id: 'kyc-review-006', userId: 'user-006',
+    userName: 'Sarah Lim', email: 'sarah.lim@example.com', phone: '+65 9123 4567',
+    regionCode: 'SG', country: 'Singapore',
+    kycLevel: 'enhanced' as const, status: 'under_review' as const, riskLevel: 'low' as const,
+    documentType: 'passport', documentFrontUrl: '/mock/docs/passport_3.jpg', selfieUrl: '/mock/docs/selfie_3.jpg',
+    ocrConfidence: 0.94, livenessPassed: true,
+    submittedAt: '2026-05-06T11:00:00Z',
+    personalInfo: { fullName: 'Sarah Lim', dateOfBirth: '1995-09-18', nationality: 'Singapore', address: '10 Orchard Road #12-34', city: 'Singapore', country: 'Singapore' },
+    amlPassed: true, amlRiskScore: 8, flags: [],
+  },
+];
+
+const MOCK_SUPPLEMENTAL_REQUESTS = [
+  {
+    id: 'sup-kyc-001', userId: 'user-003',
+    type: 'risk_control' as const,
+    requiredStages: ['identity' as const, 'liveness' as const],
+    completedStages: ['identity' as const],
+    status: 'in_progress' as const,
+    initiatedBy: 'admin_001', initiatedByName: 'Admin Wong', initiatedAt: '2026-05-06T08:00:00Z',
+    deadline: '2026-05-13T08:00:00Z',
+    reason: 'High risk user triggered risk control supplemental KYC',
+    notes: 'User flagged for unusual trading pattern. Please verify identity and liveness.',
+    restrictions: { depositEnabled: true, withdrawEnabled: false, tradingEnabled: true, accountOpeningEnabled: false },
+    targetTier: 2,
+    notificationsSent: [{ type: 'email' as const, sentAt: '2026-05-06T08:01:00Z', status: 'delivered' as const }],
+    createdAt: '2026-05-06T08:00:00Z', updatedAt: '2026-05-06T08:00:00Z',
+  },
+  {
+    id: 'sup-kyc-002', userId: 'user-005',
+    type: 'document_expiry' as const,
+    requiredStages: ['identity' as const],
+    completedStages: [],
+    status: 'pending' as const,
+    initiatedBy: 'admin_002', initiatedByName: 'System Auto', initiatedAt: '2026-05-05T14:00:00Z',
+    deadline: '2026-05-20T14:00:00Z',
+    reason: 'Submitted passport expiring within 30 days. Please provide updated document.',
+    restrictions: { depositEnabled: true, withdrawEnabled: true, tradingEnabled: true, accountOpeningEnabled: true },
+    notificationsSent: [{ type: 'email' as const, sentAt: '2026-05-05T14:01:00Z', status: 'delivered' as const }],
+    metadata: { documentType: 'passport', documentExpiryDate: '2026-06-15' },
+    createdAt: '2026-05-05T14:00:00Z', updatedAt: '2026-05-05T14:00:00Z',
+  },
+  {
+    id: 'sup-kyc-003', userId: 'user-002',
+    type: 'tier_upgrade' as const,
+    requiredStages: ['identity' as const, 'address' as const, 'questionnaire' as const],
+    completedStages: [],
+    status: 'pending' as const,
+    initiatedBy: 'admin_001', initiatedByName: 'Admin Wong', initiatedAt: '2026-05-04T10:30:00Z',
+    deadline: '2026-05-18T10:30:00Z',
+    reason: 'User requested tier upgrade from standard to enhanced. Additional verification required.',
+    notes: 'Experience proof and financial source documentation needed.',
+    restrictions: { depositEnabled: true, withdrawEnabled: true, tradingEnabled: true, accountOpeningEnabled: true },
+    targetTier: 3,
+    notificationsSent: [{ type: 'email' as const, sentAt: '2026-05-04T10:31:00Z', status: 'sent' as const }],
+    createdAt: '2026-05-04T10:30:00Z', updatedAt: '2026-05-04T10:30:00Z',
+  },
+  {
+    id: 'sup-kyc-004', userId: 'user-006',
+    type: 'aml_compliance' as const,
+    requiredStages: ['identity' as const, 'address' as const],
+    completedStages: ['identity' as const, 'address' as const],
+    status: 'completed' as const,
+    initiatedBy: 'admin_002', initiatedByName: 'System Auto', initiatedAt: '2026-04-28T09:00:00Z',
+    reason: 'Routine AML compliance check for high-net-worth account.',
+    restrictions: { depositEnabled: true, withdrawEnabled: true, tradingEnabled: true, accountOpeningEnabled: true },
+    notificationsSent: [{ type: 'email' as const, sentAt: '2026-04-28T09:01:00Z', status: 'delivered' as const }],
+    completedAt: '2026-05-02T11:00:00Z', completedBy: 'admin_001',
+    createdAt: '2026-04-28T09:00:00Z', updatedAt: '2026-05-02T11:00:00Z',
+  },
+];
+
+// ==================== Backoffice KYC Review Handlers ====================
+
+const handleGetKycReview = (_params: string[], _body?: unknown, query?: URLSearchParams): ApiResponse => {
+  const status = query?.get('status') || 'all';
+  const risk = query?.get('risk') || 'all';
+  const search = query?.get('search') || '';
+
+  let items = [...MOCK_KYC_REVIEWS];
+
+  if (status !== 'all') items = items.filter((r) => r.status === status);
+  if (risk !== 'all') items = items.filter((r) => r.riskLevel === risk);
+  if (search) {
+    const q = search.toLowerCase();
+    items = items.filter(
+      (r) => r.userName.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
+    );
+  }
+
+  return {
+    success: true,
+    items,
+    stats: {
+      total: MOCK_KYC_REVIEWS.length,
+      submitted: MOCK_KYC_REVIEWS.filter((r) => r.status === 'submitted').length,
+      under_review: MOCK_KYC_REVIEWS.filter((r) => r.status === 'under_review').length,
+      approved: MOCK_KYC_REVIEWS.filter((r) => r.status === 'approved').length,
+      rejected: MOCK_KYC_REVIEWS.filter((r) => r.status === 'rejected').length,
+      high_risk: MOCK_KYC_REVIEWS.filter((r) => r.riskLevel === 'high').length,
+    },
+  } as unknown as ApiResponse;
+};
+
+const handlePostKycReview = (_params: string[], body?: unknown): ApiResponse => {
+  const data = parseBody(body);
+  const record = MOCK_KYC_REVIEWS.find((r) => r.id === data.id);
+  if (!record) return { success: false, error: { code: 'NOT_FOUND', message: 'Record not found' } };
+
+  const now = new Date().toISOString();
+  switch (data.action) {
+    case 'start_review':
+      record.status = 'under_review';
+      break;
+    case 'approve':
+      record.status = 'approved';
+      record.reviewedAt = now;
+      record.reviewedBy = 'mock_admin';
+      break;
+    case 'reject':
+      record.status = 'rejected';
+      record.reviewedAt = now;
+      record.reviewedBy = 'mock_admin';
+      record.rejectionReason = (data.reason as string) || 'Insufficient documentation';
+      break;
+    case 'request_info':
+      record.status = 'submitted';
+      (record.flags as string[]).push('info_requested');
+      break;
+  }
+
+  return { success: true, message: `KYC ${data.action} successful`, record } as unknown as ApiResponse;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let supplementalStore: any[] = [...MOCK_SUPPLEMENTAL_REQUESTS];
+
+const handleGetSupplemental = (_params: string[], _body?: unknown, query?: URLSearchParams): ApiResponse => {
+  const status = query?.get('status') || 'all';
+  const type = query?.get('type') || 'all';
+
+  let requests = [...supplementalStore];
+  if (status !== 'all') requests = requests.filter((r) => r.status === status);
+  if (type !== 'all') requests = requests.filter((r) => r.type === type);
+
+  return { success: true, requests } as unknown as ApiResponse;
+};
+
+const handlePostSupplemental = (_params: string[], body?: unknown): ApiResponse => {
+  const data = parseBody(body) as Record<string, unknown>;
+  const now = new Date().toISOString();
+  const newRequest = {
+    id: `sup-kyc-${Date.now()}`,
+    userId: data.userId as string,
+    type: data.type as string,
+    requiredStages: (data.requiredStages as string[]) || ['identity'],
+    completedStages: [],
+    status: 'pending' as const,
+    initiatedBy: 'mock_admin',
+    initiatedByName: 'Mock Admin',
+    initiatedAt: now,
+    deadline: data.deadline as string,
+    reason: data.reason as string,
+    notes: data.notes as string,
+    restrictions: (data.restrictions as Record<string, boolean>) || { depositEnabled: true, withdrawEnabled: true, tradingEnabled: true, accountOpeningEnabled: true },
+    targetTier: data.targetTier as number,
+    notificationsSent: [{ type: 'email' as const, sentAt: now, status: 'sent' as const }],
+    createdAt: now,
+    updatedAt: now,
+  };
+  supplementalStore.push(newRequest as any);
+  return { success: true, request: newRequest } as unknown as ApiResponse;
+};
+
+const handleDeleteSupplemental = (params: string[], body?: unknown): ApiResponse => {
+  const id = params[0];
+  const data = parseBody(body);
+  const index = supplementalStore.findIndex((r) => r.id === id);
+  if (index === -1) return { success: false, error: { code: 'NOT_FOUND', message: 'Request not found' } };
+
+  supplementalStore[index] = {
+    ...supplementalStore[index],
+    status: 'cancelled' as const,
+    updatedAt: new Date().toISOString(),
+  };
+  return { success: true };
+};
+
 // ==================== Deposit/Withdrawal Handlers ====================
 
 const handleGetDeposits = (params: string[], body?: unknown, query?: URLSearchParams): ApiResponse => {
@@ -432,6 +679,15 @@ const routes: RoutePattern[] = [
   // KYC
   { method: 'GET', pattern: /^\/api\/crm\/kyc$/, handler: handleGetKycRecords },
   { method: 'PUT', pattern: /^\/api\/crm\/kyc\/([^/]+)$/, handler: handleUpdateKycStatus },
+  
+  // Backoffice KYC Review
+  { method: 'GET', pattern: /^\/api\/backoffice\/kyc\/review$/, handler: handleGetKycReview },
+  { method: 'POST', pattern: /^\/api\/backoffice\/kyc\/review$/, handler: handlePostKycReview },
+  
+  // Backoffice Supplemental KYC
+  { method: 'GET', pattern: /^\/api\/backoffice\/kyc\/supplemental$/, handler: handleGetSupplemental },
+  { method: 'POST', pattern: /^\/api\/backoffice\/kyc\/supplemental$/, handler: handlePostSupplemental },
+  { method: 'DELETE', pattern: /^\/api\/backoffice\/kyc\/supplemental\/([^/]+)$/, handler: handleDeleteSupplemental },
   
   // Deposits & Withdrawals
   { method: 'GET', pattern: /^\/api\/crm\/deposits$/, handler: handleGetDeposits },

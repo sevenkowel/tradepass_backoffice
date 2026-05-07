@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -340,6 +340,34 @@ export function PortalSidebar({ tenantId, brand }: PortalSidebarProps) {
   };
 
   const isActive = (href: string) => pathname?.startsWith(href);
+
+  // 根据当前路由自动展开父菜单
+  useEffect(() => {
+    if (!pathname) return;
+    const toExpand = new Set(expandedItems);
+    let changed = false;
+    for (const item of navItems) {
+      if (item.children?.some((c) => pathname.startsWith(c.href))) {
+        if (!toExpand.has(item.href)) { toExpand.add(item.href); changed = true; }
+      }
+    }
+    if (changed) setExpandedItems(toExpand);
+  }, [pathname]);
+
+  // 从 localStorage 加载展开状态
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("portal_sidebar_expanded");
+      if (saved) setExpandedItems(new Set(JSON.parse(saved)));
+    } catch {}
+  }, []);
+
+  // 展开状态持久化
+  useEffect(() => {
+    try {
+      localStorage.setItem("portal_sidebar_expanded", JSON.stringify(Array.from(expandedItems)));
+    } catch {}
+  }, [expandedItems]);
 
   return (
     <aside

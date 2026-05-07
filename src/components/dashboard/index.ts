@@ -1,3 +1,5 @@
+export { DashboardBanner } from "./DashboardBanner";
+export { DashboardBannerList } from "./DashboardBannerList";
 export { OnboardingFunnel } from "./OnboardingFunnel";
 export { AccountOverview, QuickActions } from "./AccountOverview";
 export { TradingAccounts } from "./TradingAccounts";

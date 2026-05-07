@@ -137,6 +137,16 @@ const routes: Record<string, RouteHandler> = {
     return new MockResponse({ success: true });
   },
 
+  // POST /api/auth/otp
+  'POST /api/auth/otp': async ({ body }) => {
+    const { target, action, channel } = body || {};
+    const channelLabel = channel ? `通过${channel === 'sms' ? '短信' : channel === 'whatsapp' ? 'WhatsApp' : '语音电话'}` : '';
+    return new MockResponse({
+      success: true,
+      hint: `验证码已${channelLabel}发送至 ${target}（Demo 模式输入 1234 即可）`,
+    });
+  },
+
   // GET /api/auth/me
   'GET /api/auth/me': async ({ headers }) => {
     const token = headers.get('authorization')?.replace('Bearer ', '');
@@ -308,6 +318,75 @@ const routes: Record<string, RouteHandler> = {
     mockDB.insert('kycRecords', record);
     
     return new MockResponse({ success: true, record });
+  },
+
+  // POST /api/kyc/ocr — 证件 OCR 识别（Demo 模式，支持 DevTools 联动）
+  'POST /api/kyc/ocr': async ({ headers, body }) => {
+    const user = await getCurrentUserFromToken(headers);
+    if (!user) {
+      return new MockResponse({ error: '未登录' }, 401);
+    }
+
+    await mockDelay(800);
+
+    // 读取 DevTools Mock 配置
+    const simulateError = headers.get('X-Mock-OCR-Error') === 'true';
+    if (simulateError) {
+      return new MockResponse({ success: false, error: 'OCR engine error: Failed to extract text from image' }, 200);
+    }
+
+    const confidenceOverride = headers.get('X-Mock-OCR-Confidence');
+    const confidence = confidenceOverride ? parseFloat(confidenceOverride) : 0.95;
+
+    const docType = body?.documentType || 'passport';
+    const mockNames = ['Nguyen Van A', 'Tran Thi B', 'Le Van C', 'Pham Thi D', 'Hoang Van E'];
+    const mockName = mockNames[Math.floor(Math.random() * mockNames.length)];
+    const mockId = String(Math.floor(Math.random() * 900000000) + 100000000);
+
+    return new MockResponse({
+      success: true,
+      data: {
+        documentType: docType,
+        fullName: mockName,
+        documentNumber: mockId,
+        dateOfBirth: '1990-01-01',
+        nationality: 'Vietnam',
+        gender: 'M',
+        expiryDate: '2030-12-31',
+        confidence,
+      },
+    });
+  },
+
+  // POST /api/kyc/save-step — 保存 KYC 步骤进度
+  'POST /api/kyc/save-step': async ({ headers, body }) => {
+    const user = await getCurrentUserFromToken(headers);
+    if (!user) {
+      return new MockResponse({ error: '未登录' }, 401);
+    }
+
+    return new MockResponse({ success: true });
+  },
+
+  // GET /api/config/kyc-system — KYC 系统配置
+  'GET /api/config/kyc-system': async () => {
+    return new MockResponse({
+      success: true,
+      data: {
+        enabled: true,
+        version: 1,
+        steps: {
+          document: { enabled: true, required: true },
+          ocr: { enabled: true, required: true },
+          liveness: { enabled: true, required: true },
+          personalInfo: { enabled: true, required: true },
+          agreements: { enabled: true, required: true },
+        },
+        defaults: {
+          reviewMode: 'auto',
+        },
+      },
+    });
   },
 
   // ============================================
@@ -487,13 +566,30 @@ const routes: Record<string, RouteHandler> = {
 
 // 辅助函数：从 token 获取当前用户
 async function getCurrentUserFromToken(headers: Headers) {
-  const token = headers.get('authorization')?.replace('Bearer ', '');
+  // 先从 Authorization header 读取
+  let token: string | null | undefined = headers.get('authorization')?.replace('Bearer ', '');
+  
+  // 如果没有，从 cookie 读取
+  if (!token && typeof document !== 'undefined') {
+    const match = document.cookie.match(/token=([^;]+)/);
+    token = match ? decodeURIComponent(match[1]) : undefined;
+  }
+  
   if (!token) return null;
   
+  // 先尝试 validateSession（正式 session）
   const session = mockDB.validateSession(token);
-  if (!session) return null;
+  if (session) {
+    return mockDB.findById<MockUser>('users', session.userId);
+  }
   
-  return mockDB.findById<MockUser>('users', session.userId);
+  // Fallback: mock token 直接返回默认用户（Demo 模式）
+  if (token.startsWith('mock-token-')) {
+    const users = mockDB.find<MockUser>('users', (u: MockUser) => u.role === 'user');
+    if (users.length > 0) return users[0];
+  }
+  
+  return null;
 }
 
 // 主 mockFetch 函数
