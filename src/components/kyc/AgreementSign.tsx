@@ -2,12 +2,13 @@
 
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, FileText, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, AlertCircle, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { SignaturePad } from "./SignaturePad";
 import { cn } from "@/lib/utils";
 
 interface Agreement {
@@ -26,6 +27,7 @@ interface AgreementSignProps {
 export function AgreementSign({ agreements, onSubmit, isSubmitting }: AgreementSignProps) {
   const [acceptedAgreements, setAcceptedAgreements] = useState<Set<string>>(new Set());
   const [signature, setSignature] = useState("");
+  const [signatureMode, setSignatureMode] = useState<"text" | "handwritten">("text");
   const [scrolledAgreements, setScrolledAgreements] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   
@@ -65,7 +67,7 @@ export function AgreementSign({ agreements, onSubmit, isSubmitting }: AgreementS
     }
     
     if (!signature.trim()) {
-      setError("Please enter your full name as signature");
+      setError(signatureMode === "text" ? "请输入您的姓名" : "请完成手写签名");
       return;
     }
 
@@ -163,22 +165,38 @@ export function AgreementSign({ agreements, onSubmit, isSubmitting }: AgreementS
       <Card>
         <CardContent className="p-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="signature">
-              Electronic Signature <span className="text-red-500">*</span>
-            </Label>
-            <p className="text-xs text-[rgba(var(--tp-fg-rgb),0.6)]">
-              Please enter your full legal name as it appears on your ID document
-            </p>
-            <Input
-              id="signature"
-              value={signature}
-              onChange={(e) => {
-                setSignature(e.target.value);
-                setError(null);
-              }}
-              placeholder="Enter your full name"
-              className="bg-[rgb(var(--tp-surface-rgb))]"
-            />
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1">
+                <PenLine size={14} /> 签名 <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex gap-1 bg-[rgba(var(--tp-fg-rgb),0.05)] rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setSignatureMode("text")}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${signatureMode === "text" ? "bg-white shadow-sm text-[rgb(var(--tp-accent-rgb))] font-medium" : "text-gray-500"}`}
+                >
+                  文本签名
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSignatureMode("handwritten")}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${signatureMode === "handwritten" ? "bg-white shadow-sm text-[rgb(var(--tp-accent-rgb))] font-medium" : "text-gray-500"}`}
+                >
+                  手写签名
+                </button>
+              </div>
+            </div>
+            {signatureMode === "text" ? (
+              <Input
+                id="signature"
+                value={signature}
+                onChange={(e) => { setSignature(e.target.value); setError(null); }}
+                placeholder="输入您的姓名"
+                className="bg-[rgb(var(--tp-surface-rgb))]"
+              />
+            ) : (
+              <SignaturePad onChange={(dataUrl) => { setSignature(dataUrl); setError(null); }} />
+            )}
           </div>
 
           {/* Error Message */}
