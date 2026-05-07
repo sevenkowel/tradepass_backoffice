@@ -93,35 +93,32 @@ function EmailVerifySection({
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
 
   return (
-    <div className="space-y-4">
-      {/* 邮箱输入（常驻） */}
+    <div className="space-y-3">
+      {/* 邮箱 + 发送按钮 一行 */}
       <div>
         <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
-        <div className="mt-1.5">
-          <EmailInput value={emailValue} onChange={onEmailChange} placeholder="your@email.com" className="h-11" />
+        <div className="mt-1.5 flex gap-2">
+          <div className="flex-1">
+            <EmailInput value={emailValue} onChange={onEmailChange} placeholder="your@email.com" className="h-10" />
+          </div>
+          <Button
+            type="button"
+            onClick={onSendOTP}
+            disabled={emailField.sending || !emailValid}
+            className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+          >
+            {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重发" : "获取验证码"}
+          </Button>
         </div>
       </div>
 
-      {/* 发送按钮（常驻，邮箱无效时禁用） */}
-      <Button
-        type="button"
-        onClick={onSendOTP}
-        disabled={emailField.sending || !emailValid}
-        className="w-full h-11 bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
-      >
-        {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重新发送验证码" : "发送验证码"}
-      </Button>
-
-      {/* 验证码输入（常驻） */}
+      {/* 验证码输入 */}
       <div>
-        <label className="text-sm font-medium text-gray-700">验证码</label>
-        <div className="mt-1.5">
-          <OTPInput
-            value={emailField.code}
-            onChange={(code) => onUpdateOTP({ code })}
-            onComplete={(code) => onComplete(code)}
-          />
-        </div>
+        <OTPInput
+          value={emailField.code}
+          onChange={(code) => onUpdateOTP({ code })}
+          onComplete={(code) => onComplete(code)}
+        />
       </div>
 
       {/* 提示文字 */}
@@ -163,66 +160,59 @@ function PhoneVerifySection({
   const canSend = phoneValue.length >= 7;
 
   return (
-    <div className="space-y-4">
-      {/* 手机号输入（常驻） */}
+    <div className="space-y-3">
+      {/* 手机号 + 发送按钮 一行 */}
       <div>
         <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
-        <div className="mt-1.5">
-          <PhoneInput value={phoneValue} onChange={onPhoneChange} defaultCountry={region.code} className="h-11" />
+        <div className="mt-1.5 flex gap-2">
+          <div className="flex-1">
+            <PhoneInput value={phoneValue} onChange={onPhoneChange} defaultCountry={region.code} className="h-10" />
+          </div>
+          <Button
+            type="button"
+            onClick={onSendOTP}
+            disabled={phoneField.sending || !canSend}
+            className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+          >
+            {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重发" : "获取验证码"}
+          </Button>
         </div>
       </div>
 
-      {/* 验证码接收方式（常驻） */}
+      {/* 验证码接收方式（紧凑横向） */}
       {availableChannels.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">接收验证码方式</label>
-          <div className="space-y-1.5">
-            {availableChannels.map((ch) => {
-              const cfg = CHANNEL_CONFIG[ch];
-              const active = phoneField.channel === ch;
-              return (
-                <label
-                  key={ch}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    active ? "border-primary bg-primary/5" : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="phone-otp-channel"
-                    checked={active}
-                    onChange={() => onUpdateOTP({ channel: ch })}
-                    className="w-4 h-4 text-primary"
-                  />
-                  <span className={`text-sm ${active ? "text-primary font-medium" : "text-gray-700"}`}>{cfg.label}</span>
-                  <span className="text-xs text-gray-400 ml-auto">{cfg.desc}</span>
-                </label>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {availableChannels.map((ch) => {
+            const cfg = CHANNEL_CONFIG[ch];
+            const active = phoneField.channel === ch;
+            return (
+              <label
+                key={ch}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border cursor-pointer text-xs transition-colors ${
+                  active ? "border-primary bg-primary/5 text-primary font-medium" : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="phone-otp-channel"
+                  checked={active}
+                  onChange={() => onUpdateOTP({ channel: ch })}
+                  className="w-3.5 h-3.5 text-primary"
+                />
+                <span>{cfg.label}</span>
+              </label>
+            );
+          })}
         </div>
       )}
 
-      {/* 发送按钮（常驻，手机号无效时禁用） */}
-      <Button
-        type="button"
-        onClick={onSendOTP}
-        disabled={phoneField.sending || !canSend}
-        className="w-full h-11 bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
-      >
-        {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重新发送验证码" : "发送验证码"}
-      </Button>
-
-      {/* 验证码输入（常驻） */}
+      {/* 验证码输入 */}
       <div>
-        <label className="text-sm font-medium text-gray-700">验证码</label>
-        <div className="mt-1.5">
-          <OTPInput
-            value={phoneField.code}
-            onChange={(code) => onUpdateOTP({ code })}
-            onComplete={(code) => onComplete(code)}
-          />
-        </div>
+        <OTPInput
+          value={phoneField.code}
+          onChange={(code) => onUpdateOTP({ code })}
+          onComplete={(code) => onComplete(code)}
+        />
       </div>
 
       {/* 提示文字 */}

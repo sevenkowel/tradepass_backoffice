@@ -17,12 +17,29 @@ export type AppRole =
  *     // handler logic
  *   });
  */
+const DEMO_USER = {
+  id: "demo-admin",
+  email: "demo@tradepass.com",
+  name: "Demo Admin",
+  status: "active",
+  role: "admin" as AppRole,
+};
+
+function isDevMode(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
 export function requireRole(
   allowedRoles: AppRole[],
   handler: (req: NextRequest, user: { id: string; email: string; name?: string | null; status: string }) => Promise<NextResponse>
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
-    const user = await getCurrentUser(req);
+    let user = await getCurrentUser(req);
+
+    // Dev mode fallback: auto-login as demo admin
+    if (!user && isDevMode()) {
+      user = DEMO_USER as unknown as NonNullable<typeof user>;
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -62,7 +79,12 @@ export function requireAuth(
   handler: (req: NextRequest, user: { id: string; email: string; name?: string | null; status: string }) => Promise<NextResponse>
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
-    const user = await getCurrentUser(req);
+    let user = await getCurrentUser(req);
+
+    // Dev mode fallback: auto-login as demo admin
+    if (!user && isDevMode()) {
+      user = DEMO_USER as unknown as NonNullable<typeof user>;
+    }
 
     if (!user) {
       return NextResponse.json(
