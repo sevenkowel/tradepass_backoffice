@@ -509,21 +509,12 @@ export default function KYCReviewPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const showToast = (type: "success" | "error", message: string) => {
+  const showToast = useCallback((type: "success" | "error", message: string) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
-  };
+  }, []);
 
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchRecords = useCallback(async () => {
-    // Cancel previous request to prevent race conditions
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-
+  const fetchRecords = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -531,27 +522,23 @@ export default function KYCReviewPage() {
       if (filterRisk !== "all") params.append("risk", filterRisk);
       if (searchQuery) params.append("search", searchQuery);
 
-      const res = await fetch(`/api/crm/kyc/review?${params}`, {
-        signal: controller.signal,
-      });
+      const res = await fetch(`/api/crm/kyc/review?${params}`);
       const data = await res.json();
       if (data.success) {
         setRecords(data.items);
         setStats(data.stats);
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+    } catch {
       showToast("error", "获取数据失败，请稍后重试");
     } finally {
-      if (abortRef.current === controller) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [filterStatus, filterRisk, searchQuery]);
+  };
 
   useEffect(() => {
     fetchRecords();
-  }, [fetchRecords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, filterRisk, searchQuery]);
 
   const handleAction = async (
     action: "approve" | "reject" | "request_info" | "start_review",
