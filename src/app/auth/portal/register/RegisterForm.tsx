@@ -94,31 +94,39 @@ function EmailVerifySection({
 
   return (
     <div className="space-y-3">
-      {/* 邮箱 + 发送按钮 一行 */}
+      {/* 邮箱输入 */}
       <div>
         <label className="text-sm font-medium text-gray-700">电子邮箱 <span className="text-red-500">*</span></label>
-        <div className="mt-1.5 flex gap-2">
-          <div className="flex-1">
-            <EmailInput value={emailValue} onChange={onEmailChange} placeholder="your@email.com" className="h-10" />
-          </div>
-          <Button
-            type="button"
-            onClick={onSendOTP}
-            disabled={emailField.sending || !emailValid}
-            className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
-          >
-            {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重发" : "获取验证码"}
-          </Button>
+        <div className="mt-1.5">
+          <EmailInput value={emailValue} onChange={onEmailChange} placeholder="your@email.com" className="h-10" />
         </div>
       </div>
 
-      {/* 验证码输入 */}
-      <div>
-        <OTPInput
-          value={emailField.code}
-          onChange={(code) => onUpdateOTP({ code })}
-          onComplete={(code) => onComplete(code)}
-        />
+      {/* 验证码输入 + 获取按钮 一行 */}
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={emailField.code}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+              onUpdateOTP({ code: val });
+              if (val.length === 4) onComplete(val);
+            }}
+            placeholder="4位验证码"
+            className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={onSendOTP}
+          disabled={emailField.sending || !emailValid}
+          className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+        >
+          {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重发" : "获取验证码"}
+        </Button>
       </div>
 
       {/* 提示文字 */}
@@ -161,21 +169,11 @@ function PhoneVerifySection({
 
   return (
     <div className="space-y-3">
-      {/* 手机号 + 发送按钮 一行 */}
+      {/* 手机号输入 */}
       <div>
         <label className="text-sm font-medium text-gray-700">手机号 <span className="text-red-500">*</span></label>
-        <div className="mt-1.5 flex gap-2">
-          <div className="flex-1">
-            <PhoneInput value={phoneValue} onChange={onPhoneChange} defaultCountry={region.code} className="h-10" />
-          </div>
-          <Button
-            type="button"
-            onClick={onSendOTP}
-            disabled={phoneField.sending || !canSend}
-            className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
-          >
-            {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重发" : "获取验证码"}
-          </Button>
+        <div className="mt-1.5">
+          <PhoneInput value={phoneValue} onChange={onPhoneChange} defaultCountry={region.code} className="h-10" />
         </div>
       </div>
 
@@ -206,13 +204,31 @@ function PhoneVerifySection({
         </div>
       )}
 
-      {/* 验证码输入 */}
-      <div>
-        <OTPInput
-          value={phoneField.code}
-          onChange={(code) => onUpdateOTP({ code })}
-          onComplete={(code) => onComplete(code)}
-        />
+      {/* 验证码输入 + 获取按钮 一行 */}
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={phoneField.code}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+              onUpdateOTP({ code: val });
+              if (val.length === 4) onComplete(val);
+            }}
+            placeholder="4位验证码"
+            className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={onSendOTP}
+          disabled={phoneField.sending || !canSend}
+          className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+        >
+          {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重发" : "获取验证码"}
+        </Button>
       </div>
 
       {/* 提示文字 */}
