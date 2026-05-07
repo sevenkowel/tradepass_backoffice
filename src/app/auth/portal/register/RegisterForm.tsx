@@ -484,12 +484,7 @@ export default function RegisterForm() {
 
           {/* ===== 邮箱验证 ===== */}
           {(modeFields.needEmailVerify || modeFields.needEmailBind) && (
-            <div className={`space-y-3 p-4 rounded-xl border ${emailField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
-                  {modeFields.needEmailVerify ? "验证邮箱" : "电子邮箱"}
-                </span>
-              </div>
+            <div className={`p-4 rounded-xl border ${emailField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
               <EmailVerifySection
                 emailValue={emailValue}
                 emailField={emailField}
@@ -504,12 +499,7 @@ export default function RegisterForm() {
 
           {/* ===== 手机验证 ===== */}
           {(modeFields.needPhoneVerify || modeFields.needPhoneBind) && (
-            <div className={`space-y-3 p-4 rounded-xl border ${phoneField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
-                  {modeFields.needPhoneVerify ? "验证手机" : "手机号码"}
-                </span>
-              </div>
+            <div className={`p-4 rounded-xl border ${phoneField.verified ? "bg-emerald-50/40 border-emerald-100" : "bg-gray-50/50 border-gray-100"}`}>
               <PhoneVerifySection
                 phoneValue={phoneValue}
                 phoneField={phoneField}
