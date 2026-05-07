@@ -18,31 +18,24 @@ interface ValidationError {
 
 export default function OCRCConfirmPage() {
   const router = useRouter();
-  const { kycData, updateKYCData, resetKYC } = useKYCStore();
+  const { kycData, updateKYCData, resetKYC, hasHydrated } = useKYCStore();
 
   // 本地状态
   const [isProcessing, setIsProcessing] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [nameSimilarity, setNameSimilarity] = useState<number | undefined>();
-  const [isHydrating, setIsHydrating] = useState(true);
 
-  // 等待 Zustand persist hydrate 完成后再检查
+  // 检查是否有 OCR 数据（等待 persist hydrate 完成后）
   useEffect(() => {
-    const timer = setTimeout(() => setIsHydrating(false), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 检查是否有 OCR 数据
-  useEffect(() => {
-    if (isHydrating) return;
+    if (!hasHydrated) return;
     if (!kycData?.ocrData) {
       // 没有 OCR 数据，跳转到文档上传页
       router.replace("/portal/kyc/document");
     }
-  }, [kycData?.ocrData, router, isHydrating]);
+  }, [kycData?.ocrData, router, hasHydrated]);
 
   // 如果还在 hydrate 或没有数据，显示加载中
-  if (isHydrating || !kycData?.ocrData) {
+  if (!hasHydrated || !kycData?.ocrData) {
     return (
       <div className="min-h-screen bg-[rgb(var(--tp-bg-rgb))] flex items-center justify-center">
         <div className="text-center">

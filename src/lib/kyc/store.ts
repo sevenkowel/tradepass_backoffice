@@ -28,6 +28,9 @@ interface KYCState {
   isLoading: boolean;
   error: string | null;
   
+  // Hydration 状态（persist 恢复完成后为 true）
+  hasHydrated: boolean;
+  
   // Actions
   setRegion: (region: RegionCode) => void;
   setKYCData: (data: Partial<UserKYC>) => void;
@@ -44,6 +47,7 @@ interface KYCState {
   reset: () => void;
   updateKYCData: (data: Partial<UserKYC>) => void;
   resetKYC: () => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
   
   // 流程控制
   canProceedToStep: (step: number) => boolean;
@@ -56,6 +60,7 @@ const initialState = {
   regionCode: null,
   isLoading: false,
   error: null,
+  hasHydrated: false,
 };
 
 export const useKYCStore = create<KYCState>()(
@@ -122,6 +127,8 @@ export const useKYCStore = create<KYCState>()(
       
       setError: (error) => set({ error }),
       
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+      
       reset: () => set(initialState),
       
       canProceedToStep: (step) => {
@@ -178,6 +185,11 @@ export const useKYCStore = create<KYCState>()(
         currentStep: state.currentStep,
         regionCode: state.regionCode,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setHasHydrated(true);
+        }
+      },
     }
   )
 );
