@@ -504,7 +504,7 @@ export default function KYCReviewPage() {
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<KYCReviewRecord | null>(null);
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("submitted");
   const [filterRisk, setFilterRisk] = useState<FilterRisk>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -592,25 +592,32 @@ export default function KYCReviewPage() {
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           {[
-            { label: "总申请", value: stats.total, icon: BarChart3, color: "text-slate-600", bg: "bg-slate-100" },
-            { label: "待审核", value: stats.submitted, icon: CircleDashed, color: "text-amber-600", bg: "bg-amber-100" },
-            { label: "审核中", value: stats.under_review, icon: Eye, color: "text-blue-600", bg: "bg-blue-100" },
-            { label: "已通过", value: stats.approved, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-100" },
-            { label: "已拒绝", value: stats.rejected, icon: XCircle, color: "text-red-600", bg: "bg-red-100" },
-            { label: "高风险", value: stats.high_risk, icon: AlertTriangle, color: "text-orange-600", bg: "bg-orange-100" },
-          ].map(({ label, value, icon: Icon, color, bg }) => (
-            <Card key={label} className="!p-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
-                  <Icon className={`w-4 h-4 ${color}`} />
+            { label: "总申请", value: stats.total, icon: BarChart3, color: "text-slate-600", bg: "bg-slate-100", filter: null as FilterStatus | null },
+            { label: "待审核", value: stats.submitted, icon: CircleDashed, color: "text-amber-600", bg: "bg-amber-100", filter: "submitted" as FilterStatus },
+            { label: "审核中", value: stats.under_review, icon: Eye, color: "text-blue-600", bg: "bg-blue-100", filter: "under_review" as FilterStatus },
+            { label: "已通过", value: stats.approved, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-100", filter: "approved" as FilterStatus },
+            { label: "已拒绝", value: stats.rejected, icon: XCircle, color: "text-red-600", bg: "bg-red-100", filter: "rejected" as FilterStatus },
+            { label: "高风险", value: stats.high_risk, icon: AlertTriangle, color: "text-orange-600", bg: "bg-orange-100", filter: null as FilterStatus | null },
+          ].map(({ label, value, icon: Icon, color, bg, filter }) => {
+            const isActive = filter !== null && filterStatus === filter;
+            return (
+              <Card
+                key={label}
+                className={`!p-4 transition-all ${filter ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5" : ""} ${isActive ? "ring-2 ring-offset-1 ring-blue-400" : ""}`}
+                onClick={filter ? () => setFilterStatus(filter) : undefined}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xl font-bold ${color}`}>{value}</p>
+                    <p className="text-xs text-slate-500">{label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className={`text-xl font-bold ${color}`}>{value}</p>
-                  <p className="text-xs text-slate-500">{label}</p>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 

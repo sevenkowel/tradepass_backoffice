@@ -69,6 +69,7 @@ export interface OTPField {
 function EmailVerifySection({
   emailValue,
   emailField,
+  needVerify,
   onEmailChange,
   onSendOTP,
   onUpdateOTP,
@@ -76,6 +77,7 @@ function EmailVerifySection({
 }: {
   emailValue: string;
   emailField: OTPField;
+  needVerify: boolean;
   onEmailChange: (v: string) => void;
   onSendOTP: () => void;
   onUpdateOTP: (updates: Partial<OTPField>) => void;
@@ -102,36 +104,40 @@ function EmailVerifySection({
         </div>
       </div>
 
-      {/* 验证码输入 + 获取按钮 一行 */}
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            value={emailField.code}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-              onUpdateOTP({ code: val });
-              if (val.length === 4) onComplete(val);
-            }}
-            placeholder="4位验证码"
-            className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-          />
-        </div>
-        <Button
-          type="button"
-          onClick={onSendOTP}
-          disabled={emailField.sending || !emailValid}
-          className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
-        >
-          {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重发" : "获取验证码"}
-        </Button>
-      </div>
+      {/* 验证码输入 + 获取按钮 一行（仅验证模式显示） */}
+      {needVerify && (
+        <>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={emailField.code}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  onUpdateOTP({ code: val });
+                  if (val.length === 4) onComplete(val);
+                }}
+                placeholder="4位验证码"
+                className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={onSendOTP}
+              disabled={emailField.sending || !emailValid}
+              className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+            >
+              {emailField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : emailField.hint ? "重发" : "获取验证码"}
+            </Button>
+          </div>
 
-      {/* 提示文字 */}
-      {emailField.hint && (
-        <p className="text-xs text-gray-500">{emailField.hint}</p>
+          {/* 提示文字 */}
+          {emailField.hint && (
+            <p className="text-xs text-gray-500">{emailField.hint}</p>
+          )}
+        </>
       )}
     </div>
   );
@@ -142,6 +148,7 @@ function PhoneVerifySection({
   phoneValue,
   phoneField,
   region,
+  needVerify,
   onPhoneChange,
   onSendOTP,
   onUpdateOTP,
@@ -150,6 +157,7 @@ function PhoneVerifySection({
   phoneValue: string;
   phoneField: OTPField;
   region: RegionConfig;
+  needVerify: boolean;
   onPhoneChange: (v: string) => void;
   onSendOTP: () => void;
   onUpdateOTP: (updates: Partial<OTPField>) => void;
@@ -177,8 +185,8 @@ function PhoneVerifySection({
         </div>
       </div>
 
-      {/* 验证码接收方式（紧凑横向） */}
-      {availableChannels.length > 0 && (
+      {/* 验证码接收方式（仅验证模式显示） */}
+      {needVerify && availableChannels.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {availableChannels.map((ch) => {
             const cfg = CHANNEL_CONFIG[ch];
@@ -204,36 +212,40 @@ function PhoneVerifySection({
         </div>
       )}
 
-      {/* 验证码输入 + 获取按钮 一行 */}
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            value={phoneField.code}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-              onUpdateOTP({ code: val });
-              if (val.length === 4) onComplete(val);
-            }}
-            placeholder="4位验证码"
-            className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-          />
-        </div>
-        <Button
-          type="button"
-          onClick={onSendOTP}
-          disabled={phoneField.sending || !canSend}
-          className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
-        >
-          {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重发" : "获取验证码"}
-        </Button>
-      </div>
+      {/* 验证码输入 + 获取按钮 一行（仅验证模式显示） */}
+      {needVerify && (
+        <>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={phoneField.code}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  onUpdateOTP({ code: val });
+                  if (val.length === 4) onComplete(val);
+                }}
+                placeholder="4位验证码"
+                className="w-full h-10 px-3 text-sm text-center tracking-[0.5em] text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+            <Button
+              type="button"
+              onClick={onSendOTP}
+              disabled={phoneField.sending || !canSend}
+              className="h-10 px-4 bg-primary hover:bg-primary/90 text-white text-sm whitespace-nowrap disabled:opacity-50"
+            >
+              {phoneField.sending ? <Loader2 className="w-4 h-4 animate-spin" /> : phoneField.hint ? "重发" : "获取验证码"}
+            </Button>
+          </div>
 
-      {/* 提示文字 */}
-      {phoneField.hint && (
-        <p className="text-xs text-gray-500">{phoneField.hint}</p>
+          {/* 提示文字 */}
+          {phoneField.hint && (
+            <p className="text-xs text-gray-500">{phoneField.hint}</p>
+          )}
+        </>
       )}
     </div>
   );
@@ -481,6 +493,7 @@ export default function RegisterForm() {
               <EmailVerifySection
                 emailValue={emailValue}
                 emailField={emailField}
+                needVerify={modeFields.needEmailVerify}
                 onEmailChange={setEmailValue}
                 onSendOTP={() => sendOTP(emailValue, "email")}
                 onUpdateOTP={(updates) => updateOTPField(emailValue, updates)}
@@ -501,6 +514,7 @@ export default function RegisterForm() {
                 phoneValue={phoneValue}
                 phoneField={phoneField}
                 region={region}
+                needVerify={modeFields.needPhoneVerify}
                 onPhoneChange={setPhoneValue}
                 onSendOTP={() => sendOTP(phoneValue, "phone", phoneField.channel)}
                 onUpdateOTP={(updates) => updateOTPField(phoneValue, updates)}

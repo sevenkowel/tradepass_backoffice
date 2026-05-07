@@ -31,15 +31,19 @@ export const GET = requireRole(["admin", "compliance_officer"], async (request: 
     where.regionCode = regionCode;
   }
 
-  // Risk level filtering is computed from amlRiskScore since schema stores score not level string
-  // We'll fetch all matching records and filter in-memory for riskLevel
-  const allRecords = await prisma.kYCRecord.findMany({
-    where,
+  // Fetch ALL records for global stats (no filters except region if specified)
+  const globalWhere: Record<string, unknown> = {};
+  if (regionCode && regionCode !== "all") {
+    globalWhere.regionCode = regionCode;
+  }
+
+  const allRecordsRaw = await prisma.kYCRecord.findMany({
+    where: globalWhere,
     include: { user: { select: { id: true, email: true, name: true, phone: true } } },
     orderBy: { submittedAt: "desc" },
   });
 
-  let records = allRecords.map((r) => {
+  const allRecords = allRecordsRaw.map((r) => {
     const score = r.amlRiskScore ?? 0;
     const riskLevel = score >= 60 ? "high" : score >= 30 ? "medium" : "low";
     const flags: string[] = [];
@@ -75,6 +79,22 @@ export const GET = requireRole(["admin", "compliance_officer"], async (request: 
     };
   });
 
+  // Global stats (always based on ALL records, not filtered)
+  const stats = {
+    total: allRecords.length,
+    submitted: allRecords.filter((r) => r.status === "submitted").length,
+    under_review: allRecords.filter((r) => r.status === "under_review").length,
+    approved: allRecords.filter((r) => r.status === "approved").length,
+    rejected: allRecords.filter((r) => r.status === "rejected").length,
+    high_risk: allRecords.filter((r) => r.riskLevel === "high").length,
+  };
+
+  // Apply filters for list items
+  let records = [...allRecords];
+
+  if (status && status !== "all") {
+    records = records.filter((r) => r.status === status);
+  }
   if (riskLevel && riskLevel !== "all") {
     records = records.filter((r) => r.riskLevel === riskLevel);
   }
@@ -91,15 +111,6 @@ export const GET = requireRole(["admin", "compliance_officer"], async (request: 
   const total = records.length;
   const start = (page - 1) * limit;
   const items = records.slice(start, start + limit);
-
-  const stats = {
-    total,
-    submitted: records.filter((r) => r.status === "submitted").length,
-    under_review: records.filter((r) => r.status === "under_review").length,
-    approved: records.filter((r) => r.status === "approved").length,
-    rejected: records.filter((r) => r.status === "rejected").length,
-    high_risk: records.filter((r) => r.riskLevel === "high").length,
-  };
 
   return NextResponse.json({
     success: true,
