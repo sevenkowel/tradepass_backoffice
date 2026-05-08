@@ -2,12 +2,14 @@
 export type UserStatus = 'active' | 'frozen' | 'pending' | 'closed';
 export type KYCStatus = 'not_submitted' | 'pending' | 'verified' | 'rejected';
 export type UserLevel = 'standard' | 'vip' | 'premium' | 'enterprise';
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type LifecycleStage = 'registered' | 'verified' | 'ftd' | 'active' | 'inactive' | 'churn';
 
 export interface BackofficeUser {
   id: string;
   uid: string;
   name: string;
-  username?: string; // 兼容旧字段
+  username?: string;
   email: string;
   phone: string;
   country?: string;
@@ -22,6 +24,19 @@ export interface BackofficeUser {
   tags: string[];
   ibId?: string;
   notes?: string;
+  // === v2: Client Management 扩展字段 ===
+  riskLevel?: RiskLevel;
+  riskScore?: number;
+  lifecycleStage?: LifecycleStage;
+  ftdDate?: string;
+  totalDeposit?: number;
+  totalWithdrawal?: number;
+  netDeposit?: number;
+  tradingVolume?: number;
+  lastTradeAt?: string;
+  deviceCount?: number;
+  ipCount?: number;
+  relatedUserIds?: string[];
 }
 
 export interface UserListParams {
@@ -35,9 +50,62 @@ export interface UserListParams {
   endDate?: string;
 }
 
+export interface ClientListParams extends UserListParams {
+  riskLevel?: RiskLevel;
+  lifecycleStage?: LifecycleStage;
+  country?: string;
+  hasFtd?: boolean;
+  tags?: string[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface UserListResponse {
   data: BackofficeUser[];
   total: number;
   page: number;
   pageSize: number;
+}
+
+// === v2: Client Tags ===
+export interface ClientTag {
+  id: string;
+  name: string;
+  color: string;
+  description?: string;
+  isSystem: boolean;
+  autoRule?: TagAutoRule;
+  userCount: number;
+  createdAt: string;
+}
+
+export interface TagAutoRule {
+  condition: 'and' | 'or';
+  rules: {
+    field: string;
+    operator: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'in';
+    value: number | string | string[];
+  }[];
+}
+
+// === v2: Client Segments ===
+export interface ClientSegment {
+  id: string;
+  name: string;
+  description?: string;
+  filter: Partial<ClientListParams>;
+  userCount: number;
+  isDynamic: boolean;
+  createdAt: string;
+}
+
+// === v2: Client Notes ===
+export interface ClientNote {
+  id: string;
+  clientId: string;
+  content: string;
+  author: string;
+  mentions: string[];
+  isPinned: boolean;
+  createdAt: string;
 }
