@@ -9,12 +9,9 @@ import {
   LayoutDashboard,
   Users,
   ShieldCheck,
-  Briefcase,
   Wallet,
   TrendingUp,
   Network,
-  Copy,
-  Brain,
   AlertTriangle,
   Headphones,
   Megaphone,
@@ -27,7 +24,6 @@ import {
   Shield,
   UserCog,
   Puzzle,
-  SlidersHorizontal,
   Building,
   type LucideIcon,
 } from "lucide-react";
@@ -35,13 +31,14 @@ import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
 import type { PermissionModule } from "@/types/backoffice/role";
 
-// 菜单项类型 - 支持三级菜单
+// 菜单项类型 - 支持三级菜单 + 分割线
 interface MenuItem {
   label: string;
   href?: string;
   icon: LucideIcon;
   permission?: PermissionModule;
   children?: MenuItem[];
+  isSeparator?: boolean;
 }
 
 interface MenuGroup {
@@ -52,7 +49,8 @@ interface MenuGroup {
   appId?: string; // 关联的应用ID，未安装时不显示
 }
 
-// 菜单配置 - 所有菜单项
+// 菜单配置 - 所有菜单项（v2 重构版）
+// 设计原则：配置去中心化 · 专业视图独立 · 聚合引导入口
 const menuGroups: MenuGroup[] = [
   {
     group: "Dashboard",
@@ -62,38 +60,56 @@ const menuGroups: MenuGroup[] = [
       { label: "Overview", href: "/crm", icon: LayoutDashboard, permission: "dashboard" },
       { label: "Real-time Monitor", href: "/crm/monitor", icon: TrendingUp, permission: "dashboard" },
       { label: "Conversion Funnel", href: "/crm/funnel", icon: BarChart3, permission: "dashboard" },
+      { label: "Client 360", href: "/crm/client-360", icon: Users, permission: "dashboard" },
     ],
   },
   {
-    group: "Users",
+    group: "Clients",
     icon: Users,
     permission: "accounts",
     items: [
-      { label: "User List", href: "/crm/users", icon: Users, permission: "accounts" },
-      { label: "User Tags", href: "/crm/users/tags", icon: Users, permission: "accounts" },
-      { label: "User Levels", href: "/crm/users/levels", icon: Users, permission: "accounts" },
+      { label: "Client List", href: "/crm/clients", icon: Users, permission: "accounts" },
+      { label: "Tags", href: "/crm/clients/tags", icon: Users, permission: "accounts" },
+      { label: "Segments", href: "/crm/clients/segments", icon: Users, permission: "accounts" },
+      { label: "Lifecycle", href: "/crm/clients/lifecycle", icon: Users, permission: "accounts" },
+      { label: "Notes", href: "/crm/clients/notes", icon: Users, permission: "accounts" },
+      { label: "Relationships", href: "/crm/clients/relationships", icon: Network, permission: "accounts" },
     ],
   },
   {
-    group: "Compliance",
+    group: "KYC Center",
     icon: ShieldCheck,
     permission: "compliance",
     items: [
-      { label: "KYC Review", href: "/crm/compliance/kyc-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Supplemental KYC", href: "/crm/compliance/supplemental-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Risk Control", href: "/crm/compliance/risk", icon: AlertTriangle, permission: "compliance" },
-      { label: "Blacklist", href: "/crm/compliance/blacklist", icon: ShieldCheck, permission: "compliance" },
-      { label: "Audit Logs", href: "/crm/compliance/audit", icon: ShieldCheck, permission: "compliance" },
+      { label: "Review Queue", href: "/crm/kyc/review", icon: ShieldCheck, permission: "compliance" },
+      { label: "Resubmission", href: "/crm/kyc/resubmit", icon: ShieldCheck, permission: "compliance" },
+      { label: "Liveness Review", href: "/crm/kyc/liveness-review", icon: ShieldCheck, permission: "compliance" },
+      { label: "POA Review", href: "/crm/kyc/poa-review", icon: ShieldCheck, permission: "compliance" },
+      { label: "Compliance Archive", href: "/crm/kyc/archive", icon: ShieldCheck, permission: "compliance" },
+      { label: "", icon: ShieldCheck, isSeparator: true },
+      { label: "KYC Form Config", href: "/crm/kyc/config", icon: Settings, permission: "compliance" },
+      { label: "KYC Levels", href: "/crm/kyc/levels", icon: Settings, permission: "compliance" },
+      { label: "Review Policy", href: "/crm/kyc/review-policy", icon: Settings, permission: "compliance" },
+      { label: "Agreement Docs", href: "/crm/kyc/agreements", icon: Shield, permission: "compliance" },
     ],
   },
   {
-    group: "Accounts",
-    icon: Briefcase,
-    permission: "accounts",
+    group: "Risk Center",
+    icon: AlertTriangle,
+    permission: "risk",
     items: [
-      { label: "MT Accounts", href: "/crm/accounts", icon: Briefcase, permission: "accounts" },
-      { label: "Account Groups", href: "/crm/accounts/groups", icon: Briefcase, permission: "accounts" },
-      { label: "Leverage Settings", href: "/crm/accounts/leverage", icon: Briefcase, permission: "accounts" },
+      { label: "Risk Dashboard", href: "/crm/risk", icon: AlertTriangle, permission: "risk" },
+      { label: "High-Risk Clients", href: "/crm/risk/high-risk", icon: AlertTriangle, permission: "risk" },
+      { label: "AML Hits", href: "/crm/risk/aml", icon: AlertTriangle, permission: "risk" },
+      { label: "Relationship Graph", href: "/crm/risk/graph", icon: Network, permission: "risk" },
+      { label: "Anomaly Detection", href: "/crm/risk/anomalies", icon: AlertTriangle, permission: "risk" },
+      { label: "Device & Security", href: "/crm/risk/device", icon: AlertTriangle, permission: "risk" },
+      { label: "Blacklist", href: "/crm/risk/blacklist", icon: AlertTriangle, permission: "risk" },
+      { label: "Whitelist", href: "/crm/risk/whitelist", icon: AlertTriangle, permission: "risk" },
+      { label: "", icon: AlertTriangle, isSeparator: true },
+      { label: "Risk Rules", href: "/crm/risk/rules", icon: AlertTriangle, permission: "risk" },
+      { label: "Margin Alerts", href: "/crm/risk/margin", icon: AlertTriangle, permission: "risk" },
+      { label: "NBP Protection", href: "/crm/risk/nbp", icon: AlertTriangle, permission: "risk" },
     ],
   },
   {
@@ -101,10 +117,12 @@ const menuGroups: MenuGroup[] = [
     icon: Wallet,
     permission: "funds",
     items: [
-      { label: "Deposit Orders", href: "/crm/funds/deposits", icon: Wallet, permission: "funds" },
-      { label: "Withdrawal Requests", href: "/crm/funds/withdrawal-review", icon: Wallet, permission: "funds" },
+      { label: "Deposits", href: "/crm/funds/deposits", icon: Wallet, permission: "funds" },
+      { label: "Withdrawal Review", href: "/crm/funds/withdrawal-review", icon: Wallet, permission: "funds" },
       { label: "Transactions", href: "/crm/funds/transactions", icon: Wallet, permission: "funds" },
       { label: "Payment Channels", href: "/crm/funds/channels", icon: Wallet, permission: "funds" },
+      { label: "", icon: Wallet, isSeparator: true },
+      { label: "Fund Policy", href: "/crm/funds/policy", icon: Settings, permission: "funds" },
     ],
   },
   {
@@ -115,29 +133,21 @@ const menuGroups: MenuGroup[] = [
       { label: "Orders", href: "/crm/trading/orders", icon: TrendingUp, permission: "trading" },
       { label: "Positions", href: "/crm/trading/positions", icon: TrendingUp, permission: "trading" },
       { label: "Instruments", href: "/crm/trading/instruments", icon: TrendingUp, permission: "trading" },
-      { label: "Trading Settings", href: "/crm/trading/settings", icon: TrendingUp, permission: "trading" },
-    ],
-  },
-
-  {
-    group: "Risk",
-    icon: AlertTriangle,
-    permission: "risk",
-    items: [
-      { label: "Risk Dashboard", href: "/crm/risk", icon: AlertTriangle, permission: "risk" },
-      { label: "Risk Rules", href: "/crm/risk/rules", icon: AlertTriangle, permission: "risk" },
-      { label: "Margin Alerts", href: "/crm/risk/margin", icon: AlertTriangle, permission: "risk" },
-      { label: "NBP Protection", href: "/crm/risk/nbp", icon: AlertTriangle, permission: "risk" },
+      { label: "", icon: TrendingUp, isSeparator: true },
+      { label: "Trading Settings", href: "/crm/trading/settings", icon: Settings, permission: "trading" },
+      { label: "Product Config", href: "/crm/trading/instruments/config", icon: Settings, permission: "trading" },
     ],
   },
   {
-    group: "CRM / Support",
+    group: "Support",
     icon: Headphones,
     permission: "accounts",
     items: [
-      { label: "Tickets", href: "/crm/crm/tickets", icon: Headphones, permission: "accounts" },
-      { label: "Interaction Logs", href: "/crm/crm/logs", icon: Headphones, permission: "accounts" },
-      { label: "Feedback", href: "/crm/crm/feedback", icon: Headphones, permission: "accounts" },
+      { label: "Tickets", href: "/crm/support/tickets", icon: Headphones, permission: "accounts" },
+      { label: "Email Log", href: "/crm/support/emails", icon: Headphones, permission: "accounts" },
+      { label: "SMS Log", href: "/crm/support/sms", icon: Headphones, permission: "accounts" },
+      { label: "Push Log", href: "/crm/support/push", icon: Headphones, permission: "accounts" },
+      { label: "Chat History", href: "/crm/support/chat", icon: Headphones, permission: "accounts" },
     ],
   },
   {
@@ -147,7 +157,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { label: "Campaigns", href: "/crm/marketing/campaigns", icon: Megaphone, permission: "marketing" },
       { label: "Messages", href: "/crm/marketing/messages", icon: Megaphone, permission: "marketing" },
-      { label: "Banner Management", href: "/crm/marketing/banners", icon: Megaphone, permission: "marketing" },
+      { label: "Banners", href: "/crm/marketing/banners", icon: Megaphone, permission: "marketing" },
       { label: "News / Insights", href: "/crm/marketing/news", icon: Megaphone, permission: "marketing" },
     ],
   },
@@ -159,14 +169,25 @@ const menuGroups: MenuGroup[] = [
       { label: "Financial Reports", href: "/crm/reports/financial", icon: BarChart3, permission: "reports" },
       { label: "Trading Reports", href: "/crm/reports/trading", icon: BarChart3, permission: "reports" },
       { label: "User Reports", href: "/crm/reports/users", icon: BarChart3, permission: "reports" },
+      { label: "Conversion Reports", href: "/crm/reports/conversion", icon: BarChart3, permission: "reports" },
+      { label: "Compliance Reports", href: "/crm/reports/compliance", icon: BarChart3, permission: "reports" },
     ],
   },
   {
-    group: "Business Config",
-    icon: SlidersHorizontal,
+    group: "IB",
+    icon: Network,
+    permission: "accounts",
+    items: [
+      { label: "IB Dashboard", href: "/crm/ib", icon: Network, permission: "accounts" },
+    ],
+  },
+  {
+    group: "Setup Guide",
+    icon: Sparkles,
     permission: "system",
     items: [
-      { label: "Dashboard", href: "/crm/business-config", icon: SlidersHorizontal, permission: "system" },
+      { label: "Setup Checklist", href: "/crm/setup-guide", icon: Sparkles, permission: "system" },
+      { label: "Manuals & Docs", href: "/crm/setup-guide/manuals", icon: Sparkles, permission: "system" },
     ],
   },
   {
@@ -174,9 +195,9 @@ const menuGroups: MenuGroup[] = [
     icon: Settings,
     permission: "system",
     items: [
-      { label: "Roles & Permissions", href: "/crm/system/roles", icon: Settings, permission: "system" },
       { label: "Staff Management", href: "/crm/system/staff", icon: UserCog, permission: "system" },
       { label: "Departments", href: "/crm/system/departments", icon: Building, permission: "system" },
+      { label: "Roles & Permissions", href: "/crm/system/roles", icon: Settings, permission: "system" },
       { label: "Security Settings", href: "/crm/system/security", icon: Shield, permission: "system" },
       { label: "Operation Logs", href: "/crm/system/logs", icon: Settings, permission: "system" },
       { label: "API Management", href: "/crm/system/api", icon: Settings, permission: "system" },
@@ -199,8 +220,17 @@ interface SubMenuItemProps {
 }
 
 function SubMenuItem({ item, isActive }: SubMenuItemProps) {
+  // 分割线渲染
+  if (item.isSeparator) {
+    return (
+      <div className="py-2 px-3">
+        <div className="h-px bg-slate-200 ml-[36px] mr-3" />
+      </div>
+    );
+  }
+
   const active = isActive(item.href);
-  
+
   return (
     <Link href={item.href || "#"}>
       <div
