@@ -597,9 +597,6 @@ export async function mockFetch(
   input: string | URL | Request,
   init?: RequestInit
 ): Promise<Response> {
-  // 模拟网络延迟
-  await mockDelay(200 + Math.random() * 300);
-  
   const url = typeof input === 'string' ? new URL(input, 'http://localhost') : 
               input instanceof URL ? input : new URL(input.url);
   
@@ -615,11 +612,18 @@ export async function mockFetch(
   // 查找匹配的路由
   const routeKey = `${method} ${url.pathname}`;
   const handler = routes[routeKey] || findDynamicRoute(routeKey);
-  
+
   if (!handler) {
-    console.warn(`[MockFetch] No handler for: ${routeKey}`);
+    console.warn(`[MockFetch] No handler for: ${routeKey} — falling through to real fetch`);
+    const origFetch = (window as any).originalFetch;
+    if (origFetch) {
+      return origFetch(input, init);
+    }
     return new MockResponse({ error: 'Not Found' }, 404) as unknown as Response;
   }
+
+  // 模拟网络延迟（仅 mock 请求）
+  await mockDelay(200 + Math.random() * 300);
   
   try {
     const response = await handler({ url, method, body, headers, query });

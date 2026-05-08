@@ -1,23 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Loader2, Building, Eye } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Edit2, Trash2, Building, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   PageHeader,
   Card,
   EmptyState,
   EnhancedDataTable,
+  LoadingState,
   type Column,
   type RowAction,
 } from "@/components/crm/ui";
 import { useDepartmentStore } from "@/store/crm/departmentStore";
 import { useStaffStore } from "@/store/crm/staffStore";
 import { DepartmentForm } from "./DepartmentForm";
-import { buildDepartmentTree } from "@/lib/crm/mock-departments";
+import { buildDepartmentTree, flattenDepartmentTree } from "@/lib/crm/tree-utils";
+import type { FlattenedDepartment } from "@/lib/crm/tree-utils";
 import type { Department } from "@/types/crm/department";
 
 export default function DepartmentsPage() {
+  const router = useRouter();
   const {
     departments,
     isLoading,
@@ -28,15 +32,16 @@ export default function DepartmentsPage() {
   const { staff, fetchStaff } = useStaffStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
-  const [tree, setTree] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDepartments();
     fetchStaff();
-  }, [fetchDepartments, fetchStaff]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => {
-    setTree(buildDepartmentTree(departments));
+  const flatData = useMemo(() => {
+    const tree = buildDepartmentTree(departments);
+    return flattenDepartmentTree(tree);
   }, [departments]);
 
   const handleCreate = () => {
@@ -60,22 +65,7 @@ export default function DepartmentsPage() {
     fetchDepartments();
   };
 
-  // Flatten tree for table display
-  const flattenTree = (nodes: any[], level = 0): (Department & { _level: number; _hasChildren: boolean })[] => {
-    const result: (Department & { _level: number; _hasChildren: boolean })[] = [];
-    for (const node of nodes) {
-      const hasChildren = node.children.length > 0;
-      result.push({ ...node, _level: level, _hasChildren: hasChildren });
-      if (hasChildren) {
-        result.push(...flattenTree(node.children, level + 1));
-      }
-    }
-    return result;
-  };
-
-  const flatData = flattenTree(tree);
-
-  const columns: Column<Department & { _level: number; _hasChildren: boolean }>[] = [
+  const columns: Column<FlattenedDepartment>[] = [
     {
       key: "name",
       title: "部门名称",
@@ -139,12 +129,12 @@ export default function DepartmentsPage() {
     },
   ];
 
-  const rowActions: RowAction<Department & { _level: number; _hasChildren: boolean }>[] = [
+  const rowActions: RowAction<FlattenedDepartment>[] = [
     {
       label: "查看详情",
       icon: <Eye className="w-4 h-4" />,
       onClick: (row) => {
-        window.location.href = `/crm/system/departments/${row.id}`;
+        router.push(`/crm/system/departments/${row.id}`);
       },
     },
     {
@@ -177,9 +167,7 @@ export default function DepartmentsPage() {
 
       <Card padding="none">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
+          <LoadingState size="md" className="py-12" />
         ) : flatData.length === 0 ? (
           <EmptyState
             icon={<Building className="w-6 h-6" />}

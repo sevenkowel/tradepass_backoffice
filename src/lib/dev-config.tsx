@@ -65,6 +65,7 @@ interface DevConfigState {
   toolboxOpen: boolean;
   toolboxPosition: { x: number; y: number };
   skipOtpVerification: boolean;
+  forceContactOtp: boolean;
   preVerifiedPhone: string;
   preVerifiedEmail: string;
   accountCount: "single" | "multiple";
@@ -86,6 +87,7 @@ interface DevConfigContextType extends DevConfigState {
 
   // OTP 验证控制
   setSkipOtpVerification: (skip: boolean) => void;
+  setForceContactOtp: (force: boolean) => void;
   setPreVerifiedPhone: (phone: string) => void;
   setPreVerifiedEmail: (email: string) => void;
 
@@ -109,6 +111,7 @@ const DEFAULT_STATE: DevConfigState = {
   toolboxOpen: false,
   toolboxPosition: DEFAULT_POSITION,
   skipOtpVerification: false,
+  forceContactOtp: false,
   preVerifiedPhone: "",
   preVerifiedEmail: "",
   accountCount: "single",
@@ -144,6 +147,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
         toolboxOpen: parsed.toolboxOpen ?? false,
         toolboxPosition: parsedPosition,
         skipOtpVerification: parsed.skipOtpVerification ?? false,
+        forceContactOtp: parsed.forceContactOtp ?? false,
         preVerifiedPhone: parsed.preVerifiedPhone ?? "",
         preVerifiedEmail: parsed.preVerifiedEmail ?? "",
         accountCount,
@@ -163,6 +167,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
       currentPerspectiveId: state.currentPerspective.id,
       toolboxOpen: state.toolboxOpen,
       skipOtpVerification: state.skipOtpVerification,
+      forceContactOtp: state.forceContactOtp,
       preVerifiedPhone: state.preVerifiedPhone,
       preVerifiedEmail: state.preVerifiedEmail,
       accountCount: state.accountCount,
@@ -181,7 +186,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem("kyc_preverified_email");
     }
-  }, [state.currentPerspective.id, state.toolboxOpen, state.toolboxPosition, state.skipOtpVerification, state.preVerifiedPhone, state.preVerifiedEmail, state.accountCount]);
+  }, [state.currentPerspective.id, state.toolboxOpen, state.toolboxPosition, state.skipOtpVerification, state.forceContactOtp, state.preVerifiedPhone, state.preVerifiedEmail, state.accountCount]);
 
   // 设置视角
   const setPerspective = useCallback((id: string) => {
@@ -218,6 +223,10 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
   // OTP 验证控制
   const setSkipOtpVerification = useCallback((skip: boolean) => {
     setState(prev => ({ ...prev, skipOtpVerification: skip }));
+  }, []);
+
+  const setForceContactOtp = useCallback((force: boolean) => {
+    setState(prev => ({ ...prev, forceContactOtp: force }));
   }, []);
 
   const setPreVerifiedPhone = useCallback((phone: string) => {
@@ -259,6 +268,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     setToolboxPosition,
     resetToolboxPosition,
     setSkipOtpVerification,
+    setForceContactOtp,
     setPreVerifiedPhone,
     setPreVerifiedEmail,
     setAccountCount,

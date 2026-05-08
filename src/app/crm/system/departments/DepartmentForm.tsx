@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -103,19 +103,27 @@ export function DepartmentForm({
     onSuccess();
   };
 
-  // Get available parent departments (can't select self or children)
-  const availableParents = departments.filter((d) => {
-    if (d.id === department?.id) return false;
-    // Can't select a descendant as parent
-    if (department) {
-      const isDescendant = (parentId: string): boolean => {
-        const children = departments.filter((c) => c.parentId === department.id);
-        return children.some((c) => c.id === parentId || isDescendant(c.id));
-      };
-      if (isDescendant(d.id)) return false;
+  // 预计算当前部门的所有后代 ID（避免每次渲染都递归）
+  const descendantIds = useMemo(() => {
+    if (!department) return new Set<string>();
+    const ids = new Set<string>();
+    const queue = [department.id];
+    while (queue.length) {
+      const current = queue.shift()!;
+      const children = departments.filter((d) => d.parentId === current);
+      for (const child of children) {
+        ids.add(child.id);
+        queue.push(child.id);
+      }
     }
-    return true;
-  });
+    return ids;
+  }, [department, departments]);
+
+  // 可用的父部门选项（排除自身及后代）
+  const availableParents = useMemo(
+    () => departments.filter((d) => d.id !== department?.id && !descendantIds.has(d.id)),
+    [departments, department, descendantIds]
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

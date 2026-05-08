@@ -5,29 +5,25 @@ import { Sidebar, TopBar } from "@/components/crm/layout";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { ToastContextProvider } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { TenantValidator } from "./TenantValidator";
-import { useBrand } from "@/lib/brand";
+import { getBrandInitials } from "@/lib/utils";
 
-// Demo 模式：跳过认证检查
+const DEFAULT_BRAND = {
+  brandName: "TradePass",
+  slogan: "The Operating System for Modern Brokers",
+  logoUrl: null as string | null,
+  faviconUrl: null as string | null,
+  primaryColor: "#1a73e8",
+};
+
 function BackofficeContent({ children }: { children: React.ReactNode }) {
   const { sidebarCollapsed } = useCrmSidebarStore();
-  const brand = useBrand();
-
-  // 计算品牌首字母
-  const brandInitials = useMemo(() => {
-    return brand.brandName
-      .split(/\s+/)
-      .map((word) => word[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  }, [brand.brandName]);
+  const brandInitials = useMemo(() => getBrandInitials(DEFAULT_BRAND.brandName), []);
 
   return (
     <ToastContextProvider>
       <div className="min-h-screen bg-gray-50">
-        <TopBar brand={brand} brandInitials={brandInitials} />
-        <Sidebar brand={brand} brandInitials={brandInitials} />
+        <TopBar />
+        <Sidebar brandInitials={brandInitials} />
         <main
           className={cn(
             "min-h-[calc(100vh-64px)] transition-all duration-300",
@@ -46,9 +42,5 @@ export default function BackofficeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <TenantValidator>
-      <BackofficeContent>{children}</BackofficeContent>
-    </TenantValidator>
-  );
+  return <BackofficeContent>{children}</BackofficeContent>;
 }

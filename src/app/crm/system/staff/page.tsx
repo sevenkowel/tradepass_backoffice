@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Edit2,
@@ -41,6 +42,7 @@ import { useDepartmentStore } from "@/store/crm/departmentStore";
 import type { Staff, StaffStatus } from "@/types/backoffice/staff";
 
 export default function StaffPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const {
     staff,
@@ -68,7 +70,8 @@ export default function StaffPage() {
     fetchStaff();
     fetchRoles();
     fetchDepartments();
-  }, [fetchStaff, fetchRoles, fetchDepartments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle create
   const handleCreate = () => {
@@ -284,7 +287,7 @@ export default function StaffPage() {
       label: "查看详情",
       icon: <Eye className="w-4 h-4" />,
       onClick: (row) => {
-        window.location.href = `/crm/system/staff/${row.id}`;
+        router.push(`/crm/system/staff/${row.id}`);
       },
     },
     {

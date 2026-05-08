@@ -123,9 +123,14 @@ export interface PersonalInfo {
   city: string;
   postalCode?: string;
   country: string;
+
+  // 地址证明
+  addressProofType?: string;
+  addressProofUrl?: string;
   
-  // 教育背景
+  // 教育背景与就业
   education?: EducationInfo;
+  employment?: EmploymentInfo;
   
   // 投资经验
   investmentExperience?: InvestmentExperience;
@@ -151,6 +156,14 @@ export interface InvestmentExperience {
   productsTraded: string[]; // forex, stocks, crypto, etc.
   averageTradeSize?: string;
   riskTolerance: "low" | "medium" | "high";
+  knowledgeCheck?: KnowledgeCheck;
+}
+
+// 交易知识测验
+export interface KnowledgeCheck {
+  leverageAnswer?: string;
+  marginCallAnswer?: string;
+  stopLossAnswer?: string;
 }
 
 // 财务状况
@@ -181,6 +194,7 @@ export interface ExperienceInfo {
 export interface EmploymentInfo {
   employmentStatus: "employed" | "self_employed" | "retired" | "student" | "unemployed";
   occupation?: string;
+  industry?: string;
   employer?: string;
   position?: string;
   yearsInCurrentJob?: string;

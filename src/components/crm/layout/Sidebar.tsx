@@ -27,17 +27,13 @@ import {
   Shield,
   UserCog,
   Puzzle,
-  Monitor,
   SlidersHorizontal,
   Building,
   type LucideIcon,
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
-import { useDepartmentStore } from "@/store/crm/departmentStore";
-import { mockStaff } from "@/lib/backoffice/mock-staff";
 import type { PermissionModule } from "@/types/backoffice/role";
-import { BrandConfig } from "@/lib/brand";
 
 // 菜单项类型 - 支持三级菜单
 interface MenuItem {
@@ -55,43 +51,6 @@ interface MenuGroup {
   items: MenuItem[];
   appId?: string; // 关联的应用ID，未安装时不显示
 }
-
-// 应用子页面配置
-const APP_SUB_PAGES: Record<string, { label: string; href: string }[]> = {
-  ai_signals: [
-    { label: "Signal List", href: "/crm/ai-signals" },
-    { label: "Usage Control", href: "/crm/ai-signals/usage" },
-    { label: "Signal Pool", href: "/crm/ai-signals/pool" },
-  ],
-  copy_trading: [
-    { label: "Traders", href: "/crm/copy-trading/traders" },
-    { label: "Followers", href: "/crm/copy-trading/followers" },
-    { label: "Settings", href: "/crm/copy-trading/settings" },
-    { label: "Profit Sharing", href: "/crm/copy-trading/profits" },
-  ],
-  ib_referral: [
-    { label: "IB List", href: "/crm/ib" },
-    { label: "Referral Tree", href: "/crm/ib/tree" },
-    { label: "Commission Records", href: "/crm/ib/commissions" },
-    { label: "Commission Settings", href: "/crm/ib/settings" },
-  ],
-  advanced_reports: [
-    { label: "Financial Reports", href: "/crm/reports/financial" },
-    { label: "Trading Reports", href: "/crm/reports/trading" },
-    { label: "User Reports", href: "/crm/reports/users" },
-  ],
-  risk_enhanced: [
-    { label: "Risk Dashboard", href: "/crm/risk" },
-    { label: "Risk Rules", href: "/crm/risk/rules" },
-    { label: "Margin Alerts", href: "/crm/risk/margin" },
-    { label: "NBP Protection", href: "/crm/risk/nbp" },
-  ],
-  multi_terminal: [
-    { label: "MT Accounts", href: "/crm/accounts" },
-    { label: "Account Groups", href: "/crm/accounts/groups" },
-    { label: "Leverage Settings", href: "/crm/accounts/leverage" },
-  ],
-};
 
 // 菜单配置 - 所有菜单项
 const menuGroups: MenuGroup[] = [
@@ -476,144 +435,52 @@ function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }
 }
 
 interface SidebarProps {
-  brand?: BrandConfig;
   brandInitials?: string;
 }
 
-export function Sidebar({ brand, brandInitials }: SidebarProps) {
+const BRAND_NAME = "TradePass";
+const BRAND_COLOR = "#2563eb";
+
+export function Sidebar({ brandInitials }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useCrmSidebarStore();
-  const { hasPermission, user } = useAuthStore();
-  const { departments, fetchDepartments } = useDepartmentStore();
+  const { user } = useAuthStore();
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
-  const [installedApps, setInstalledApps] = useState<string[]>([]);
 
-  // 使用传入的品牌配置或默认值
-  const brandName = brand?.brandName || "TradePass";
-  const brandLogo = brand?.logoUrl;
-  const brandColor = brand?.primaryColor || "#2563eb";
   const initials = brandInitials || "TP";
 
-  // Fetch installed apps
-  useEffect(() => {
-    fetch("/api/tenant/apps")
-      .then((r) => r.json())
-      .then((data) => {
-        setInstalledApps(data.installedApps || []);
-      })
-      .catch(() => {});
-    fetchDepartments();
-  }, [fetchDepartments]);
-
-  const APP_ICON_MAP: Record<string, LucideIcon> = {
-    copy_trading: Copy,
-    ai_signals: Brain,
-    ib_referral: Network,
-    advanced_reports: BarChart3,
-    risk_enhanced: Shield,
-    multi_terminal: Monitor,
-  };
-
-  const APP_ROUTE_MAP: Record<string, string> = {
-    copy_trading: "/crm/copy-trading/traders",
-    ai_signals: "/crm/ai-signals",
-    ib_referral: "/crm/ib",
-    advanced_reports: "/crm/reports/financial",
-    risk_enhanced: "/crm/risk",
-    multi_terminal: "/crm/accounts",
-  };
-
-  const APP_LABEL_MAP: Record<string, string> = {
-    copy_trading: "Copy Trading",
-    ai_signals: "AI Signals",
-    ib_referral: "IB / Referral",
-    advanced_reports: "Advanced Reports",
-    risk_enhanced: "Risk Enhanced",
-    multi_terminal: "Multi Terminal",
-  };
-
-  // Filter menu groups based on permissions, installed apps, and department module access
+  // Filter menu groups based on permissions
   const filteredMenuGroups = useMemo(() => {
-    // Get current user's department module access (union of all departments)
-    let allowedModules: string[] | null = null;
-    if (user?.email) {
-      const staffMember = mockStaff.find((s) => s.email === user.email);
-      if (staffMember?.departmentIds && staffMember.departmentIds.length > 0) {
-        const userModules = new Set<string>();
-        for (const deptId of staffMember.departmentIds) {
-          const dept = departments.find((d) => d.id === deptId || d.name === deptId);
-          if (dept) {
-            dept.moduleAccess.forEach((m) => userModules.add(m));
-          }
-        }
-        if (userModules.size > 0) {
-          allowedModules = Array.from(userModules);
-        }
+    const hasPermission = (module: string, action?: string): boolean => {
+      if (!user) return false;
+      if (user.role.id === 'super_admin') return true;
+      const permissions = user.role.permissions;
+      const hasWildcardModule = permissions.some(
+        p => p.module === '*' && p.actions.includes('*')
+      );
+      if (hasWildcardModule) return true;
+      const modulePermission = permissions.find(p => p.module === module);
+      if (!modulePermission) return false;
+      if (action) {
+        return modulePermission.actions.includes('*') || modulePermission.actions.includes(action);
       }
-    }
+      return true;
+    };
 
     const groups = menuGroups
       .map((group) => {
-        // Hide groups that require an app not installed
-        if (group.appId && !installedApps.includes(group.appId)) {
-          return null;
-        }
-
-        // Filter by department module access
-        if (allowedModules && !allowedModules.includes(group.group as any)) {
-          return null;
-        }
-
-        // Filter items based on permissions
         const filteredItems = group.items.filter((item) => {
           if (!item.permission) return true;
           return hasPermission(item.permission, "view");
         });
-
-        // Only return group if it has visible items
         if (filteredItems.length === 0) return null;
-
-        return {
-          ...group,
-          items: filteredItems,
-        };
+        return { ...group, items: filteredItems };
       })
       .filter(Boolean) as MenuGroup[];
 
-    // Inject installed apps into Apps group as expandable sub-menu items
-    const appsGroupIndex = groups.findIndex((g) => g.group === "Apps");
-    if (appsGroupIndex >= 0 && installedApps.length > 0) {
-      const appItems = installedApps
-        .map((appId) => {
-          const icon = APP_ICON_MAP[appId] || Puzzle;
-          const route = APP_ROUTE_MAP[appId] || "#";
-          const label = APP_LABEL_MAP[appId] || appId;
-          const subPages = APP_SUB_PAGES[appId] || [];
-          const children = subPages.map((sub) => ({
-            label: sub.label,
-            href: sub.href,
-            icon,
-            permission: undefined as PermissionModule | undefined,
-          }));
-          return {
-            label,
-            href: route,
-            icon,
-            permission: undefined as PermissionModule | undefined,
-            children,
-          };
-        })
-        .filter((item) => item.href !== "#");
-
-      groups[appsGroupIndex] = {
-        ...groups[appsGroupIndex],
-        items: [...groups[appsGroupIndex].items, ...appItems],
-      };
-    }
-
     return groups;
-  }, [hasPermission, installedApps]);
+  }, [user]);
 
   const toggleGroup = (group: string) => {
     setExpandedGroup((prev) => (prev === group ? null : group));
@@ -662,26 +529,18 @@ export function Sidebar({ brand, brandInitials }: SidebarProps) {
           sidebarMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        {/* Logo + Collapse Button - 使用租户品牌配置 */}
+        {/* Logo + Collapse Button */}
         <div className="h-[64px] flex items-center border-b border-slate-100/80 relative px-3">
           <Link href="/crm" className="flex items-center gap-2.5 flex-1 min-w-0">
-            {brandLogo ? (
-              <img
-                src={brandLogo}
-                alt={brandName}
-                className="w-10 h-10 rounded-xl object-contain flex-shrink-0"
-              />
-            ) : (
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
-                style={{ backgroundColor: brandColor }}
-              >
-                <span className="text-white font-bold text-sm">{initials}</span>
-              </div>
-            )}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
+              style={{ backgroundColor: BRAND_COLOR }}
+            >
+              <span className="text-white font-bold text-sm">{initials}</span>
+            </div>
             {!sidebarCollapsed && (
               <span className="text-sm font-bold text-slate-800 tracking-tight truncate">
-                {brandName}
+                {BRAND_NAME}
               </span>
             )}
           </Link>

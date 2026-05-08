@@ -51,18 +51,19 @@ async function mockOCRResponse(body: any): Promise<Response> {
   const docType = body?.documentType || "passport";
   const mockNames = ["Nguyen Van A", "Tran Thi B", "Le Van C", "Pham Thi D", "Hoang Van E"];
   const mockName = mockNames[Math.floor(Math.random() * mockNames.length)];
-  const mockId = String(Math.floor(Math.random() * 900000000) + 100000000);
 
   await mockDelay(800);
+  const mockPassportId = `P${String(Math.floor(Math.random() * 90000000) + 10000000)}`;
   return new Response(
     JSON.stringify({
       success: true,
       data: {
         documentType: docType,
         fullName: mockName,
-        documentNumber: mockId,
+        idNumber: mockPassportId,
         dateOfBirth: "1990-01-01",
         nationality: "Vietnam",
+        issuingCountry: "Vietnam",
         gender: "M",
         expiryDate: "2030-12-31",
         confidence: config.ocrConfidence,

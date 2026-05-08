@@ -1,36 +1,28 @@
 /**
  * KYC Step Guard — 服务端/客户端通用步骤守卫
- * 支持动态 6 步流程（按地区配置）
+ * 5 步流程: region → document → liveness → personal-info → agreement
  */
 
-import { getRegionConfig } from "./region-config";
 import type { RegionCode } from "./region-config";
 import type { UserKYC } from "./types";
 
-export type StepName = "region" | "document" | "liveness" | "address-proof" | "experience" | "agreement";
+export type StepName = "region" | "document" | "liveness" | "personal-info" | "agreement";
 
-/** 获取当前地区激活的步骤列表 */
-export function getEnabledSteps(regionCode: RegionCode | null): StepName[] {
-  if (!regionCode) return ["region"];
-  const cfg = getRegionConfig(regionCode);
-  const steps: StepName[] = ["region", "document"];
-  if (cfg.features.livenessRequired) steps.push("liveness");
-  if (cfg.features.addressProofRequired) steps.push("address-proof");
-  steps.push("experience", "agreement");
-  return steps;
+/** 获取步骤列表 */
+export function getEnabledSteps(_regionCode: RegionCode | null): StepName[] {
+  return ["region", "document", "liveness", "personal-info", "agreement"];
 }
 
 /** 检查步骤是否完成 */
 export function isStepComplete(step: StepName, kycData: Partial<UserKYC> | null): boolean {
   if (!kycData) return false;
   switch (step) {
-    case "region":       return true;
-    case "document":     return !!(kycData.ocrData && kycData.personalInfo);
-    case "liveness":     return !!kycData.livenessPassed;
-    case "address-proof": return !!kycData.addressProofUrl;
-    case "experience":   return !!kycData.experienceInfo;
-    case "agreement":    return !!(kycData.agreementsSigned && kycData.agreementsSigned.length > 0);
-    default:             return false;
+    case "region":         return true;
+    case "document":       return !!kycData.ocrData;
+    case "liveness":       return !!kycData.livenessPassed;
+    case "personal-info":  return !!kycData.personalInfo;
+    case "agreement":      return !!(kycData.agreementsSigned && kycData.agreementsSigned.length > 0);
+    default:               return false;
   }
 }
 
@@ -64,7 +56,7 @@ export function checkStepPermission(
   }
 
   const steps = getEnabledSteps(regionCode);
-  
+
   // 检查前序步骤是否完成
   for (const step of steps) {
     if (step === targetStep) break;

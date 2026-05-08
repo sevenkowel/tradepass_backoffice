@@ -1,7 +1,7 @@
 /**
- * Middleware - 登录拦截
+ * Middleware - CRM 登录拦截
  *
- * 受保护的路由：/console, /portal, /backoffice, /crm, /broker
+ * 受保护的路由：/crm
  * 公开路由：/auth/*, /api/auth/*, /_next/*, /favicon.ico, 静态资源
  */
 
@@ -19,13 +19,7 @@ const PUBLIC_PATHS = [
 ];
 
 // 需要登录的路由前缀
-const PROTECTED_PATHS = [
-  "/console",
-  "/portal",
-  "/backoffice",
-  "/crm",
-  "/broker",
-];
+const PROTECTED_PATHS = ["/crm"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
@@ -38,7 +32,7 @@ function isProtectedPath(pathname: string): boolean {
 function getRedirectUrl(request: NextRequest): URL {
   const { pathname, search } = request.nextUrl;
   const callbackUrl = pathname + search;
-  const loginUrl = new URL("/auth/login", request.url);
+  const loginUrl = new URL("/auth/crm/login", request.url);
   loginUrl.searchParams.set("callbackUrl", callbackUrl);
   return loginUrl;
 }
@@ -59,14 +53,8 @@ export function middleware(request: NextRequest) {
   // 检查登录状态 (Cookie)
   const token = request.cookies.get("token");
   const mockUserRole = request.cookies.get("mock_user_role");
-  const onboardingCompleted = request.cookies.get("onboarding_completed");
 
   const isLoggedIn = !!(token || mockUserRole);
-
-  // Demo 模式特殊处理：如果有 onboarding_completed cookie 且值为 true，跳过登录
-  if (mockUserRole && onboardingCompleted?.value === "true") {
-    return NextResponse.next();
-  }
 
   // 未登录，重定向到登录页
   if (!isLoggedIn) {

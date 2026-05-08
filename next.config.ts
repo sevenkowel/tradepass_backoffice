@@ -6,15 +6,6 @@ const nextConfig: NextConfig = {
 
   // 性能优化
   experimental: {
-    // 启用 Turbopack (Next.js 15+)
-    turbo: {
-      rules: {
-        "*.svg": {
-          loaders: ["@svgr/webpack"],
-          as: "*.js",
-        },
-      },
-    },
     // 优化包体积
     optimizePackageImports: [
       "lucide-react",
@@ -27,6 +18,9 @@ const nextConfig: NextConfig = {
   generateBuildId: async () => {
     return "build-" + Date.now();
   },
+
+  // 开发环境特定配置
+  devIndicators: false,
 
   images: {
     remotePatterns: [
@@ -48,13 +42,9 @@ const nextConfig: NextConfig = {
   webpack: (config, { dev, isServer }) => {
     // 开发环境优化
     if (dev) {
-      // 减少 source map 生成范围
-      config.devtool = "eval-cheap-module-source-map";
-
-      // 优化文件监听
+      // 优化文件监听 (使用系统原生 fs 事件，避免 polling)
       config.watchOptions = {
         ...config.watchOptions,
-        poll: 1000,
         aggregateTimeout: 300,
         ignored: [
           "**/node_modules/**",
@@ -77,50 +67,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async redirects() {
-    return [
-      // ============================================
-      // Phase 6: Legacy Route Redirects to Subdomains
-      // ============================================
-
-      // Demo 模式：注释掉 broker 重定向，允许直接访问 /broker
-      // {
-      //   source: "/broker",
-      //   destination: "/",
-      //   permanent: true,
-      // },
-      // {
-      //   source: "/broker/:path*",
-      //   destination: "/:path*",
-      //   permanent: true,
-      // },
-
-      // Old redirects (keep for compatibility)
-      { source: "/admin", destination: "/backoffice", permanent: true },
-      { source: "/admin/:path*", destination: "/backoffice/:path*", permanent: true },
-      { source: "/api/admin/:path*", destination: "/api/backoffice/:path*", permanent: true },
-    ];
-  },
   async rewrites() {
     return {
       beforeFiles: [
         // ============================================
-        // Phase 3: Portal Subdomain Rewrites
-        // portal.dupoin.localhost:3002/* → /portal/*
-        // ============================================
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "portal.(?<tenant>[^.]+).localhost:3002",
-            },
-          ],
-          destination: "/portal/:path*",
-        },
-
-        // ============================================
-        // Phase 4: CRM Subdomain Rewrites
+        // CRM Subdomain Rewrites
         // crm.dupoin.localhost:3002/* → /crm/*
         // ============================================
         {
@@ -132,30 +83,6 @@ const nextConfig: NextConfig = {
             },
           ],
           destination: "/crm/:path*",
-        },
-
-        // ============================================
-        // Phase 5: Platform Subdomain Rewrites
-        // ============================================
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "console.localhost:3002",
-            },
-          ],
-          destination: "/console/:path*",
-        },
-        {
-          source: "/:path*",
-          has: [
-            {
-              type: "host",
-              value: "backoffice.localhost:3002",
-            },
-          ],
-          destination: "/backoffice/:path*",
         },
       ],
     };

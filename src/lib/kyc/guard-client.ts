@@ -14,8 +14,7 @@ const STEP_ROUTES: Record<StepName, string> = {
   region: "/portal/kyc",
   document: "/portal/kyc/document",
   liveness: "/portal/kyc/liveness",
-  "address-proof": "/portal/kyc/address-proof",
-  experience: "/portal/kyc/experience",
+  "personal-info": "/portal/kyc/personal-info",
   agreement: "/portal/kyc/agreements",
 };
 

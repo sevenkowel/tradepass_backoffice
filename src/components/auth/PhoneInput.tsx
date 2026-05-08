@@ -44,6 +44,7 @@ interface PhoneInputProps {
   onChange: (value: string) => void;
   defaultCountry?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   className?: string;
   error?: boolean;
 }
@@ -53,6 +54,7 @@ export default function PhoneInput({
   onChange,
   defaultCountry = "VN",
   disabled = false,
+  readOnly = false,
   className = "",
   error = false,
 }: PhoneInputProps) {
@@ -110,9 +112,9 @@ export default function PhoneInput({
       >
         <button
           type="button"
-          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onClick={() => !disabled && !readOnly && setIsOpen(!isOpen)}
           className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-r border-gray-200 text-sm text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
-          disabled={disabled}
+          disabled={disabled || readOnly}
         >
           <span className="text-base">{country.flag}</span>
           <span className="font-medium">{country.dialCode}</span>
@@ -125,6 +127,7 @@ export default function PhoneInput({
           onChange={handleNumberChange}
           placeholder={country.placeholder}
           disabled={disabled}
+          readOnly={readOnly}
           className="flex-1 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none bg-transparent"
         />
       </div>

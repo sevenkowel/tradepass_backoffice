@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, MoreHorizontal, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "./PageHeader";
@@ -71,21 +71,22 @@ export function EnhancedDataTable<T>({
   onExport,
 }: EnhancedDataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredQuery = useDeferredValue(searchQuery);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [actionsOpen, setActionsOpen] = useState<string | null>(null);
 
-  // Search
+  // Search (使用 deferred value 避免输入时阻塞主线程)
   const filteredData = useMemo(() => {
-    if (!searchable || !searchQuery) return data;
+    if (!searchable || !deferredQuery) return data;
     return data.filter((row) =>
       searchKeys.some((key) => {
         const value = (row as Record<string, unknown>)[key];
-        return String(value).toLowerCase().includes(searchQuery.toLowerCase());
+        return String(value).toLowerCase().includes(deferredQuery.toLowerCase());
       })
     );
-  }, [data, searchable, searchQuery, searchKeys]);
+  }, [data, searchable, deferredQuery, searchKeys]);
 
   // Sort
   const sortedData = useMemo(() => {

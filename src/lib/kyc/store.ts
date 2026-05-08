@@ -1,10 +1,12 @@
 /**
- * KYC 状态管理 (Zustand) — 支持 6 步动态流程
+ * KYC 状态管理 (Zustand) — 4 步流程
+ * document → liveness → personal-info → agreement
  */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getRegionConfig } from "./region-config";
+import { getCurrentStepName } from "./guard";
 import type {
   UserKYC,
   KYCStatus,
@@ -19,25 +21,25 @@ import type {
 interface KYCState {
   // 当前 KYC 记录
   kycData: Partial<UserKYC> | null;
-  
-  // 当前步骤 (1-6)
+
+  // 当前步骤
   currentStep: number;
   // 当前步骤名
   currentStepName: string;
-  
+
   // 地区配置
   regionCode: RegionCode | null;
-  
-  // 总步骤数（根据地区动态计算）
+
+  // 总步骤数
   totalSteps: number;
-  
+
   // 加载状态
   isLoading: boolean;
   error: string | null;
-  
+
   // Hydration 状态
   hasHydrated: boolean;
-  
+
   // Actions
   setRegion: (region: RegionCode) => void;
   setKYCData: (data: Partial<UserKYC>) => void;
@@ -57,7 +59,7 @@ interface KYCState {
   updateKYCData: (data: Partial<UserKYC>) => void;
   resetKYC: () => void;
   setHasHydrated: (hasHydrated: boolean) => void;
-  
+
   // 流程控制
   getEnabledSteps: () => string[];
   getNextStep: () => string | null;
@@ -70,7 +72,7 @@ const initialState = {
   currentStep: 1,
   currentStepName: "region",
   regionCode: null,
-  totalSteps: 6,
+  totalSteps: 5,
   isLoading: false,
   error: null,
   hasHydrated: false,
@@ -80,141 +82,120 @@ export const useKYCStore = create<KYCState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      
+
       setRegion: (region) => {
-        const cfg = getRegionConfig(region);
-        const steps = 2
-          + (cfg.features.livenessRequired ? 1 : 0)
-          + (cfg.features.addressProofRequired ? 1 : 0)
-          + 2; // experience + agreements
-        set({ regionCode: region, totalSteps: steps });
+        set({ regionCode: region, totalSteps: 5 });
       },
-      
+
       setKYCData: (data) => set((state) => ({
         kycData: { ...state.kycData, ...data },
       })),
-      
+
       setCurrentStep: (step) => set({ currentStep: step }),
-      
+
       setDocumentType: (type) => set((state) => ({
         kycData: { ...state.kycData, documentType: type },
       })),
-      
+
       setDocumentImages: (frontUrl, backUrl) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           documentFrontUrl: frontUrl,
           documentBackUrl: backUrl,
         },
       })),
-      
+
       setOCRResult: (result) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           ocrData: result,
           ocrConfidence: result.confidence ?? 0.85,
           status: "ocr_completed" as const,
         },
       })),
-      
+
       setLivenessResult: (passed, videoUrl) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           livenessPassed: passed,
           livenessVideoUrl: videoUrl,
         },
       })),
-      
-      setAddressProof: (url, type) => set((state) => ({
-        kycData: {
-          ...state.kycData,
-          addressProofUrl: url,
-          addressProofType: type,
-          addressProofUploadedAt: new Date().toISOString(),
-        },
-      })),
-      
+
+      // 保留但不再使用（4 步流程不需要 address-proof）
+      setAddressProof: (_url, _type) => {
+        // no-op
+      },
+
       setPersonalInfo: (info) => set((state) => ({
         kycData: { ...state.kycData, personalInfo: info },
       })),
-      
-      setExperienceInfo: (info) => set((state) => ({
-        kycData: { ...state.kycData, experienceInfo: info },
-      })),
-      
+
+      // 保留但不再使用（4 步流程没有独立的 experience 步骤）
+      setExperienceInfo: (_info) => {
+        // no-op
+      },
+
       setAgreementSignatures: (signatures, signatureType) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           agreementsSigned: signatures,
           signatureType: signatureType || (state.kycData?.signatureType as "handwritten" | "text"),
         },
       })),
-      
+
       setStatus: (status) => set((state) => ({
         kycData: { ...state.kycData, status },
       })),
-      
+
       updateKYCData: (data) => set((state) => ({
         kycData: state.kycData ? { ...state.kycData, ...data } : data as UserKYC,
       })),
-      
+
       resetKYC: () => set(initialState),
-      
+
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       reset: () => set(initialState),
-      
+
       // ===== 流程控制 =====
-      
+
       getEnabledSteps: () => {
-        const { regionCode } = get();
-        if (!regionCode) return ["region"];
-        const cfg = getRegionConfig(regionCode);
-        const steps = ["region", "document"];
-        if (cfg.features.livenessRequired) steps.push("liveness");
-        if (cfg.features.addressProofRequired) steps.push("address-proof");
-        steps.push("experience", "agreement");
-        return steps;
+        return ["region", "document", "liveness", "personal-info", "agreement"];
       },
-      
+
       getNextStep: () => {
-        const steps = get().getEnabledSteps();
-        const currentIdx = steps.indexOf(get().currentStepName);
-        if (currentIdx >= 0 && currentIdx < steps.length - 1) {
-          return steps[currentIdx + 1];
-        }
-        return null;
+        const state = get();
+        return getCurrentStepName(state.regionCode, state.kycData);
       },
-      
+
       canProceedToStep: (stepName) => {
         const { kycData, regionCode } = get();
         if (!regionCode && stepName !== "region") return false;
-        if (!kycData) return false;
-        
+        if (!kycData && stepName !== "region") return false;
+
         switch (stepName) {
-          case "region":       return true;
-          case "document":     return !!kycData.regionCode;
-          case "liveness":     return !!kycData.ocrData;
-          case "address-proof": return !!kycData.livenessPassed;
-          case "experience":   return true; // 始终可进入
-          case "agreement":    return !!kycData.experienceInfo;
-          default:             return false;
+          case "region":         return true;
+          case "document":       return !!regionCode;
+          case "liveness":       return !!kycData?.ocrData;
+          case "personal-info":  return !!kycData?.livenessPassed;
+          case "agreement":      return !!kycData?.personalInfo;
+          default:               return false;
         }
       },
-      
+
       getProgress: () => {
         const { kycData } = get();
         const steps = get().getEnabledSteps();
         const completed = steps.filter((s) => {
           switch (s) {
-            case "region":       return true;
-            case "document":     return !!kycData?.ocrData && !!kycData?.personalInfo;
-            case "liveness":     return !!kycData?.livenessPassed;
-            case "address-proof": return !!kycData?.addressProofUrl;
-            case "experience":   return !!kycData?.experienceInfo;
-            case "agreement":    return !!(kycData?.agreementsSigned?.length ?? 0 > 0);
-            default:             return false;
+            case "region":         return true;
+            case "document":       return !!kycData?.ocrData;
+            case "liveness":       return !!kycData?.livenessPassed;
+            case "personal-info":  return !!kycData?.personalInfo;
+            case "agreement":      return !!(kycData?.agreementsSigned?.length ?? 0 > 0);
+            default:               return false;
           }
         }).length;
         return Math.round((completed / steps.length) * 100);

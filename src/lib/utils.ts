@@ -47,3 +47,22 @@ export function formatPercent(value: number, decimals = 2): string {
 export function shortenAddress(address: string, chars = 4): string {
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 }
+
+/**
+ * 延迟指定毫秒数（用于 mock API 模拟网络延迟）
+ */
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 生成品牌首字母缩写
+ */
+export function getBrandInitials(brandName: string): string {
+  return brandName
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}

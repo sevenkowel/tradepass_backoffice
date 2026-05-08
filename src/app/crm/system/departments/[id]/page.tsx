@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit2, Building, Loader2, Trash2, Shield } from "lucide-react";
+import { ArrowLeft, Edit2, Building, Trash2, Shield } from "lucide-react";
 import {
   Button,
   PageHeader,
   Card,
   EmptyState,
+  LoadingState,
 } from "@/components/crm/ui";
 import { useDepartmentStore } from "@/store/crm/departmentStore";
 import { useStaffStore } from "@/store/crm/staffStore";
 import { DepartmentForm } from "../DepartmentForm";
-import { getDepartmentPath } from "@/lib/crm/mock-departments";
+import { getDepartmentPath } from "@/lib/crm/tree-utils";
 import type { Department } from "@/types/crm/department";
 
 export default function DepartmentDetailPage() {
@@ -30,19 +31,25 @@ export default function DepartmentDetailPage() {
 
   const { staff, fetchStaff } = useStaffStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [dept, setDept] = useState<Department | null>(null);
-  const [children, setChildren] = useState<Department[]>([]);
 
   useEffect(() => {
     fetchDepartments();
     fetchStaff();
-  }, [fetchDepartments, fetchStaff]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => {
-    const found = departments.find((d) => d.id === deptId);
-    setDept(found || null);
-    setChildren(departments.filter((d) => d.parentId === deptId));
+  const dept = useMemo(() => {
+    return departments.find((d) => d.id === deptId) || null;
   }, [departments, deptId]);
+
+  const children = useMemo(() => {
+    return departments.filter((d) => d.parentId === deptId);
+  }, [departments, deptId]);
+
+  const parentDept = useMemo(() => {
+    if (!dept?.parentId) return undefined;
+    return departments.find((d) => d.id === dept.parentId);
+  }, [departments, dept]);
 
   const handleEdit = () => {
     setIsFormOpen(true);
@@ -64,7 +71,7 @@ export default function DepartmentDetailPage() {
   if (isLoading && !dept) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <LoadingState size="md" />
       </div>
     );
   }
@@ -80,8 +87,6 @@ export default function DepartmentDetailPage() {
       </div>
     );
   }
-
-  const parentDept = dept.parentId ? departments.find((d) => d.id === dept.parentId) : undefined;
 
   return (
     <div className="space-y-6">

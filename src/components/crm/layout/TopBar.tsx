@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/crm";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
-import { BrandConfig } from "@/lib/brand";
 import {
   Search,
   Bell,
@@ -22,12 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-interface TopBarProps {
-  brand?: BrandConfig;
-  brandInitials?: string;
-}
-
-export function TopBar({ brand, brandInitials }: TopBarProps) {
+export function TopBar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { sidebarCollapsed } = useCrmSidebarStore();

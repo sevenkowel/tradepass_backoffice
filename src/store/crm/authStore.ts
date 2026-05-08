@@ -92,8 +92,8 @@ export const useAuthStore = create<AuthState>()(
         
         // If action specified, check it
         if (action) {
-          return modulePermission.actions.includes('*' as never) || 
-                 modulePermission.actions.includes(action as never);
+          const actions = modulePermission.actions as string[];
+          return actions.includes('*') || actions.includes(action);
         }
         
         return true;
