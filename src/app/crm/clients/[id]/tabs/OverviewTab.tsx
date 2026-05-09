@@ -1,38 +1,36 @@
 "use client";
 
 import { Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight, Activity, Clock, AlertTriangle } from "lucide-react";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
-interface Props {
-  data: ClientDetailData;
-}
-
-export default function OverviewTab({ data }: Props) {
+export default function OverviewTab({ data }: BaseTabProps) {
+  const { t, locale } = useT();
   const { user, valueMetrics, timeline, riskFactors } = data;
 
-  // 风险警告
   const riskWarnings = riskFactors
     .filter((f) => f.level !== "low")
     .map((f) => ({ label: f.name, description: f.description }));
 
-  // 最近活动（取 timeline 前 5 条）
   const recentActivities = timeline.slice(0, 5);
+
+  const fmt = (raw: string) => formatTimeAgo(raw, t, locale);
 
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="当前余额" value={`$${valueMetrics.currentBalance.toLocaleString()}`} icon={Wallet} color="blue" />
-        <KpiCard label="净入金" value={`$${valueMetrics.netDeposit.toLocaleString()}`} icon={ArrowDownLeft} color="emerald" />
-        <KpiCard label="浮动盈亏" value={`+$${valueMetrics.totalProfit.toLocaleString()}`} icon={TrendingUp} color="violet" />
-        <KpiCard label="持仓数量" value={`${valueMetrics.openPositions}`} icon={Activity} color="amber" />
+        <KpiCard label={t("clients.detail.overview.kpi.balance")} value={`$${valueMetrics.currentBalance.toLocaleString()}`} icon={Wallet} color="blue" />
+        <KpiCard label={t("clients.detail.overview.kpi.netDeposit")} value={`$${valueMetrics.netDeposit.toLocaleString()}`} icon={ArrowDownLeft} color="emerald" />
+        <KpiCard label={t("clients.detail.overview.kpi.profit")} value={`+$${valueMetrics.totalProfit.toLocaleString()}`} icon={TrendingUp} color="violet" />
+        <KpiCard label={t("clients.detail.overview.kpi.openPositions")} value={`${valueMetrics.openPositions}`} icon={Activity} color="amber" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="总入金" value={`$${(user.totalDeposit || 0).toLocaleString()}`} icon={ArrowDownLeft} color="slate" />
-        <KpiCard label="总出金" value={`$${(user.totalWithdrawal || 0).toLocaleString()}`} icon={ArrowUpRight} color="slate" />
-        <KpiCard label="净值" value={`$${valueMetrics.equity.toLocaleString()}`} icon={Wallet} color="slate" />
-        <KpiCard label="最后登录" value={formatTimeAgo(user.lastLoginAt)} icon={Clock} color="slate" />
+        <KpiCard label={t("clients.detail.overview.kpi.totalDeposit")} value={`$${(user.totalDeposit || 0).toLocaleString()}`} icon={ArrowDownLeft} color="slate" />
+        <KpiCard label={t("clients.detail.overview.kpi.totalWithdrawal")} value={`$${(user.totalWithdrawal || 0).toLocaleString()}`} icon={ArrowUpRight} color="slate" />
+        <KpiCard label={t("clients.detail.overview.kpi.equity")} value={`$${valueMetrics.equity.toLocaleString()}`} icon={Wallet} color="slate" />
+        <KpiCard label={t("clients.detail.overview.kpi.lastLogin")} value={fmt(user.lastLoginAt)} icon={Clock} color="slate" />
       </div>
 
       {/* Risk Warnings */}
@@ -40,7 +38,7 @@ export default function OverviewTab({ data }: Props) {
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h4 className="font-semibold text-red-800">风险警告</h4>
+            <h4 className="font-semibold text-red-800">{t("clients.detail.overview.riskWarnings")}</h4>
           </div>
           <div className="space-y-2">
             {riskWarnings.map((w, i) => (
@@ -58,13 +56,13 @@ export default function OverviewTab({ data }: Props) {
 
       {/* Recent Activities */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">最近活动</h4>
+        <h4 className="text-sm font-semibold text-slate-700 mb-3">{t("clients.detail.overview.recentActivity")}</h4>
         <div className="space-y-3">
           {recentActivities.map((item) => (
             <div key={item.id} className="flex items-center gap-3 text-sm">
               <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
               <span className="text-slate-700 flex-1">{item.title}</span>
-              <span className="text-slate-500 text-xs">{formatTimeAgo(item.timestamp)}</span>
+              <span className="text-slate-500 text-xs">{fmt(item.timestamp)}</span>
             </div>
           ))}
         </div>
@@ -104,7 +102,11 @@ function KpiCard({
   );
 }
 
-function formatTimeAgo(dateStr: string): string {
+export function formatTimeAgo(
+  dateStr: string,
+  t: (key: string, params?: Record<string, string>) => string,
+  locale: string
+): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -112,9 +114,10 @@ function formatTimeAgo(dateStr: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "刚刚";
-  if (diffMins < 60) return `${diffMins} 分钟前`;
-  if (diffHours < 24) return `${diffHours} 小时前`;
-  if (diffDays < 30) return `${diffDays} 天前`;
-  return date.toLocaleDateString("zh-CN");
+  if (diffMins < 1) return t("clients.fmt.justNow");
+  if (diffMins < 60) return t("clients.fmt.minutesAgo", { n: String(diffMins) });
+  if (diffHours < 24) return t("clients.fmt.hoursAgo", { n: String(diffHours) });
+  if (diffDays < 30) return t("clients.fmt.daysAgo", { n: String(diffDays) });
+  const dateLocale = locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : locale === "es" ? "es-ES" : "en-US";
+  return date.toLocaleDateString(dateLocale);
 }

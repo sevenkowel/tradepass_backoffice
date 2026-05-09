@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { AlertTriangle, Network, Shield } from "lucide-react";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import { Network } from "lucide-react";
+import type { BaseTabProps } from "@/types/backoffice/client";
 import * as echarts from "echarts";
+import { useT } from "@/lib/i18n/LocaleProvider";
+import type { RiskRelationship } from "@/types/backoffice/client-detail";
 
-interface Props {
-  data: ClientDetailData;
-}
-
-export default function RiskTab({ data }: Props) {
+export default function RiskTab({ data }: BaseTabProps) {
+  const { t } = useT();
   const { user, riskFactors, riskRelationships } = data;
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
-  // ECharts 关系图谱
   useEffect(() => {
     if (!chartRef.current) return;
 
@@ -24,6 +22,9 @@ export default function RiskTab({ data }: Props) {
 
     const chart = echarts.init(chartRef.current);
     chartInstance.current = chart;
+
+    const relTypeLabel = (type: RiskRelationship["relationshipType"]) =>
+      t(`clients.detail.risk.relType.${type}`);
 
     const nodes = [
       {
@@ -38,7 +39,12 @@ export default function RiskTab({ data }: Props) {
         name: rel.targetClientName,
         symbolSize: 40,
         itemStyle: {
-          color: rel.relationshipType === "shared_ip" ? "#EF4444" : rel.relationshipType === "shared_device" ? "#F59E0B" : "#8B5CF6",
+          color:
+            rel.relationshipType === "shared_ip"
+              ? "#EF4444"
+              : rel.relationshipType === "shared_device"
+                ? "#F59E0B"
+                : "#8B5CF6",
         },
         label: { fontSize: 12 },
       })),
@@ -47,15 +53,8 @@ export default function RiskTab({ data }: Props) {
     const links = riskRelationships.map((rel) => ({
       source: "current",
       target: rel.targetClientId,
-      label: {
-        show: true,
-        formatter: rel.relationshipType === "shared_ip" ? "共享IP" : rel.relationshipType === "shared_device" ? "共享设备" : rel.relationshipType === "shared_bank" ? "共享银行卡" : "共享钱包",
-        fontSize: 10,
-      },
-      lineStyle: {
-        width: rel.strength * 5,
-        curveness: 0.2,
-      },
+      label: { show: true, formatter: relTypeLabel(rel.relationshipType), fontSize: 10 },
+      lineStyle: { width: rel.strength * 5, curveness: 0.2 },
     }));
 
     chart.setOption({
@@ -72,7 +71,7 @@ export default function RiskTab({ data }: Props) {
           edgeSymbol: ["none", "arrow"],
           edgeSymbolSize: [4, 10],
           data: nodes,
-          links: links,
+          links,
           force: { repulsion: 300, edgeLength: 150 },
           lineStyle: { opacity: 0.9, width: 2, curveness: 0.2 },
         },
@@ -86,27 +85,35 @@ export default function RiskTab({ data }: Props) {
       window.removeEventListener("resize", handleResize);
       chart.dispose();
     };
-  }, [riskRelationships, user.name]);
+  }, [riskRelationships, user.name, t]);
 
-  const riskColor = user.riskScore && user.riskScore >= 70 ? "text-red-600" : user.riskScore && user.riskScore >= 40 ? "text-amber-600" : "text-emerald-600";
-  const riskBg = user.riskScore && user.riskScore >= 70 ? "bg-red-50" : user.riskScore && user.riskScore >= 40 ? "bg-amber-50" : "bg-emerald-50";
+  const riskColor =
+    user.riskScore && user.riskScore >= 70
+      ? "text-red-600"
+      : user.riskScore && user.riskScore >= 40
+        ? "text-amber-600"
+        : "text-emerald-600";
+  const riskBg =
+    user.riskScore && user.riskScore >= 70
+      ? "bg-red-50"
+      : user.riskScore && user.riskScore >= 40
+        ? "bg-amber-50"
+        : "bg-emerald-50";
+
+  const riskLevelLabel = user.riskLevel ? t(`clients.risk.${user.riskLevel}`) : "";
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-slate-900">风险分析</h3>
+      <h3 className="text-lg font-semibold text-slate-900">{t("clients.detail.risk.title")}</h3>
 
-      {/* 风险评分 */}
       <div className={`${riskBg} rounded-xl p-6 text-center`}>
-        <p className="text-sm text-slate-500 mb-1">风险评分</p>
+        <p className="text-sm text-slate-500 mb-1">{t("clients.detail.risk.score")}</p>
         <p className={`text-5xl font-bold ${riskColor}`}>{user.riskScore}</p>
-        <p className={`text-sm font-medium mt-1 ${riskColor}`}>
-          {user.riskLevel === "low" ? "低风险" : user.riskLevel === "medium" ? "中风险" : user.riskLevel === "high" ? "高风险" : "极高风险"}
-        </p>
+        <p className={`text-sm font-medium mt-1 ${riskColor}`}>{riskLevelLabel}</p>
       </div>
 
-      {/* 风险因子 */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">风险因子</h4>
+        <h4 className="text-sm font-semibold text-slate-700 mb-3">{t("clients.detail.risk.factors")}</h4>
         <div className="space-y-3">
           {riskFactors.map((factor) => (
             <div key={factor.name} className="flex items-center gap-3">
@@ -114,29 +121,42 @@ export default function RiskTab({ data }: Props) {
               <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
-                    factor.level === "low" ? "bg-emerald-500" : factor.level === "medium" ? "bg-amber-500" : "bg-red-500"
+                    factor.level === "low"
+                      ? "bg-emerald-500"
+                      : factor.level === "medium"
+                        ? "bg-amber-500"
+                        : "bg-red-500"
                   }`}
                   style={{ width: `${(factor.score / factor.maxScore) * 100}%` }}
                 />
               </div>
               <span className="text-xs text-slate-500 w-8 text-right">{factor.score}</span>
-              <span className={`text-xs w-12 text-right ${factor.level === "low" ? "text-emerald-600" : factor.level === "medium" ? "text-amber-600" : "text-red-600"}`}>
-                {factor.level === "low" ? "低" : factor.level === "medium" ? "中" : "高"}
+              <span
+                className={`text-xs w-12 text-right ${
+                  factor.level === "low"
+                    ? "text-emerald-600"
+                    : factor.level === "medium"
+                      ? "text-amber-600"
+                      : "text-red-600"
+                }`}
+              >
+                {t(`clients.detail.risk.short.${factor.level}`)}
               </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 用户关系图谱 */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Network className="w-4 h-4 text-slate-500" />
-          <h4 className="text-sm font-semibold text-slate-700">关联用户图谱</h4>
+          <h4 className="text-sm font-semibold text-slate-700">{t("clients.detail.risk.relatedGraph")}</h4>
         </div>
         <div ref={chartRef} style={{ width: "100%", height: "320px" }} />
         {riskRelationships.length === 0 && (
-          <div className="text-center py-10 text-slate-400 text-sm">未发现关联用户</div>
+          <div className="text-center py-10 text-slate-400 text-sm">
+            {t("clients.detail.risk.noRelations")}
+          </div>
         )}
       </div>
     </div>

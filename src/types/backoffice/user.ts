@@ -104,8 +104,13 @@ export interface ClientNote {
   id: string;
   clientId: string;
   content: string;
+  /** Stable id (staff user id) of the author. */
   author: string;
+  /** Display name resolved at write time so the feed is readable even if the author's user record is later renamed. */
+  authorName?: string;
   mentions: string[];
   isPinned: boolean;
+  /** Optional note category — `general | risk | sales | followup`. */
+  noteType?: string;
   createdAt: string;
 }

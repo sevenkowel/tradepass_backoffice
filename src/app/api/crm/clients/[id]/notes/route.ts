@@ -45,7 +45,7 @@ export const GET = requireRole([...ROLES_READ], async (req: NextRequest) => {
   }
 });
 
-export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest) => {
+export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest, operator) => {
   const id = clientIdFromPath(req);
   if (!id) return NextResponse.json({ success: false, error: "Missing id" }, { status: 400 });
 
@@ -65,13 +65,12 @@ export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest) => {
   }
 
   try {
-    // For now: derive author from session — but session.ts only loads the User model;
-    // there's no Staff table yet. Use email as a stable handle.
+    const operatorName = operator.name?.trim() || operator.email;
     const note = await prisma.clientNote.create({
       data: {
         userId: id,
-        authorId: "current-staff",
-        authorName: "Staff",
+        authorId: operator.id,
+        authorName: operatorName,
         content: body.content.trim(),
         mentions: JSON.stringify(body.mentions ?? []),
         isPinned: body.isPinned ?? false,
@@ -86,7 +85,7 @@ export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest) => {
         type: "note_added",
         title: "Internal note added",
         description: note.content.slice(0, 80),
-        operatorId: "current-staff",
+        operatorId: operator.id,
       },
     });
 

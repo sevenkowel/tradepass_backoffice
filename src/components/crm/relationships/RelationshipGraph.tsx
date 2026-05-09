@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Radial relationship graph rooted at one client.
+ * Force-directed relationship graph rooted at one client.
  *
- * Pulls real data from `/api/crm/clients/[id]/graph` and renders nodes +
- * edges via plain SVG — avoids the SSR pain of `react-force-graph-2d`
- * while still being visually useful.
+ * Real data via `/api/crm/clients/[id]/graph`. Rendering via
+ * `react-force-graph-2d` (loaded through ForceGraphWrapper, which keeps
+ * the canvas off the SSR pass).
  */
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/LocaleProvider";
+import ForceGraph2D from "./ForceGraphWrapper";
 
 interface GraphNode {
   id: string;
@@ -101,11 +102,8 @@ const RISK_COLORS: Record<string, string> = {
   critical: "bg-red-100 text-red-700",
 };
 
-const SVG_W = 1200;
-const SVG_H = 700;
-const CENTER = { x: SVG_W / 2, y: SVG_H / 2 };
-const RADIUS_INNER = 180;
-const RADIUS_OUTER = 290;
+const GRAPH_W = 1200;
+const GRAPH_H = 700;
 
 export default function RelationshipGraph({ clientId, onPickClient }: RelationshipGraphProps) {
   const { t } = useT();
@@ -148,30 +146,6 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
     };
   }, [clientId]);
 
-  // Position nodes on two concentric rings: type "mixed" closer in, single-link further out.
-  const positionedNodes = useMemo(() => {
-    if (!data) return [] as (GraphNode & { x: number; y: number })[];
-    const inner = data.nodes.filter((n) => n.type === "mixed");
-    const outer = data.nodes.filter((n) => n.type !== "mixed");
-    const place = (list: GraphNode[], radius: number) =>
-      list.map((node, i) => {
-        const angle = (i / Math.max(list.length, 1)) * Math.PI * 2 - Math.PI / 2;
-        return {
-          ...node,
-          x: CENTER.x + Math.cos(angle) * radius,
-          y: CENTER.y + Math.sin(angle) * radius,
-        };
-      });
-    return [...place(inner, RADIUS_INNER), ...place(outer, RADIUS_OUTER)];
-  }, [data]);
-
-  const nodePositionMap = useMemo(() => {
-    const m = new Map<string, { x: number; y: number }>();
-    m.set(data?.center.id ?? "", CENTER);
-    for (const n of positionedNodes) m.set(n.id, { x: n.x, y: n.y });
-    return m;
-  }, [positionedNodes, data]);
-
   const filteredEdges = useMemo(() => {
     if (!data) return [];
     return data.edges.filter((e) => selectedTypes.has(e.type));
@@ -186,6 +160,25 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
     }
     return ids;
   }, [data, filteredEdges]);
+
+  /**
+   * Force-graph data. Each node carries `__center` so we can size/colour
+   * it differently. Links keep their type so the link painter can pick a
+   * stroke colour. The center node is fixed at the canvas centre via
+   * `fx/fy` so the focus client doesn't drift.
+   */
+  const graphData = useMemo(() => {
+    if (!data) return { nodes: [], links: [] };
+    const centerFx = GRAPH_W / 2;
+    const centerFy = GRAPH_H / 2;
+    const nodes = [
+      { ...data.center, __center: true, fx: centerFx, fy: centerFy },
+      ...data.nodes
+        .filter((n) => visibleNodeIds.has(n.id))
+        .map((n) => ({ ...n, __center: false })),
+    ];
+    return { nodes, links: filteredEdges };
+  }, [data, filteredEdges, visibleNodeIds]);
 
   const matchesSearch = (n: GraphNode) => {
     if (!searchTerm.trim()) return true;
@@ -332,7 +325,7 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
         <div className="ml-auto flex items-center gap-2">
           <span className="font-medium">{t("clients.relationships.totals.label")}</span>
           <span>
-            {1 + positionedNodes.length} {t("clients.relationships.totals.nodes")}
+            {graphData.nodes.length} {t("clients.relationships.totals.nodes")}
           </span>
           <span className="mx-1">|</span>
           <span>
@@ -341,7 +334,7 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
         </div>
       </div>
 
-      {/* SVG graph */}
+      {/* Force-directed graph */}
       <div className="relative bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
         {data.nodes.length === 0 ? (
           <div className="h-[700px] flex flex-col items-center justify-center text-slate-500">
@@ -349,66 +342,60 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
             <p className="text-sm">{t("clients.relationships.empty.desc")}</p>
           </div>
         ) : (
-          <svg
-            viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-            preserveAspectRatio="xMidYMid meet"
-            className="w-full h-[700px]"
-          >
-            {/* Edges */}
-            <g>
-              {filteredEdges.map((edge, idx) => {
-                const a = nodePositionMap.get(edge.source);
-                const b = nodePositionMap.get(edge.target);
-                if (!a || !b) return null;
-                const targetVisible = visibleNodeIds.has(edge.target);
-                if (!targetVisible) return null;
-                return (
-                  <line
-                    key={`${edge.source}-${edge.target}-${edge.type}-${idx}`}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={b.x}
-                    y2={b.y}
-                    stroke={EDGE_STROKE[edge.type]}
-                    strokeWidth={2}
-                    strokeOpacity={0.55}
-                    strokeDasharray={EDGE_DASH[edge.type]}
-                  />
-                );
-              })}
-            </g>
-
-            {/* Nodes */}
-            <g>
-              {/* Center node */}
-              <NodeCircle
-                node={{ ...data.center, x: CENTER.x, y: CENTER.y }}
-                isCenter
-                isHighlighted={searchTerm.trim().length > 0 && matchesSearch(data.center)}
-                isDimmed={searchTerm.trim().length > 0 && !matchesSearch(data.center)}
-                onHover={setHoveredNode}
-                onSelect={setSelectedNode}
-              />
-              {positionedNodes
-                .filter((n) => visibleNodeIds.has(n.id))
-                .map((n) => (
-                  <NodeCircle
-                    key={n.id}
-                    node={n}
-                    isCenter={false}
-                    isHighlighted={searchTerm.trim().length > 0 && matchesSearch(n)}
-                    isDimmed={searchTerm.trim().length > 0 && !matchesSearch(n)}
-                    onHover={setHoveredNode}
-                    onSelect={setSelectedNode}
-                  />
-                ))}
-            </g>
-          </svg>
+          <ForceGraph2D
+            graphData={graphData}
+            width={GRAPH_W}
+            height={GRAPH_H}
+            backgroundColor="#f8fafc"
+            cooldownTicks={120}
+            nodeLabel={(node) => (node as unknown as GraphNode).name}
+            nodeRelSize={8}
+            nodeVal={(node) => ((node as unknown as { __center: boolean }).__center ? 30 : 12)}
+            nodeColor={(node) => NODE_FILL[(node as unknown as GraphNode).type]}
+            nodeCanvasObjectMode={() => "after"}
+            nodeCanvasObject={(node, ctx, scale) => {
+              const n = node as unknown as GraphNode & { x?: number; y?: number; __center?: boolean };
+              if (n.x == null || n.y == null) return;
+              const fontSize = Math.max(10, 12 / scale);
+              const isHighlighted = searchTerm.trim().length > 0 && matchesSearch(n);
+              const isDimmed = searchTerm.trim().length > 0 && !matchesSearch(n);
+              ctx.globalAlpha = isDimmed ? 0.25 : 1;
+              if (isHighlighted) {
+                ctx.strokeStyle = "#0ea5e9";
+                ctx.lineWidth = 3 / scale;
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, (n.__center ? 14 : 10) + 4 / scale, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+              ctx.font = `${n.__center ? 600 : 500} ${fontSize}px sans-serif`;
+              ctx.fillStyle = "#1e293b";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "top";
+              ctx.fillText(truncate(n.name, 18), n.x, n.y + (n.__center ? 18 : 14));
+              ctx.font = `${Math.max(8, 9 / scale)}px sans-serif`;
+              ctx.fillStyle = "#94a3b8";
+              ctx.fillText(n.uid, n.x, n.y + (n.__center ? 32 : 26));
+              ctx.globalAlpha = 1;
+            }}
+            linkColor={(link) => EDGE_STROKE[(link as unknown as GraphEdge).type]}
+            linkWidth={1.6}
+            linkDirectionalParticles={(link) =>
+              (link as unknown as GraphEdge).type === "same_id" ? 2 : 0
+            }
+            linkDirectionalParticleSpeed={0.006}
+            linkLineDash={(link) => {
+              const dash = EDGE_DASH[(link as unknown as GraphEdge).type];
+              if (!dash) return null;
+              return dash.split(",").map((s) => Number(s));
+            }}
+            onNodeHover={(node) => setHoveredNode((node as GraphNode | null) ?? null)}
+            onNodeClick={(node) => setSelectedNode(node as unknown as GraphNode)}
+          />
         )}
 
         {/* Hover tooltip */}
         {hoveredNode && (
-          <div className="absolute top-4 right-4 max-w-xs bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-xs">
+          <div className="absolute top-4 right-4 max-w-xs bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-xs pointer-events-none">
             <NodeSummary node={hoveredNode} />
           </div>
         )}
@@ -440,55 +427,6 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
         </div>
       )}
     </div>
-  );
-}
-
-function NodeCircle({
-  node,
-  isCenter,
-  isHighlighted,
-  isDimmed,
-  onHover,
-  onSelect,
-}: {
-  node: GraphNode & { x: number; y: number };
-  isCenter: boolean;
-  isHighlighted: boolean;
-  isDimmed: boolean;
-  onHover: (n: GraphNode | null) => void;
-  onSelect: (n: GraphNode) => void;
-}) {
-  const r = isCenter ? 30 : 18;
-  const fill = NODE_FILL[node.type];
-  const opacity = isDimmed ? 0.2 : 1;
-  return (
-    <g
-      transform={`translate(${node.x}, ${node.y})`}
-      style={{ cursor: "pointer" }}
-      onMouseEnter={() => onHover(node)}
-      onMouseLeave={() => onHover(null)}
-      onClick={() => onSelect(node)}
-      opacity={opacity}
-    >
-      <circle
-        r={r + (isHighlighted ? 4 : 0)}
-        fill={fill}
-        stroke={isHighlighted ? "#0ea5e9" : "#fff"}
-        strokeWidth={isHighlighted ? 3 : 2}
-      />
-      <text
-        y={r + 14}
-        textAnchor="middle"
-        fontSize="11"
-        fill="#334155"
-        fontWeight={isCenter ? 600 : 500}
-      >
-        {truncate(node.name, 16)}
-      </text>
-      <text y={r + 26} textAnchor="middle" fontSize="9" fill="#94a3b8">
-        {node.uid}
-      </text>
-    </g>
   );
 }
 

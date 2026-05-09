@@ -43,7 +43,7 @@ export const GET = requireRole([...ROLES_READ], async (req: NextRequest) => {
   }
 });
 
-export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest) => {
+export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest, operator) => {
   const id = clientIdFromPath(req);
   if (!id) return NextResponse.json({ success: false, error: "Missing id" }, { status: 400 });
 
@@ -68,7 +68,7 @@ export const POST = requireRole([...ROLES_WRITE], async (req: NextRequest) => {
         prisma.clientTagAssignment.upsert({
           where: { userId_tagId: { userId: id, tagId: t.id } },
           update: {},
-          create: { userId: id, tagId: t.id, assignedBy: "system" },
+          create: { userId: id, tagId: t.id, assignedBy: operator.id },
         })
       )
     );
