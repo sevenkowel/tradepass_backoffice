@@ -348,11 +348,7 @@ export default function ReviewQueuePage() {
         { label: "POA", value: "poa" },
         { label: "Liveness", value: "liveness" },
         { label: "Video Verification", value: "video_verification" },
-        { label: "Withdrawal", value: "withdrawal_review" },
-        { label: "EDD", value: "edd" },
         { label: "Agreement", value: "agreement_signing" },
-        { label: "Risk Recheck", value: "risk_recheck" },
-        { label: "Manual Review", value: "manual_review" },
       ],
     },
     {
