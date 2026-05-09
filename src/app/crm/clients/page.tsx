@@ -35,24 +35,28 @@ export default function ClientsPage() {
 
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<Partial<ClientListParams>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
   const fetchClients = useCallback(async (params: Partial<ClientListParams> = {}) => {
     setLoading(true);
     setError("");
     try {
       const [listRes, statsRes] = await Promise.all([
-        clientService.list({ page: 1, pageSize: 50, ...params }),
+        clientService.list({ page, pageSize, ...filters, ...params }),
         clientService.getStats(),
       ]);
       setClients(listRes.items);
+      setTotal(listRes.total);
       setStats(statsRes);
     } catch (err) {
       console.error("Fetch Error:", err);
-      setError(`加载失败: ${err instanceof Error ? err.message : "请稍后重试"}`);
+      setError(`Failed to load: ${err instanceof Error ? err.message : "Please try again later"}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, filters]);
 
   useEffect(() => {
     fetchClients();
@@ -66,6 +70,9 @@ export default function ClientsPage() {
     if (newFilters.riskLevel) params.riskLevel = newFilters.riskLevel as BackofficeUser["riskLevel"];
     if (newFilters.lifecycle) params.lifecycleStage = newFilters.lifecycle as BackofficeUser["lifecycleStage"];
     if (newFilters.search) params.search = newFilters.search as string;
+    if (newFilters.startDate) params.startDate = newFilters.startDate as string;
+    if (newFilters.endDate) params.endDate = newFilters.endDate as string;
+    setPage(1);
     setFilters(params);
     fetchClients(params);
   }, [fetchClients]);
@@ -264,6 +271,11 @@ export default function ClientsPage() {
         { label: "Churn", value: "churn" },
       ],
     },
+    {
+      key: "dateRange",
+      label: "Registration Date",
+      type: "daterange" as const,
+    },
   ];
 
   return (
@@ -274,20 +286,12 @@ export default function ClientsPage() {
         title="Client List"
         description="Manage clients, KYC verification, and account settings"
         actions={
-          <div className="flex gap-3">
-            <Button variant="secondary">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export
-            </Button>
-            <Button>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Client
-            </Button>
-          </div>
+          <Button>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Client
+          </Button>
         }
       />
 
@@ -325,7 +329,7 @@ export default function ClientsPage() {
         searchable
         searchKeys={["uid", "name", "email"]}
         searchPlaceholder="Search UID, name or email..."
-        onChange={handleFilterChange}
+        onSearch={handleFilterChange}
       />
 
       {/* Error */}
@@ -353,11 +357,60 @@ export default function ClientsPage() {
             window.location.href = `/crm/clients/${row.id}`;
           }}
           emptyText={loading ? "" : "No clients found"}
-          exportable
-          onExport={() => {}}
           loading={loading}
+          pagination={false}
         />
       </Card>
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <span>Total {total}</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="h-8 px-2 border border-slate-200 rounded-lg text-sm focus:outline-none"
+            >
+              {[10, 20, 50].map((s) => (
+                <option key={s} value={s}>{s} / page</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {Array.from({ length: Math.ceil(total / pageSize) }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`w-8 h-8 text-sm rounded-lg border transition-colors ${
+                  page === p
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              onClick={() => setPage(Math.min(Math.ceil(total / pageSize), page + 1))}
+              disabled={page >= Math.ceil(total / pageSize)}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

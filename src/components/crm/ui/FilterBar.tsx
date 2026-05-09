@@ -10,19 +10,6 @@ interface FilterOption {
   value: string;
 }
 
-interface FilterOption {
-  label: string;
-  value: string;
-}
-
-interface SimpleFilter {
-  key: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: FilterOption[];
-}
-
 interface FilterBarProps {
   filters?: {
     key: string;
@@ -54,8 +41,6 @@ export function FilterBar({
   showSearch = true,
   searchPlaceholder = "Search...",
   searchValue,
-  searchKeys,
-  onSearchChange,
   onRefresh,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchValue || "");
@@ -68,8 +53,15 @@ export function FilterBar({
       }, {} as Record<string, string>)
   );
 
-  const handleSearch = () => {
-    const values = { ...filterValues };
+  const handleApply = () => {
+    const values: Record<string, string> = { ...filterValues };
+    // Parse daterange into startDate / endDate
+    if (values.dateRange) {
+      const [start, end] = values.dateRange.split("|");
+      if (start) values.startDate = start;
+      if (end) values.endDate = end;
+      delete values.dateRange;
+    }
     if (localSearch) values.search = localSearch;
     onSearch?.(values);
   };
@@ -78,6 +70,7 @@ export function FilterBar({
     setLocalSearch("");
     setFilterValues({});
     onClear?.();
+    onSearch?.({});
   };
 
   const handleFilterChange = (key: string, value: string) => {
@@ -99,7 +92,6 @@ export function FilterBar({
               type="text"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder={searchPlaceholder}
               className="w-full h-10 pl-10 pr-4 bg-white border border-gray-200 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all"
             />
@@ -139,7 +131,7 @@ export function FilterBar({
 
       {/* Filter Options */}
       {showFilters && filters.length > 0 && (
-        <div className="flex flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+        <div className="flex flex-wrap items-end gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
           {filters.map((filter) => (
             <div key={filter.key} className="min-w-[160px]">
               {filter.type === "select" && (
@@ -159,8 +151,33 @@ export function FilterBar({
                   placeholder={filter.placeholder}
                 />
               )}
+              {filter.type === "date" && (
+                <DateFilter
+                  label={filter.label}
+                  value={filterValues[filter.key] || ""}
+                  onChange={(v) => handleFilterChange(filter.key, v)}
+                  placeholder={filter.placeholder}
+                />
+              )}
+              {filter.type === "daterange" && (
+                <DateRangeFilter
+                  label={filter.label}
+                  value={filterValues[filter.key] || ""}
+                  onChange={(v) => handleFilterChange(filter.key, v)}
+                />
+              )}
             </div>
           ))}
+
+          {/* Apply Button */}
+          <Button
+            size="sm"
+            onClick={handleApply}
+            className="h-9 px-4"
+          >
+            <Search className="w-4 h-4 mr-1" />
+            Apply
+          </Button>
         </div>
       )}
     </div>
@@ -181,7 +198,7 @@ function SelectFilter({
   options,
   value,
   onChange,
-  placeholder = "Select...",
+  placeholder = "All",
 }: SelectFilterProps) {
   return (
     <div>
@@ -232,6 +249,80 @@ function TextFilter({
         placeholder={placeholder}
         className="w-full h-9 px-3 bg-white border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:border-blue-300"
       />
+    </div>
+  );
+}
+
+interface DateFilterProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function DateFilter({
+  label,
+  value,
+  onChange,
+  placeholder = "Select date...",
+}: DateFilterProps) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">
+        {label}
+      </label>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full h-9 px-3 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-blue-300"
+      />
+    </div>
+  );
+}
+
+interface DateRangeFilterProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function DateRangeFilter({
+  label,
+  value,
+  onChange,
+}: DateRangeFilterProps) {
+  const [start, end] = value.split("|");
+
+  const handleStartChange = (newStart: string) => {
+    onChange(newStart ? `${newStart}|${end || ""}` : end || "");
+  };
+
+  const handleEndChange = (newEnd: string) => {
+    onChange(start ? `${start}|${newEnd}` : newEnd);
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">
+        {label}
+      </label>
+      <div className="flex items-center gap-2">
+        <input
+          type="date"
+          value={start || ""}
+          onChange={(e) => handleStartChange(e.target.value)}
+          className="w-[130px] h-9 px-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-blue-300"
+        />
+        <span className="text-xs text-gray-400">to</span>
+        <input
+          type="date"
+          value={end || ""}
+          onChange={(e) => handleEndChange(e.target.value)}
+          className="w-[130px] h-9 px-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-blue-300"
+        />
+      </div>
     </div>
   );
 }

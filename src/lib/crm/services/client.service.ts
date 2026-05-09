@@ -10,7 +10,28 @@ import type {
   ClientSegment,
   ClientNote,
 } from "@/types/backoffice/user";
+import type { ClientDetailData } from "@/types/backoffice/client-detail";
 import { mockClients, mockClientTags, mockClientSegments, mockClientNotes } from "../mock-clients";
+import {
+  mockTradingAccounts,
+  mockFundRecords,
+  mockTradeRecords,
+  mockTradingStats,
+  mockKYCDocuments,
+  mockKYCRiskIndicators,
+  mockClientDevices,
+  mockCaseItems,
+  mockTickets,
+  mockClientPermissions,
+  mockClientAgreements,
+  mockTimelineEvents,
+  mockAuditLogs,
+  mockRiskRelationships,
+  mockRiskFactors,
+  mockLifecycleStages,
+  mockUserValueMetrics,
+  mockClientNotes as mockDetailNotes,
+} from "../mock-client-detail";
 import { delay } from "@/lib/utils";
 
 class ClientService {
@@ -229,6 +250,41 @@ class ClientService {
     const ftdCount = this.clients.filter((c) => c.ftdDate).length;
 
     return { total, active, pendingKyc, frozen, highRisk, ftdCount };
+  }
+
+  // === Client Detail (360) ===
+  async getDetail(id: string): Promise<ClientDetailData | null> {
+    await delay(400);
+    const client = this.clients.find((c) => c.id === id);
+    if (!client) return null;
+
+    return {
+      user: { ...client },
+      accounts: mockTradingAccounts,
+      funds: mockFundRecords.filter((f) => f.clientId === id),
+      trades: mockTradeRecords.filter((t) => t.clientId === id),
+      tradingStats: mockTradingStats,
+      kycDocuments: mockKYCDocuments.filter((d) => d.clientId === id),
+      kycRiskIndicators: mockKYCRiskIndicators,
+      devices: mockClientDevices.filter((d) => d.clientId === id),
+      cases: mockCaseItems.filter((c) => c.clientId === id),
+      tickets: mockTickets.filter((t) => t.clientId === id),
+      permissions: mockClientPermissions,
+      agreements: mockClientAgreements.filter((a) => a.clientId === id),
+      timeline: mockTimelineEvents
+        .filter((e) => e.clientId === id)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+      notes: mockDetailNotes
+        .filter((n) => n.clientId === id)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+      auditLogs: mockAuditLogs
+        .filter((l) => l.clientId === id)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+      riskRelationships: mockRiskRelationships,
+      riskFactors: mockRiskFactors,
+      lifecycleStages: mockLifecycleStages,
+      valueMetrics: mockUserValueMetrics,
+    };
   }
 }
 

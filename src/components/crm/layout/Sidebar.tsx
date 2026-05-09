@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, memo } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,6 +25,13 @@ import {
   UserCog,
   Puzzle,
   Building,
+  Briefcase,
+  ClipboardList,
+  FileSearch,
+  Gauge,
+  ScrollText,
+  SlidersHorizontal,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
@@ -77,20 +84,22 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
-    group: "KYC Center",
+    group: "CLM Center",
     icon: ShieldCheck,
     permission: "compliance",
     items: [
-      { label: "Review Queue", href: "/crm/kyc/review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Resubmission", href: "/crm/kyc/resubmit", icon: ShieldCheck, permission: "compliance" },
-      { label: "Liveness Review", href: "/crm/kyc/liveness-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "POA Review", href: "/crm/kyc/poa-review", icon: ShieldCheck, permission: "compliance" },
-      { label: "Compliance Archive", href: "/crm/kyc/archive", icon: ShieldCheck, permission: "compliance" },
+      { label: "Workspace", href: "/crm/clm/workspace", icon: Briefcase, permission: "compliance" },
+      { label: "Review Queue", href: "/crm/clm/review-queue", icon: ClipboardList, permission: "compliance" },
+      { label: "Cases", href: "/crm/clm/cases", icon: FileSearch, permission: "compliance" },
+      { label: "SLA & Monitoring", href: "/crm/clm/sla-monitoring", icon: Gauge, permission: "compliance" },
+      { label: "Audit Trail", href: "/crm/clm/audit-trail", icon: ScrollText, permission: "compliance" },
       { label: "", icon: ShieldCheck, isSeparator: true },
-      { label: "KYC Form Config", href: "/crm/kyc/config", icon: Settings, permission: "compliance" },
-      { label: "KYC Levels", href: "/crm/kyc/levels", icon: Settings, permission: "compliance" },
-      { label: "Review Policy", href: "/crm/kyc/review-policy", icon: Settings, permission: "compliance" },
-      { label: "Agreement Docs", href: "/crm/kyc/agreements", icon: Shield, permission: "compliance" },
+      { label: "KYC Policies", href: "/crm/clm/policies", icon: SlidersHorizontal, permission: "compliance" },
+      { label: "KYC Levels", href: "/crm/clm/levels", icon: Layers, permission: "compliance" },
+      { label: "Forms & Fields", href: "/crm/clm/forms", icon: Settings, permission: "compliance" },
+      { label: "Compliance Templates", href: "/crm/clm/templates", icon: Shield, permission: "compliance" },
+      { label: "Agreements", href: "/crm/clm/agreements", icon: ScrollText, permission: "compliance" },
+      { label: "Workflow Settings", href: "/crm/clm/workflows", icon: Settings, permission: "compliance" },
     ],
   },
   {
@@ -219,7 +228,7 @@ interface SubMenuItemProps {
   isActive: (href?: string) => boolean;
 }
 
-function SubMenuItem({ item, isActive }: SubMenuItemProps) {
+const SubMenuItem = memo(function SubMenuItem({ item, isActive }: SubMenuItemProps) {
   // 分割线渲染
   if (item.isSeparator) {
     return (
@@ -247,7 +256,7 @@ function SubMenuItem({ item, isActive }: SubMenuItemProps) {
       </div>
     </Link>
   );
-}
+});
 
 // 三级菜单分组组件（可展开的应用项）
 interface SubMenuGroupProps {
@@ -258,7 +267,7 @@ interface SubMenuGroupProps {
   onToggle: () => void;
 }
 
-function SubMenuGroup({ item, isActive, pathname, expanded, onToggle }: SubMenuGroupProps) {
+const SubMenuGroup = memo(function SubMenuGroup({ item, isActive, pathname, expanded, onToggle }: SubMenuGroupProps) {
   return (
     <div>
       {/* 应用入口 - 可展开 */}
@@ -306,7 +315,7 @@ function SubMenuGroup({ item, isActive, pathname, expanded, onToggle }: SubMenuG
       )}
     </div>
   );
-}
+});
 
 // 一级菜单项组件
 interface MenuItemProps {
@@ -318,7 +327,7 @@ interface MenuItemProps {
   collapsed: boolean;
 }
 
-function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }: MenuItemProps) {
+const MenuItem = memo(function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }: MenuItemProps) {
   const [hovered, setHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
   const iconRef = useRef<HTMLDivElement>(null);
@@ -347,7 +356,7 @@ function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }
     }
   }, [collapsed, hovered]);
 
-  const toggleAppItem = (label: string) => {
+  const toggleAppItem = useCallback((label: string) => {
     setExpandedAppItems(prev => {
       const next = new Set(prev);
       if (next.has(label)) {
@@ -357,7 +366,7 @@ function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }
       }
       return next;
     });
-  };
+  }, []);
 
   return (
     <div className="relative">
@@ -462,7 +471,7 @@ function MenuItem({ group, isExpanded, onToggle, isActive, pathname, collapsed }
       )}
     </div>
   );
-}
+});
 
 interface SidebarProps {
   brandInitials?: string;
@@ -481,15 +490,15 @@ export function Sidebar({ brandInitials }: SidebarProps) {
   const initials = brandInitials || "TP";
 
   // Filter menu groups based on permissions
+  // Super admin bypasses expensive permission filtering entirely
   const filteredMenuGroups = useMemo(() => {
+    const isSuperAdmin = user?.role.id === 'super_admin' ||
+      user?.role.permissions.some(p => p.module === '*' && p.actions.includes('*'));
+    if (isSuperAdmin) return menuGroups;
+
     const hasPermission = (module: string, action?: string): boolean => {
       if (!user) return false;
-      if (user.role.id === 'super_admin') return true;
       const permissions = user.role.permissions;
-      const hasWildcardModule = permissions.some(
-        p => p.module === '*' && p.actions.includes('*')
-      );
-      if (hasWildcardModule) return true;
       const modulePermission = permissions.find(p => p.module === module);
       if (!modulePermission) return false;
       if (action) {
@@ -512,11 +521,11 @@ export function Sidebar({ brandInitials }: SidebarProps) {
     return groups;
   }, [user]);
 
-  const toggleGroup = (group: string) => {
+  const toggleGroup = useCallback((group: string) => {
     setExpandedGroup((prev) => (prev === group ? null : group));
-  };
+  }, []);
 
-  const isActive = (href?: string) => {
+  const isActive = useCallback((href?: string) => {
     if (!href) return false;
     // 精确匹配
     if (pathname === href) return true;
@@ -527,7 +536,7 @@ export function Sidebar({ brandInitials }: SidebarProps) {
       return pathname === "/crm";
     }
     return pathname.startsWith(href + "/");
-  };
+  }, [pathname]);
 
   // 根据当前路径自动展开对应的分组（仅在 pathname 变化时执行）
   useEffect(() => {
@@ -539,7 +548,7 @@ export function Sidebar({ brandInitials }: SidebarProps) {
     if (currentGroup) {
       setExpandedGroup(currentGroup.group);
     }
-  }, [pathname, filteredMenuGroups]);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps -- filteredMenuGroups stable for super_admin
 
   return (
     <>
