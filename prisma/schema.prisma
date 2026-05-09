@@ -739,3 +739,174 @@ model OAuth2App {
 
   @@map("oauth2_apps")
 }
+
+// ===================== CRM: Client 360 =====================
+
+/// Internal note on a client (sales / support / risk follow-up).
+model ClientNote {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  authorId   String   @map("author_id")
+  authorName String   @map("author_name")
+  content    String
+  mentions   String   @default("[]") @map("mentions") // JSON array of staff ids
+  isPinned   Boolean  @default(false) @map("is_pinned")
+  noteType   String   @default("general") @map("note_type") // general | risk | sales | followup
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@map("client_notes")
+}
+
+/// Definition of a tag that can be applied to clients.
+model ClientTag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  color       String   @default("#94a3b8")
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  autoRule    String?  @map("auto_rule") // JSON: { condition, rules: [...] }
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  assignments ClientTagAssignment[]
+
+  @@map("client_tags")
+}
+
+/// Many-to-many: which clients carry which tags.
+model ClientTagAssignment {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  tagId      String   @map("tag_id")
+  assignedBy String?  @map("assigned_by")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  tag ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+  @@index([userId])
+  @@map("client_tag_assignments")
+}
+
+/// Saved client filter (segment / cohort) for marketing or operations.
+model ClientSegment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  filter      String   @default("{}") // JSON: ClientListParams
+  isDynamic   Boolean  @default(true) @map("is_dynamic")
+  userCount   Int      @default(0) @map("user_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("client_segments")
+}
+
+/// Device / IP fingerprint observed for a client.
+model ClientDevice {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  ipAddress  String   @map("ip_address")
+  country    String?
+  city       String?
+  deviceId   String   @map("device_id")
+  browser    String?
+  os         String?
+  timezone   String?
+  isRisky    Boolean  @default(false) @map("is_risky")
+  isCurrent  Boolean  @default(false) @map("is_current")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId, lastUsedAt])
+  @@index([ipAddress])
+  @@index([deviceId])
+  @@map("client_devices")
+}
+
+/// Signed legal agreement (terms, risk disclosure, ...) per client.
+model ClientAgreement {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  agreementType String   @map("agreement_type")
+  version       String
+  signedAt      DateTime @map("signed_at")
+  signedIp      String   @map("signed_ip")
+  pdfUrl        String?  @map("pdf_url")
+  status        String   @default("signed") // signed | pending | expired
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("client_agreements")
+}
+
+/// Compliance / operations case attached to a client.
+model CrmCase {
+  id         String   @id @default(cuid())
+  caseId     String   @unique @map("case_id") // human-readable, e.g. CASE-2026-0001
+  userId     String   @map("user_id")
+  type       String // kyc_review | withdrawal_review | resubmission_review | video_verification
+  status     String   @default("pending") // pending | in_review | approved | rejected | escalated
+  priority   String   @default("medium") // low | medium | high | urgent
+  sla        String? // ISO duration string, e.g. "PT24H"
+  reviewerId String?  @map("reviewer_id")
+  comments   String   @default("[]") // JSON array of { id, author, content, createdAt }
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([status, priority])
+  @@map("crm_cases")
+}
+
+/// Customer-facing support ticket.
+model CrmTicket {
+  id           String   @id @default(cuid())
+  ticketId     String   @unique @map("ticket_id") // human-readable, e.g. T-2026-001
+  userId       String   @map("user_id")
+  type         String // financial | kyc | withdrawal | complaint | risk_appeal | technical
+  status       String   @default("open") // open | in_progress | waiting_customer | resolved | closed
+  priority     String   @default("medium")
+  subject      String
+  assignedToId String?  @map("assigned_to_id")
+  messages     String   @default("[]") // JSON array of { id, author, isStaff, content, attachments?, createdAt }
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([status, priority])
+  @@map("crm_tickets")
+}
+
+/// Activity event surfaced on the client timeline.
+model CrmTimelineEvent {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  type        String // registered | kyc_submitted | deposit | withdrawal | trade | login | account_frozen | ...
+  title       String
+  description String?
+  metadata    String?  @map("metadata") // JSON
+  operatorId  String?  @map("operator_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("crm_timeline_events")
+}
+
+/// Per-client audit log distinct from the tenant-level AuditLog.
+model CrmAuditLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  operatorId  String?  @map("operator_id")
+  operatorName String  @default("system") @map("operator_name")
+  action      String
+  targetField String?  @map("target_field")
+  oldValue    String?  @map("old_value")
+  newValue    String?  @map("new_value")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("crm_audit_logs")
+}
