@@ -2,12 +2,10 @@
 
 import { Briefcase, Ban, Settings, Lock, Plus } from "lucide-react";
 import type { ClientDetailData, TradingAccount } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function AccountsTab({ data }: Props) {
+export default function AccountsTab({ data }: BaseTabProps) {
   const { accounts } = data;
 
   return (

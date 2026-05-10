@@ -1,13 +1,10 @@
 "use client";
 
 import { FileText, Eye, Download, RefreshCw, CheckCircle, Clock } from "lucide-react";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function AgreementsTab({ data }: Props) {
+export default function AgreementsTab({ data }: BaseTabProps) {
   const { agreements } = data;
 
   return (

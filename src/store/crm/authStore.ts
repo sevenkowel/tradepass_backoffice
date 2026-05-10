@@ -4,10 +4,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AdminUser, Role } from '@/types/backoffice';
 
-// Mock current admin user
+// Mock current admin user.
+// `id` matches the `assigneeId` used in mock-cases.ts so that "My Tasks"
+// and Workspace counts show the seeded data. Real auth replaces this.
 const mockAdmin: AdminUser = {
-  id: 'admin-001',
-  username: 'admin',
+  id: 'staff-001',
+  username: 'Admin A',
   email: 'admin@tradepass.com',
   role: {
     id: 'super_admin',

@@ -1,25 +1,31 @@
 "use client";
 
-import { ClipboardList, Clock, UserCheck, MessageSquare, ArrowUpRight } from "lucide-react";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import Link from "next/link";
+import { ClipboardList, Clock, UserCheck, MessageSquare, ArrowUpRight, ExternalLink } from "lucide-react";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
-
-export default function CasesTab({ data }: Props) {
-  const { cases } = data;
+export default function CasesTab({ data }: BaseTabProps) {
+  const { cases, user } = data;
 
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-slate-900">审批 Case</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-slate-900">审批 Case</h3>
+        <Link
+          href={`/crm/clm/cases?search=${encodeURIComponent(user.uid)}`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-blue-50 rounded-lg transition-colors"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          在 CLM 中查看全部
+        </Link>
+      </div>
 
       <div className="space-y-3">
         {cases.map((caseItem) => (
           <div key={caseItem.id} className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <ClipboardList className="w-5 h-5 text-blue-600" />
+                <ClipboardList className="w-5 h-5 text-primary" />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-semibold text-slate-900">{caseItem.caseId}</span>

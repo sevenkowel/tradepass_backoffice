@@ -1,6 +1,11 @@
 /**
- * CLM Case Service
- * Core case lifecycle management
+ * CLM Case Service — mock implementation.
+ *
+ * In-memory implementation of `ICaseService`. Used by default in
+ * development and demos. The HTTP-backed counterpart lives in
+ * `services/api/case.service.api.ts`; the factory in
+ * `services/index.ts` decides which one to export based on
+ * `USE_MOCK_API` from `lib/clm/config.ts`.
  */
 import type {
   CLMCase,
@@ -8,11 +13,13 @@ import type {
   CaseListParams,
   PaginatedResult,
   CaseComment,
+  CaseDetail,
 } from "@/types/clm";
+import type { ICaseService } from "./types";
 import { mockCases, mockCaseDetail } from "../mock";
 import { delay } from "@/lib/utils";
 
-class CaseService {
+class CaseService implements ICaseService {
   private cases = [...mockCases];
   private auditLogs: import("@/types/clm").CLMAuditLog[] = [];
 
@@ -48,6 +55,12 @@ class CaseService {
     // Filter by case status
     if (params.status) {
       result = result.filter((c) => c.status === params.status);
+    }
+
+    // Filter by status set (Review Queue's "active" lock-down)
+    if (params.statusIn && params.statusIn.length > 0) {
+      const set = new Set(params.statusIn);
+      result = result.filter((c) => set.has(c.status));
     }
 
     // Filter by assignee
@@ -114,7 +127,7 @@ class CaseService {
     return { items: paginated, total: result.length, page, pageSize };
   }
 
-  async getById(id: string): Promise<CLMCase | null> {
+  async getById(id: string): Promise<(CLMCase & Partial<CaseDetail>) | null> {
     await delay(200);
     const caseItem = this.cases.find((c) => c.id === id);
     if (!caseItem) return null;

@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { Shield, ToggleLeft, ToggleRight, ChevronDown } from "lucide-react";
 import type { ClientDetailData, ClientPermission } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function PermissionsTab({ data }: Props) {
+export default function PermissionsTab({ data }: BaseTabProps) {
   const { permissions: initialPermissions } = data;
   const [permissions, setPermissions] = useState(initialPermissions);
 

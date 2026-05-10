@@ -32,7 +32,11 @@ function BackofficeContent({ children }: { children: React.ReactNode }) {
               sidebarCollapsed ? "lg:ml-[80px]" : "lg:ml-[260px]"
             )}
           >
-            <div className="p-4 lg:p-6">{children}</div>
+            {/* Outer page padding — kept tight on purpose: the CRM is a
+                dense workspace, not a marketing surface. Pages like
+                Case Detail use negative margins to reach the chrome
+                edge; if you change these values, sync those overrides. */}
+            <div className="p-3 lg:p-4">{children}</div>
           </main>
         </div>
       </ToastContextProvider>

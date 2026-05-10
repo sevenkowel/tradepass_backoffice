@@ -6,8 +6,10 @@ import { Card, PageHeader } from "@/components/crm/ui";
 import { Breadcrumb } from "@/components/crm/layout";
 import { kycService } from "@/lib/crm/services/kyc.service";
 import type { UserKYC } from "@/lib/kyc/types";
+import { useCurrentStaffId } from "@/hooks/useCurrentStaff";
 
 export default function ResubmissionPage() {
+  const staffId = useCurrentStaffId();
   const [records, setRecords] = useState<UserKYC[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -22,8 +24,8 @@ export default function ResubmissionPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleAction = async (id: string, action: "approve" | "resubmit") => {
-    if (action === "approve") await kycService.approve(id, "staff-001");
-    else await kycService.requestResubmit(id, "staff-001", "Additional documents needed");
+    if (action === "approve") await kycService.approve(id, staffId);
+    else await kycService.requestResubmit(id, staffId, "Additional documents needed");
     fetchData();
     setSelectedId(null);
   };

@@ -36,9 +36,10 @@ import {
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
+import { useReviewQueueCount } from "@/hooks/useReviewQueueCount";
 import type { PermissionModule } from "@/types/backoffice/role";
 
-// 菜单项类型 - 支持三级菜单 + 分割线
+// 菜单项类型 - 支持三级菜单 + 分割线 + 数字徽章 + 分组小标题
 interface MenuItem {
   label: string;
   href?: string;
@@ -46,6 +47,19 @@ interface MenuItem {
   permission?: PermissionModule;
   children?: MenuItem[];
   isSeparator?: boolean;
+  /**
+   * Render as a non-interactive section header (uppercase, faint).
+   * Used to introduce a sub-group of related links (e.g. "Configuration"
+   * under CLM Center) without nesting them in a collapsible.
+   */
+  isSectionLabel?: boolean;
+  /**
+   * Optional badge shown as a chip on the right of the row. Numbers
+   * `> 0` render as a count pill; strings render as a label chip;
+   * falsy values hide the chip. Sidebar's renderer injects dynamic
+   * values (e.g. Review Queue active count) before rendering.
+   */
+  badge?: number | string | null;
 }
 
 interface MenuGroup {
@@ -84,6 +98,13 @@ const menuGroups: MenuGroup[] = [
     ],
   },
   {
+    // CLM Center — operations on top, configuration below an
+    // uppercase "Configuration" section label. Two visual tricks
+    // signal the lower priority of the config items without hiding
+    // them behind a click:
+    //   1. The "Configuration" section label introduces the group.
+    //   2. Items still render as normal SubMenuItems, but the section
+    //      header sets reader expectations (these are settings).
     group: "CLM Center",
     icon: ShieldCheck,
     permission: "compliance",
@@ -93,13 +114,13 @@ const menuGroups: MenuGroup[] = [
       { label: "Cases", href: "/crm/clm/cases", icon: FileSearch, permission: "compliance" },
       { label: "SLA & Monitoring", href: "/crm/clm/sla-monitoring", icon: Gauge, permission: "compliance" },
       { label: "Audit Trail", href: "/crm/clm/audit-trail", icon: ScrollText, permission: "compliance" },
-      { label: "", icon: ShieldCheck, isSeparator: true },
+      { label: "Configuration", icon: Settings, isSectionLabel: true },
       { label: "KYC Policies", href: "/crm/clm/policies", icon: SlidersHorizontal, permission: "compliance" },
       { label: "KYC Levels", href: "/crm/clm/levels", icon: Layers, permission: "compliance" },
       { label: "Forms & Fields", href: "/crm/clm/forms", icon: Settings, permission: "compliance" },
-      { label: "Compliance Templates", href: "/crm/clm/templates", icon: Shield, permission: "compliance" },
+      { label: "Templates", href: "/crm/clm/templates", icon: Shield, permission: "compliance" },
       { label: "Agreements", href: "/crm/clm/agreements", icon: ScrollText, permission: "compliance" },
-      { label: "Workflow Settings", href: "/crm/clm/workflows", icon: Settings, permission: "compliance" },
+      { label: "Workflows", href: "/crm/clm/workflows", icon: Settings, permission: "compliance" },
     ],
   },
   {
@@ -116,6 +137,7 @@ const menuGroups: MenuGroup[] = [
       { label: "Blacklist", href: "/crm/risk/blacklist", icon: AlertTriangle, permission: "risk" },
       { label: "Whitelist", href: "/crm/risk/whitelist", icon: AlertTriangle, permission: "risk" },
       { label: "", icon: AlertTriangle, isSeparator: true },
+      { label: "Scoring Policy", href: "/crm/risk/scoring", icon: SlidersHorizontal, permission: "risk" },
       { label: "Risk Rules", href: "/crm/risk/rules", icon: AlertTriangle, permission: "risk" },
       { label: "Margin Alerts", href: "/crm/risk/margin", icon: AlertTriangle, permission: "risk" },
       { label: "NBP Protection", href: "/crm/risk/nbp", icon: AlertTriangle, permission: "risk" },
@@ -229,6 +251,17 @@ interface SubMenuItemProps {
 }
 
 const SubMenuItem = memo(function SubMenuItem({ item, isActive }: SubMenuItemProps) {
+  // Section label — small uppercase header, non-interactive
+  if (item.isSectionLabel) {
+    return (
+      <div className="pt-3 pb-1 pl-[48px] pr-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          {item.label}
+        </span>
+      </div>
+    );
+  }
+
   // 分割线渲染
   if (item.isSeparator) {
     return (
@@ -240,19 +273,34 @@ const SubMenuItem = memo(function SubMenuItem({ item, isActive }: SubMenuItemPro
 
   const active = isActive(item.href);
 
+  // Badge — render only when truthy (skip 0 / empty / null)
+  const showBadge = item.badge !== undefined && item.badge !== null && item.badge !== 0 && item.badge !== "";
+
   return (
     <Link href={item.href || "#"}>
       <div
         className={cn(
-          "flex items-center py-2.5 pl-[48px] pr-3 rounded-lg transition-all duration-200 group",
+          "flex items-center justify-between py-2.5 pl-[48px] pr-3 rounded-lg transition-all duration-200 group",
           active
             ? "bg-blue-50 text-blue-700"
             : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
         )}
       >
-        <span className={cn("text-sm font-medium", active && "font-semibold")}>
+        <span className={cn("text-sm font-medium truncate", active && "font-semibold")}>
           {item.label}
         </span>
+        {showBadge && (
+          <span
+            className={cn(
+              "ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums flex-shrink-0",
+              active
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
+            )}
+          >
+            {item.badge}
+          </span>
+        )}
       </div>
     </Link>
   );
@@ -487,14 +535,32 @@ export function Sidebar({ brandInitials }: SidebarProps) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
+  // Live active-cases count for the Review Queue badge.
+  const { count: reviewQueueCount } = useReviewQueueCount();
+
   const initials = brandInitials || "TP";
 
   // Filter menu groups based on permissions
   // Super admin bypasses expensive permission filtering entirely
   const filteredMenuGroups = useMemo(() => {
+    // Inject dynamic badges into the static menu config. Doing this
+    // here (vs. inside menuGroups) keeps configuration declarative and
+    // hooks out of the static array.
+    const withBadges = menuGroups.map((g) => {
+      if (g.group !== "CLM Center") return g;
+      return {
+        ...g,
+        items: g.items.map((item) =>
+          item.href === "/crm/clm/review-queue"
+            ? { ...item, badge: reviewQueueCount }
+            : item
+        ),
+      };
+    });
+
     const isSuperAdmin = user?.role.id === 'super_admin' ||
       user?.role.permissions.some(p => p.module === '*' && p.actions.includes('*'));
-    if (isSuperAdmin) return menuGroups;
+    if (isSuperAdmin) return withBadges;
 
     const hasPermission = (module: string, action?: string): boolean => {
       if (!user) return false;
@@ -502,12 +568,13 @@ export function Sidebar({ brandInitials }: SidebarProps) {
       const modulePermission = permissions.find(p => p.module === module);
       if (!modulePermission) return false;
       if (action) {
-        return modulePermission.actions.includes('*') || modulePermission.actions.includes(action);
+        const actions = modulePermission.actions as readonly string[];
+        return actions.includes('*') || actions.includes(action);
       }
       return true;
     };
 
-    const groups = menuGroups
+    const groups = withBadges
       .map((group) => {
         const filteredItems = group.items.filter((item) => {
           if (!item.permission) return true;
@@ -519,7 +586,7 @@ export function Sidebar({ brandInitials }: SidebarProps) {
       .filter(Boolean) as MenuGroup[];
 
     return groups;
-  }, [user]);
+  }, [user, reviewQueueCount]);
 
   const toggleGroup = useCallback((group: string) => {
     setExpandedGroup((prev) => (prev === group ? null : group));

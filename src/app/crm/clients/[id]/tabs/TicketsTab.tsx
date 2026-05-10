@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { Ticket, MessageSquare, Send, User, Headphones } from "lucide-react";
 import type { ClientDetailData, Ticket as TicketType } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function TicketsTab({ data }: Props) {
+export default function TicketsTab({ data }: BaseTabProps) {
   const { tickets } = data;
   const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(tickets[0] || null);
 

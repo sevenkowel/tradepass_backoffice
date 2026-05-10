@@ -1,197 +1,186 @@
 @import "tailwindcss";
+@import "../../node_modules/@douyinfe/semi-ui-19/dist/css/semi.min.css";
 
 /* ============================================
-   TradePass Design System - Tailwind v4
-   DURALUX Style - Modern SaaS Admin Dashboard
-   Clean, Professional, Data-Driven
+   TradePass CRM Design System — Tailwind v4
+   Single source of truth for design tokens.
+
+   Conventions (do not deviate without updating docs/05-UI-System/):
+   - Brand color  : blue-600 (#2563EB)
+   - Neutral grey : slate-* (NOT gray, NOT zinc)
+   - Status colors: emerald / amber / red / blue (50/100/500/600/700 only)
    ============================================ */
 
 /*
- * Tailwind v4 @theme: 所有静态颜色（品牌色）在此定义
- * 可生成 bg-*, text-*, border-* 及 /opacity 修饰符
+ * @theme exposes static tokens to Tailwind v4 — they auto-generate
+ * bg-*, text-*, border-* utilities and support /opacity modifiers.
  */
 @theme {
-  /* Brand Colors - DURALUX Deep Blue */
-  --color-primary: #1E40AF;       /* blue-800 - 主品牌色 */
-  --color-primary-light: #3B82F6;  /* blue-500 - 浅品牌色 */
-  --color-primary-dark: #1E3A8A;   /* blue-900 - 深品牌色 */
+  /* Brand — blue-600 family (aligned with actual usage in pages) */
+  --color-primary: #2563EB;             /* blue-600 */
+  --color-primary-light: #3B82F6;       /* blue-500 — hover-up / accents */
+  --color-primary-dark: #1D4ED8;        /* blue-700 — active / pressed */
+  --color-primary-foreground: #FFFFFF;
 
-  /* Status colors - Data-driven */
-  --color-success: #10B981;       /* emerald-500 - for positive data */
-  --color-success-light: #34D399;  /* emerald-400 */
-  --color-error: #EF4444;         /* red-500 - for negative data */
-  --color-error-light: #F87171;   /* red-400 */
-  --color-warning: #F59E0B;       /* amber-500 */
-  --color-warning-light: #FBBF24; /* amber-400 */
-  --color-info: #3B82F6;          /* blue-500 */
-  --color-info-light: #60A5FA;    /* blue-400 */
-  --color-accent: #1E40AF;        /* brand blue - for light bg */
-  --color-accent-foreground: #FFFFFF;
+  /* Surface tokens — drive bg-background / bg-card / text-foreground utilities */
+  --color-background: #F8FAFC;          /* slate-50 — page bg */
+  --color-foreground: #0F172A;          /* slate-900 — primary text */
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0F172A;
+  --color-muted: #F1F5F9;               /* slate-100 */
+  --color-muted-foreground: #64748B;    /* slate-500 */
+  --color-border: #E2E8F0;              /* slate-200 */
 
-  /* Neutral Palette - Clean gray scale */
-  --color-gray-25: #FAFAFA;        /* very light gray */
-  --color-gray-50: #F5F7FA;        /* light gray background */
-  --color-gray-100: #F3F4F6;       /* border/separator */
-  --color-gray-200: #E5E7EB;       /* subtle borders */
-  --color-gray-300: #D1D5DB;       /* inactive elements */
-  --color-gray-400: #9CA3AF;       /* secondary text */
-  --color-gray-500: #6B7280;       /* muted text */
-  --color-gray-600: #4B5563;       /* tertiary text */
-  --color-gray-700: #374151;       /* primary text */
-  --color-gray-800: #1F2937;       /* headings */
-  --color-gray-900: #111827;       /* darkest text */
+  /* Semantic — only 50/100/500/600/700 are part of the system */
+  --color-success: #10B981;             /* emerald-500 */
+  --color-success-soft: #D1FAE5;        /* emerald-100 */
+  --color-warning: #F59E0B;             /* amber-500 */
+  --color-warning-soft: #FEF3C7;        /* amber-100 */
+  --color-error: #EF4444;               /* red-500 */
+  --color-error-soft: #FEE2E2;          /* red-100 */
+  --color-info: #3B82F6;                /* blue-500 */
+  --color-info-soft: #DBEAFE;           /* blue-100 */
 
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
   --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Noto Sans SC', sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', monospace;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 
 /* ============================================
-   CSS Custom Properties - DURALUX Style
-   Modern SaaS Admin Dashboard
+   Runtime CSS variables
+   - shadcn/ui & Radix compatibility layer
+   - dark mode support via [data-theme="dark"]
    ============================================ */
 :root {
-  /* Light mode - Clean light gray background */
-  --tp-bg: #F5F7FA;
-  --tp-fg: #1F2937;
+  /* tp-* legacy aliases (kept for backward compatibility) */
+  --tp-bg: #F8FAFC;
+  --tp-fg: #0F172A;
   --tp-surface: #FFFFFF;
   --tp-surface-elevated: #FFFFFF;
-  --tp-border: #E5E7EB;
-  --tp-border-light: #F3F4F6;
-  --tp-subtle: #F9FAFB;
+  --tp-border: #E2E8F0;
+  --tp-border-light: #F1F5F9;
+  --tp-subtle: #F8FAFC;
+  --tp-muted: #64748B;
 
-  /* shadcn/ui compatible CSS vars */
-  --background: #F5F7FA;
-  --foreground: #1F2937;
+  /* shadcn/ui variables (drive Dialog / Toast / DropdownMenu / etc) */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
   --card: #FFFFFF;
-  --card-foreground: #1F2937;
+  --card-foreground: #0F172A;
   --popover: #FFFFFF;
-  --popover-foreground: #1F2937;
-  --primary: #1E40AF;
+  --popover-foreground: #0F172A;
+  --primary: #2563EB;
   --primary-foreground: #FFFFFF;
-  --secondary: #F3F4F6;
-  --secondary-foreground: #1F2937;
-  --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
   --accent: #EFF6FF;
-  --accent-foreground: #1E40AF;
-  --destructive: #EF4444;
+  --accent-foreground: #2563EB;
+  --destructive: #DC2626;
   --destructive-foreground: #FFFFFF;
-  --border: #E5E7EB;
-  --input: #E5E7EB;
-  --ring: #1E40AF;
-  --radius: 0.5rem;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
+  --radius: 0.75rem; /* 12px — default lg */
 
-  /* Card styles - Professional clean */
+  /* Card visual treatment */
   --card-bg: #FFFFFF;
-  --card-border: #E5E7EB;
-  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --card-border: #E2E8F0;
+  --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --card-shadow-hover: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
 
-  /* For opacity variants: use RGB channels */
-  --tp-fg-rgb: 31, 41, 55;
+  /* RGB channels — for opacity-modifier utilities */
+  --tp-fg-rgb: 15, 23, 42;          /* slate-900 */
   --tp-white-rgb: 255, 255, 255;
-  --tp-bg-rgb: 245, 247, 250;
+  --tp-bg-rgb: 248, 250, 252;       /* slate-50 */
   --tp-surface-rgb: 255, 255, 255;
-  --tp-accent-rgb: 30, 64, 175;
-  --tp-accent: rgb(30, 64, 175);
-  --tp-accent-dark: rgb(20, 50, 150);
+  --tp-accent-rgb: 37, 99, 235;     /* blue-600 */
+  --tp-accent: rgb(37, 99, 235);
+  --tp-accent-dark: rgb(29, 78, 216);
 
-  /* Spacing - Clean and spacious */
+  /* Spacing scale — 4 / 8 / 12 / 16 / 24 / 32 / 48
+     CRM does not use larger marketing-grade spacing */
   --space-xs: 4px;
   --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-  --space-4xl: 96px;
-  --space-5xl: 128px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
 
-  /* Radius - Moderate, professional */
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Radius scale — 6 / 8 / 12 / 16 / full */
+  --radius-sm: 6px;     /* badges, small chips */
+  --radius-md: 8px;     /* inputs, small controls */
+  --radius-lg: 12px;    /* buttons, small cards */
+  --radius-xl: 16px;    /* large cards, dialogs */
+  --radius-full: 9999px;
 
-  /* Transitions - Subtle and professional */
+  /* Shadow scale */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.08);
+
+  /* Transitions */
   --transition-fast: 150ms ease-in-out;
   --transition-base: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
 }
 
 [data-theme="dark"] {
-  --tp-bg: #111827;
-  --tp-fg: #F9FAFB;
-  --tp-surface: #1F2937;
-  --tp-surface-elevated: #1F2937;
-  --tp-border: #374151;
-  --tp-border-light: #374151;
+  --tp-bg: #0F172A;
+  --tp-fg: #F1F5F9;
+  --tp-surface: #1E293B;
+  --tp-surface-elevated: #1E293B;
+  --tp-border: #334155;
+  --tp-border-light: #1E293B;
+  --tp-subtle: #1E293B;
+  --tp-muted: #94A3B8;
 
-  /* shadcn/ui dark mode */
-  --background: #111827;
-  --foreground: #F9FAFB;
-  --card: #1F2937;
-  --card-foreground: #F9FAFB;
-  --popover: #1F2937;
-  --popover-foreground: #F9FAFB;
+  --background: #0F172A;
+  --foreground: #F1F5F9;
+  --card: #1E293B;
+  --card-foreground: #F1F5F9;
+  --popover: #1E293B;
+  --popover-foreground: #F1F5F9;
   --primary: #3B82F6;
   --primary-foreground: #FFFFFF;
-  --secondary: #374151;
-  --secondary-foreground: #F9FAFB;
-  --muted: #374151;
-  --muted-foreground: #9CA3AF;
+  --secondary: #334155;
+  --secondary-foreground: #F1F5F9;
+  --muted: #334155;
+  --muted-foreground: #94A3B8;
   --accent: #1E3A8A;
-  --accent-foreground: #60A5FA;
+  --accent-foreground: #93C5FD;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #374151;
-  --input: #374151;
+  --border: #334155;
+  --input: #334155;
   --ring: #3B82F6;
-  --tp-subtle: #1F2937;
-  --tp-fg-rgb: 249, 250, 251;
-  --tp-bg-rgb: 17, 24, 39;
-  --tp-surface-rgb: 31, 41, 55;
+
+  --card-bg: #1E293B;
+  --card-border: #334155;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+
+  --tp-fg-rgb: 241, 245, 249;
+  --tp-bg-rgb: 15, 23, 42;
+  --tp-surface-rgb: 30, 41, 59;
   --tp-accent-rgb: 59, 130, 246;
   --tp-accent: rgb(59, 130, 246);
   --tp-accent-dark: rgb(37, 99, 235);
-  --card-border: #374151;
-  --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --tp-bg: #111827;
-    --tp-fg: #F9FAFB;
-    --tp-surface: #1F2937;
-    --tp-surface-elevated: #1F2937;
-    --tp-border: #374151;
-    --tp-border-light: #374151;
-    --tp-subtle: #1F2937;
-    --tp-fg-rgb: 249, 250, 251;
-    --tp-bg-rgb: 17, 24, 39;
-    --tp-surface-rgb: 31, 41, 55;
-    --tp-accent-rgb: 59, 130, 246;
-    --tp-accent: rgb(59, 130, 246);
-    --tp-accent-dark: rgb(37, 99, 235);
-
-    --card-bg: #1F2937;
-    --card-border: #374151;
-    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  }
 }
 
 /* ============================================
-   Base Styles
+   Base styles
    ============================================ */
 @layer base {
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
 
   body {
-    background: var(--tp-bg);
-    color: var(--tp-fg);
+    background: var(--background);
+    color: var(--foreground);
     font-family: var(--font-sans);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -203,130 +192,117 @@
     font-family: var(--font-heading);
     font-weight: 600;
     line-height: 1.25;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.015em;
+    color: var(--foreground);
   }
 
-  a { color: #1E40AF; text-decoration: none; transition: color 0.15s; }
-  a:hover { color: #1E3A8A; }
+  a { color: var(--primary); text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--primary); opacity: 0.85; }
 
   ::selection {
-    background: rgba(30, 64, 175, 0.1);
+    background: rgba(37, 99, 235, 0.15);
     color: inherit;
   }
 
+  /* Tabular numerals — used everywhere we render currency / IDs / counters */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 6px; }
-  ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
-  [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #374151; }
-  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; }
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #475569; }
 }
 
 /* ============================================
-   Premium Card Utilities
+   Utility layer — token-backed helpers
+   These exist because they map CSS variables to class names that
+   change with theme. Do NOT add raw color utilities here; use
+   Tailwind's slate-*/emerald-*/red-*/amber-*/blue-* directly.
    ============================================ */
 @layer utilities {
-  /* Backgrounds */
-  .bg-background      { background: var(--tp-bg); }
-  .bg-surface         { background: var(--tp-surface); }
-  .bg-surface-elevated { background: var(--tp-surface-elevated); }
+  /* Surface utilities (theme-aware) */
+  .bg-background        { background-color: var(--background); }
+  .bg-surface           { background-color: var(--tp-surface); }
+  .bg-surface-elevated  { background-color: var(--tp-surface-elevated); }
+  .bg-card              { background-color: var(--card); }
+  .bg-popover           { background-color: var(--popover); }
+  .bg-muted             { background-color: var(--muted); }
+  .bg-accent            { background-color: var(--accent); }
+  .bg-secondary         { background-color: var(--secondary); }
+  .bg-destructive       { background-color: var(--destructive); }
+  .bg-primary           { background-color: var(--primary); }
 
-  /* Theme-aware accent utilities (replaces broken bg-[rgb(var(--tp-accent-rgb))]) */
-  .bg-tp-accent        { background-color: rgb(var(--tp-accent-rgb)); }
-  .bg-tp-accent-hover  { background-color: rgba(var(--tp-accent-rgb), 0.9); }
-  .bg-tp-accent-subtle { background-color: rgba(var(--tp-accent-rgb), 0.1); }
-  .text-tp-accent      { color: rgb(var(--tp-accent-rgb)); }
-  .border-tp-accent    { border-color: rgb(var(--tp-accent-rgb)); }
-  .border-tp-accent-subtle { border-color: rgba(var(--tp-accent-rgb), 0.2); }
-
-  /* shadcn/ui compatible utilities */
-  .bg-card            { background: var(--card); }
-  .bg-popover         { background: var(--popover); }
-  .bg-muted           { background: var(--muted); }
-  .bg-accent          { background: var(--accent); }
-  .bg-secondary       { background: var(--secondary); }
-
+  .text-foreground          { color: var(--foreground); }
   .text-card-foreground     { color: var(--card-foreground); }
   .text-popover-foreground  { color: var(--popover-foreground); }
   .text-muted-foreground    { color: var(--muted-foreground); }
   .text-accent-foreground   { color: var(--accent-foreground); }
   .text-secondary-foreground { color: var(--secondary-foreground); }
+  .text-primary             { color: var(--primary); }
   .text-primary-foreground  { color: var(--primary-foreground); }
+  .text-destructive         { color: var(--destructive); }
   .text-destructive-foreground { color: var(--destructive-foreground); }
 
+  .border-border       { border-color: var(--border); }
+  .border-border-light { border-color: var(--tp-border-light); }
   .border-input        { border-color: var(--input); }
+  .border-primary      { border-color: var(--primary); }
+
   .ring-ring           { --tw-ring-color: var(--ring); }
 
-  .bg-destructive      { background: var(--destructive); }
+  /* Accent helpers (used by older Button variants) */
+  .bg-tp-accent         { background-color: rgb(var(--tp-accent-rgb)); }
+  .bg-tp-accent-hover   { background-color: rgba(var(--tp-accent-rgb), 0.9); }
+  .bg-tp-accent-subtle  { background-color: rgba(var(--tp-accent-rgb), 0.1); }
+  .text-tp-accent       { color: rgb(var(--tp-accent-rgb)); }
+  .border-tp-accent     { border-color: rgb(var(--tp-accent-rgb)); }
+  .border-tp-accent-subtle { border-color: rgba(var(--tp-accent-rgb), 0.2); }
 
-  /* Premium card style */
+  /* Foreground with opacity (RGB channels) */
+  .text-foreground\/90 { color: rgba(var(--tp-fg-rgb), 0.9); }
+  .text-foreground\/80 { color: rgba(var(--tp-fg-rgb), 0.8); }
+  .text-foreground\/70 { color: rgba(var(--tp-fg-rgb), 0.7); }
+  .text-foreground\/60 { color: rgba(var(--tp-fg-rgb), 0.6); }
+  .text-foreground\/50 { color: rgba(var(--tp-fg-rgb), 0.5); }
+  .text-foreground\/40 { color: rgba(var(--tp-fg-rgb), 0.4); }
+  .text-foreground\/30 { color: rgba(var(--tp-fg-rgb), 0.3); }
+  .text-foreground\/20 { color: rgba(var(--tp-fg-rgb), 0.2); }
+
+  /* Hover variants */
+  .hover\:text-foreground:hover  { color: var(--foreground); }
+  .hover\:bg-surface:hover       { background-color: var(--tp-surface); }
+  .hover\:bg-surface-elevated:hover { background-color: var(--tp-surface-elevated); }
+  .hover\:bg-background:hover    { background-color: var(--background); }
+  .hover\:bg-muted:hover         { background-color: var(--muted); }
+  .hover\:border-border:hover    { border-color: var(--border); }
+
+  /* Premium card pattern */
   .premium-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
+    background-color: var(--card);
+    border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     transition: box-shadow var(--transition-base), border-color var(--transition-base);
   }
-  .premium-card:hover {
-    box-shadow: var(--card-shadow-hover);
-  }
+  .premium-card:hover { box-shadow: var(--card-shadow-hover); }
 
-  /* Text */
-  .text-foreground    { color: var(--tp-fg); }
-
-  /* Borders */
-  .border-border      { border-color: var(--tp-border); }
-  .border-border-light { border-color: var(--tp-border-light); }
-
-  /* Foreground with opacity - using RGB channels */
-  .text-foreground\/90  { color: rgba(var(--tp-fg-rgb), 0.9); }
-  .text-foreground\/80  { color: rgba(var(--tp-fg-rgb), 0.8); }
-  .text-foreground\/70  { color: rgba(var(--tp-fg-rgb), 0.7); }
-  .text-foreground\/60  { color: rgba(var(--tp-fg-rgb), 0.6); }
-  .text-foreground\/50  { color: rgba(var(--tp-fg-rgb), 0.5); }
-  .text-foreground\/40  { color: rgba(var(--tp-fg-rgb), 0.4); }
-  .text-foreground\/30  { color: rgba(var(--tp-fg-rgb), 0.3); }
-  .text-foreground\/20  { color: rgba(var(--tp-fg-rgb), 0.2); }
-
-  /* Hover states for text-foreground */
-  .hover\:text-foreground:hover { color: var(--tp-fg); }
-
-  /* Hover states for surface backgrounds */
-  .hover\:bg-surface:hover { background-color: var(--tp-surface); }
-  .hover\:bg-surface-elevated:hover { background-color: var(--tp-surface-elevated); }
-  .hover\:bg-background:hover { background: var(--tp-bg); }
-
-  /* Hover states for border */
-  .hover\:border-border:hover { border-color: var(--tp-border); }
-
-  /* Font families */
+  /* Font family aliases */
   .font-heading { font-family: var(--font-heading); }
   .font-sans    { font-family: var(--font-sans); }
   .font-mono    { font-family: var(--font-mono); }
 }
 
 /* ============================================
-   Layout
+   Layout containers (legacy, kept for backward compat)
    ============================================ */
 .container-main {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 var(--space-lg);
-}
-@media (min-width: 768px) {
-  .container-main { padding: 0 var(--space-xl); }
+  padding: 0 var(--space-xl);
 }
 
-.section    { padding: var(--space-4xl) 0; }
-.section-sm { padding: var(--space-3xl) 0; }
-.section-lg { padding: var(--space-5xl) 0; }
-@media (min-width: 768px) {
-  .section { padding: var(--space-5xl) 0; }
-}
-
-/* ============================================
-   Misc
-   ============================================ */
-.text-balance { text-wrap: balance; }
+.text-balance     { text-wrap: balance; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar     { -ms-overflow-style: none; scrollbar-width: none; }

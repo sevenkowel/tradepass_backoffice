@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, AlertTriangle, Ban, UserCheck, Wallet } from "lucide-react";
 import type { ClientDetailData, FundRecord } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function FundsTab({ data }: Props) {
+export default function FundsTab({ data }: BaseTabProps) {
   const { funds } = data;
   const [filter, setFilter] = useState<"all" | "deposit" | "withdrawal">("all");
 

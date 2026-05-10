@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
   distDir: ".next",
 
+  // Semi Design 需要 transpile
+  transpilePackages: [
+    "@douyinfe/semi-ui-19",
+    "@douyinfe/semi-icons",
+    "@douyinfe/semi-illustrations",
+  ],
+
   // 性能优化
   experimental: {
     // 优化包体积

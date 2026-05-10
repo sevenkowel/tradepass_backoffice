@@ -30,6 +30,12 @@ interface FilterBarProps {
   searchKeys?: string[];
   onSearchChange?: (value: string) => void;
   onRefresh?: () => void;
+  /**
+   * Whether the filter grid is expanded by default. Pages with many
+   * filters (e.g. review queue) should default to `false` so the
+   * page opens with the table front-and-center.
+   */
+  defaultOpen?: boolean;
 }
 
 export function FilterBar({
@@ -42,9 +48,10 @@ export function FilterBar({
   searchPlaceholder = "Search...",
   searchValue,
   onRefresh,
+  defaultOpen = true,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchValue || "");
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(defaultOpen);
   const [filterValues, setFilterValues] = useState<Record<string, string>>(
     () =>
       filters.reduce((acc, f) => {

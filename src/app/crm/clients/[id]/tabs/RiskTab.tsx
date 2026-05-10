@@ -1,17 +1,61 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Network } from "lucide-react";
-import type { BaseTabProps } from "@/types/backoffice/client";
 import * as echarts from "echarts";
 import { useT } from "@/lib/i18n/LocaleProvider";
+import type { BaseTabProps } from "@/types/backoffice/client";
 import type { RiskRelationship } from "@/types/backoffice/client-detail";
+import { RiskScoreRing } from "@/components/crm/clm/risk/RiskScoreRing";
+import { RiskFactorList } from "@/components/crm/clm/risk/RiskFactorList";
+import { lookupRiskProfile } from "@/lib/risk-engine/mock-risk-profiles";
+import { NODE_COLOR, EDGE_COLOR } from "@/lib/risk-engine/graph";
+import type { ClientGraphEdgeKind, ClientGraphNodeKind } from "@/types/core";
 
+/** Pair an edge kind with the node kind to colour the connected node. */
+const EDGE_TO_NODE_KIND: Record<ClientGraphEdgeKind, ClientGraphNodeKind> = {
+  shared_ip: "shared_ip",
+  shared_device: "shared_device",
+  same_id: "same_id",
+  shared_payment: "shared_payment",
+  ib_invited: "ib_relation",
+};
+
+/** Map the legacy `RiskRelationship.relationshipType` enum onto the unified
+ *  `ClientGraphEdgeKind`. The two enums share the first three values; the
+ *  remaining ones (bank/wallet) collapse onto `shared_payment`. */
+function relTypeToEdgeKind(type: RiskRelationship["relationshipType"]): ClientGraphEdgeKind {
+  switch (type) {
+    case "shared_ip":
+    case "shared_device":
+      return type;
+    case "same_name":
+      return "same_id";
+    case "shared_bank":
+    case "shared_crypto_wallet":
+      return "shared_payment";
+  }
+}
+
+/**
+ * RiskTab — client-level view of the SAME RiskProfile the CLM Case
+ * Detail consumes. We synthesise a profile from the user's flat
+ * `riskScore`/`riskLevel` (kept for list-page convenience) so this tab
+ * can render the explainable 6-axis breakdown identical to Case Detail.
+ *
+ * When the backend Risk Engine lands, swap `lookupRiskProfile(...)`
+ * with `riskService.getProfile(clientId)` — UI doesn't change.
+ */
 export default function RiskTab({ data }: BaseTabProps) {
   const { t } = useT();
-  const { user, riskFactors, riskRelationships } = data;
+  const { user, riskRelationships } = data;
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  const riskProfile = useMemo(
+    () => lookupRiskProfile(user.id, user.riskScore ?? 0, deriveAmlStatus(user.riskScore ?? 0)),
+    [user.id, user.riskScore]
+  );
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -31,31 +75,35 @@ export default function RiskTab({ data }: BaseTabProps) {
         id: "current",
         name: user.name,
         symbolSize: 60,
-        itemStyle: { color: "#3B82F6" },
+        itemStyle: { color: NODE_COLOR.center },
         label: { fontSize: 14, fontWeight: "bold" },
       },
-      ...riskRelationships.map((rel) => ({
-        id: rel.targetClientId,
-        name: rel.targetClientName,
-        symbolSize: 40,
-        itemStyle: {
-          color:
-            rel.relationshipType === "shared_ip"
-              ? "#EF4444"
-              : rel.relationshipType === "shared_device"
-                ? "#F59E0B"
-                : "#8B5CF6",
-        },
-        label: { fontSize: 12 },
-      })),
+      ...riskRelationships.map((rel) => {
+        const kind = relTypeToEdgeKind(rel.relationshipType);
+        const nodeKind = EDGE_TO_NODE_KIND[kind];
+        return {
+          id: rel.targetClientId,
+          name: rel.targetClientName,
+          symbolSize: 40,
+          itemStyle: { color: NODE_COLOR[nodeKind] ?? NODE_COLOR.mixed },
+          label: { fontSize: 12 },
+        };
+      }),
     ];
 
-    const links = riskRelationships.map((rel) => ({
-      source: "current",
-      target: rel.targetClientId,
-      label: { show: true, formatter: relTypeLabel(rel.relationshipType), fontSize: 10 },
-      lineStyle: { width: rel.strength * 5, curveness: 0.2 },
-    }));
+    const links = riskRelationships.map((rel) => {
+      const kind = relTypeToEdgeKind(rel.relationshipType);
+      return {
+        source: "current",
+        target: rel.targetClientId,
+        label: { show: true, formatter: relTypeLabel(rel.relationshipType), fontSize: 10 },
+        lineStyle: {
+          width: rel.strength * 5,
+          curveness: 0.2,
+          color: EDGE_COLOR[kind] ?? EDGE_COLOR.shared_ip,
+        },
+      };
+    });
 
     chart.setOption({
       tooltip: {},
@@ -87,70 +135,63 @@ export default function RiskTab({ data }: BaseTabProps) {
     };
   }, [riskRelationships, user.name, t]);
 
-  const riskColor =
-    user.riskScore && user.riskScore >= 70
-      ? "text-red-600"
-      : user.riskScore && user.riskScore >= 40
-        ? "text-amber-600"
-        : "text-emerald-600";
-  const riskBg =
-    user.riskScore && user.riskScore >= 70
-      ? "bg-red-50"
-      : user.riskScore && user.riskScore >= 40
-        ? "bg-amber-50"
-        : "bg-emerald-50";
-
-  const riskLevelLabel = user.riskLevel ? t(`clients.risk.${user.riskLevel}`) : "";
-
   return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-slate-900">{t("clients.detail.risk.title")}</h3>
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-slate-900">
+        {t("clients.detail.risk.title")}
+      </h3>
 
-      <div className={`${riskBg} rounded-xl p-6 text-center`}>
-        <p className="text-sm text-slate-500 mb-1">{t("clients.detail.risk.score")}</p>
-        <p className={`text-5xl font-bold ${riskColor}`}>{user.riskScore}</p>
-        <p className={`text-sm font-medium mt-1 ${riskColor}`}>{riskLevelLabel}</p>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3">{t("clients.detail.risk.factors")}</h4>
-        <div className="space-y-3">
-          {riskFactors.map((factor) => (
-            <div key={factor.name} className="flex items-center gap-3">
-              <span className="text-sm text-slate-700 w-32 flex-shrink-0">{factor.name}</span>
-              <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    factor.level === "low"
-                      ? "bg-emerald-500"
-                      : factor.level === "medium"
-                        ? "bg-amber-500"
-                        : "bg-red-500"
-                  }`}
-                  style={{ width: `${(factor.score / factor.maxScore) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-slate-500 w-8 text-right">{factor.score}</span>
+      {/* Composite + 6-axis breakdown — same component the CLM Case
+          Detail uses, so a high-risk client looks the same wherever
+          it's shown. */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-slate-100">
+          <RiskScoreRing
+            score={riskProfile.overallScore}
+            level={riskProfile.riskLevel}
+            size={72}
+            strokeWidth={6}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              {t("clients.detail.risk.score")}
+            </p>
+            <p className="text-sm font-semibold text-slate-900 mt-0.5">
+              Click any factor to see reasoning
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              AML status:{" "}
               <span
-                className={`text-xs w-12 text-right ${
-                  factor.level === "low"
-                    ? "text-emerald-600"
-                    : factor.level === "medium"
-                      ? "text-amber-600"
-                      : "text-red-600"
-                }`}
+                className={
+                  riskProfile.amlStatus === "hit"
+                    ? "text-red-600 font-semibold"
+                    : riskProfile.amlStatus === "pass"
+                      ? "text-emerald-600 font-semibold"
+                      : "text-slate-700"
+                }
               >
-                {t(`clients.detail.risk.short.${factor.level}`)}
+                {riskProfile.amlStatus.replace(/_/g, " ")}
               </span>
-            </div>
-          ))}
+              <span className="text-slate-300 mx-1.5">·</span>
+              <span className="text-slate-400">
+                evaluated {new Date(riskProfile.calculatedAt).toLocaleString("en-US", {
+                  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                })}
+              </span>
+            </p>
+          </div>
         </div>
+        <RiskFactorList factors={riskProfile.factors} />
       </div>
 
+      {/* Relationship graph — kept from the previous design (echarts
+          force layout). Future: merge into ClientGraph in M7. */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Network className="w-4 h-4 text-slate-500" />
-          <h4 className="text-sm font-semibold text-slate-700">{t("clients.detail.risk.relatedGraph")}</h4>
+          <h4 className="text-sm font-semibold text-slate-700">
+            {t("clients.detail.risk.relatedGraph")}
+          </h4>
         </div>
         <div ref={chartRef} style={{ width: "100%", height: "320px" }} />
         {riskRelationships.length === 0 && (
@@ -161,4 +202,12 @@ export default function RiskTab({ data }: BaseTabProps) {
       </div>
     </div>
   );
+}
+
+/** Trivial heuristic: high-end scores assume a watchlist hit is what
+ *  drove them. Real engine returns this directly. */
+function deriveAmlStatus(score: number): "pass" | "hit" | "pending" | "not_checked" {
+  if (score >= 70) return "hit";
+  if (score >= 30) return "pending";
+  return "pass";
 }

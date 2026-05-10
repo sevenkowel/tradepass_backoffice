@@ -3,6 +3,9 @@
  * Core data model for Compliance Lifecycle Management
  */
 
+import type { CLMCustomerSnapshot } from "./customer";
+import type { CLMAuditLog } from "./audit";
+
 export type CLMCaseType =
   | "kyc"
   | "poa"
@@ -34,7 +37,11 @@ export type SLACaseStatus = "normal" | "near_timeout" | "timeout";
 export type KYCLevel = "tier0" | "tier1" | "tier2" | "tier3" | "tier4";
 export type Priority = "normal" | "vip" | "high_risk" | "urgent";
 export type SourceChannel = "website" | "ib" | "partner" | "mobile" | "api";
-export type AutoReviewResult = "pass" | "reject" | "pending" | "not_checked";
+/**
+ * Outcome of the automated pre-review pipeline as a list-page filter
+ * value. The full detail object lives in `detail.ts` as `AutoReviewResult`.
+ */
+export type AutoReviewVerdict = "pass" | "reject" | "pending" | "not_checked";
 
 export interface CLMCase {
   id: string;
@@ -53,7 +60,7 @@ export interface CLMCase {
   kycLevel?: KYCLevel;
   priority?: Priority;
   sourceChannel?: SourceChannel;
-  autoReviewResult?: AutoReviewResult;
+  autoReviewResult?: AutoReviewVerdict;
 
   assigneeId?: string;
   assigneeName?: string;
@@ -91,13 +98,25 @@ export interface CLMCase {
 
 export interface SubmittedMaterial {
   id: string;
-  type: "id_document" | "poa" | "liveness_image" | "liveness_video" | "bank_account" | "agreement";
+  type:
+    | "id_document"
+    | "poa"               // proof of address
+    | "income_proof"      // payslip / tax return / bank statement
+    | "liveness_image"
+    | "liveness_video"
+    | "bank_account"
+    | "agreement";
   label: string;
   url: string;
   thumbnailUrl?: string;
   ocrResult?: OCRResult;
   status: "submitted" | "verified" | "rejected";
   submittedAt: string;
+  /**
+   * 3rd-party authenticity check (Sumsub / Onfido / Jumio / internal).
+   * Optional — not every material type is sent to a provider.
+   */
+  verification?: import("@/types/core/third-party-verification").ThirdPartyVerification;
 }
 
 export interface OCRResult {
@@ -120,6 +139,12 @@ export interface RiskAssessment {
   fundingRisk: "normal" | "high";
   multiAccountRisk: "none" | "same_device" | "same_ip" | "same_bank";
   indicators: RiskIndicator[];
+  /**
+   * Optional 6-axis explainable breakdown. When present, UI prefers
+   * rendering this over the legacy flat `*Risk` enums above. Produced
+   * by `lib/risk-engine` — see `RiskProfile` in `@/types/core`.
+   */
+  factors?: import("@/types/core/risk-profile").RiskFactor[];
 }
 
 export interface RiskIndicator {
@@ -139,6 +164,22 @@ export interface CaseComment {
   createdAt: string;
 }
 
+/**
+ * Timeline event categories — drives icon + colour + grouping in the UI.
+ *
+ * - `submission` (blue): customer-side action (submit / resubmit)
+ * - `system`     (slate): automated check (OCR / AML / risk engine / routing)
+ * - `assignment` (purple): case ownership transfer (assigned / accepted / escalated)
+ * - `comment`    (slate): internal note from a reviewer
+ * - `decision`   (emerald/red): terminal verdict (approve / reject / blacklist)
+ */
+export type TimelineEventCategory =
+  | "submission"
+  | "system"
+  | "assignment"
+  | "comment"
+  | "decision";
+
 export interface CaseTimelineEvent {
   id: string;
   timestamp: string;
@@ -146,6 +187,8 @@ export interface CaseTimelineEvent {
   actorRole: string;
   action: string;
   description: string;
+  /** Visual category for the timeline UI. Defaults to `system` if absent. */
+  category?: TimelineEventCategory;
   metadata?: Record<string, unknown>;
 }
 
@@ -156,6 +199,12 @@ export interface CaseListParams {
   amlStatus?: AMLStatus;
   slaStatus?: SLACaseStatus;
   status?: CLMCaseStatus;
+  /**
+   * Restrict the result to a set of statuses. Used by Review Queue to
+   * keep its "hot inbox" semantics (`pending / reviewing / escalated /
+   * resubmission`) regardless of which user-facing filter is active.
+   */
+  statusIn?: CLMCaseStatus[];
   assignee?: "unassigned" | "me" | string;
   search?: string;
   startDate?: string;
@@ -163,7 +212,7 @@ export interface CaseListParams {
   customerTier?: string;
   priority?: Priority;
   sourceChannel?: SourceChannel;
-  autoReviewResult?: AutoReviewResult;
+  autoReviewResult?: AutoReviewVerdict;
   page?: number;
   pageSize?: number;
 }

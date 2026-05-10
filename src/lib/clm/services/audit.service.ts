@@ -1,12 +1,15 @@
 /**
- * CLM Audit Service
- * Audit trail management
+ * CLM Audit Service — mock implementation.
+ *
+ * Counterpart to `services/api/audit.service.api.ts`. The factory
+ * in `services/index.ts` exports whichever the config selects.
  */
 import type { CLMAuditLog, AuditListParams, PaginatedResult } from "@/types/clm";
+import type { IAuditService } from "./types";
 import { mockAuditLogs } from "../mock";
 import { delay } from "@/lib/utils";
 
-class AuditService {
+class AuditService implements IAuditService {
   private logs = [...mockAuditLogs];
 
   async list(params: AuditListParams = {}): Promise<PaginatedResult<CLMAuditLog>> {

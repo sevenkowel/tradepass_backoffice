@@ -2,12 +2,10 @@
 
 import { TrendingUp, BarChart3, Cpu, Zap, AlertTriangle, ArrowUpDown } from "lucide-react";
 import type { ClientDetailData, TradeRecord } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function TradingTab({ data }: Props) {
+export default function TradingTab({ data }: BaseTabProps) {
   const { trades, tradingStats } = data;
 
   return (

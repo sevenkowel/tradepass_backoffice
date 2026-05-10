@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ZoomIn, X, FileImage, RotateCw, Download, CheckCircle, AlertCircle } from "lucide-react";
+import { ZoomIn, X, FileImage, RotateCw, Download, CheckCircle, AlertCircle, Eye } from "lucide-react";
 import type { SubmittedMaterial, OCRResult } from "@/types/clm";
 
 interface DocumentPreviewProps {
@@ -12,6 +12,7 @@ interface DocumentPreviewProps {
 
 export function DocumentPreview({ material, className }: DocumentPreviewProps) {
   const [enlarged, setEnlarged] = useState(false);
+  const [rotated, setRotated] = useState(0);
   const ocr = material.ocrResult;
   const hasImage = !!material.thumbnailUrl;
 
@@ -37,39 +38,65 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
           </span>
         </div>
 
-        {/* Document Image — limited height, centered */}
+        {/* Document Image Preview */}
         {hasImage ? (
           <div
-            className="relative bg-slate-100 rounded-xl border border-slate-200 overflow-hidden group cursor-pointer max-h-80"
+            className="relative bg-slate-100 rounded-xl border border-slate-200 overflow-hidden group cursor-pointer"
             onClick={() => setEnlarged(true)}
           >
-            <img
-              src={material.thumbnailUrl}
-              alt={material.label}
-              className="w-full h-full object-contain max-h-80"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-              <span className="flex items-center gap-2 px-4 py-2 bg-white shadow-lg rounded-xl text-xs font-medium text-slate-700">
-                <ZoomIn className="w-4 h-4" /> Enlarge
+            {/* Watermarked Image */}
+            <div className="relative w-full aspect-[3/2] max-h-80">
+              <img
+                src={material.thumbnailUrl}
+                alt={material.label}
+                className="w-full h-full object-contain"
+                draggable={false}
+              />
+              {/* Watermark Overlay */}
+              <Watermark />
+            </div>
+
+            {/* Hover Overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <span className="flex items-center gap-2 px-4 py-2 bg-white/90 shadow-lg rounded-xl text-xs font-medium text-slate-700 backdrop-blur-sm">
+                <Eye className="w-4 h-4" /> View Document
               </span>
             </div>
+
+            {/* Top-right actions */}
             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button className="p-1.5 bg-white shadow-sm rounded-lg text-slate-400 hover:text-slate-600" title="Rotate">
+              <button
+                className="p-1.5 bg-white/90 shadow-sm rounded-lg text-slate-500 hover:text-slate-800 backdrop-blur-sm"
+                title="Rotate"
+                onClick={(e) => { e.stopPropagation(); setRotated((r) => (r + 90) % 360); }}
+              >
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
-              <button className="p-1.5 bg-white shadow-sm rounded-lg text-slate-400 hover:text-slate-600" title="Download">
+              <button
+                className="p-1.5 bg-white/90 shadow-sm rounded-lg text-slate-500 hover:text-slate-800 backdrop-blur-sm"
+                title="Download"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Download className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <FileImage className="w-5 h-5 text-slate-300" />
-            <span className="text-xs text-slate-400">Document preview not available</span>
+          <div className="relative bg-slate-50 rounded-xl border border-dashed border-slate-200 overflow-hidden">
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <FileImage className="w-8 h-8 text-slate-300" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-slate-500">Document preview not available</p>
+                <p className="text-xs text-slate-400 mt-1">Original file stored securely</p>
+              </div>
+            </div>
+            <Watermark />
           </div>
         )}
 
-        {/* OCR Table — full width below image */}
+        {/* OCR Table */}
         {ocr && <OcrTable ocr={ocr} />}
 
         {/* Mismatch warning */}
@@ -83,24 +110,107 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
         )}
       </div>
 
-      {/* Enlarged Modal */}
+      {/* Enlarged Lightbox Modal */}
       {enlarged && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onClick={() => setEnlarged(false)}>
-          <button className="absolute top-4 right-4 text-white hover:text-gray-300">
-            <X className="w-8 h-8" />
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setEnlarged(false)}
+        >
+          {/* Close button */}
+          <button className="absolute top-4 right-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+            <X className="w-6 h-6" />
           </button>
-          <div className="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-auto p-4" onClick={(e) => e.stopPropagation()}>
+
+          {/* Image container */}
+          <div
+            className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             {material.thumbnailUrl ? (
-              <img src={material.thumbnailUrl} alt={material.label} className="max-w-full max-h-[80vh] object-contain" />
+              <div className="relative">
+                <img
+                  src={material.thumbnailUrl}
+                  alt={material.label}
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                  style={{ transform: `rotate(${rotated}deg)` }}
+                  draggable={false}
+                />
+                <Watermark large />
+              </div>
             ) : (
-              <div className="bg-slate-200 rounded-lg h-[70vh] flex items-center justify-center">
-                <span className="text-slate-500">Full Resolution Document</span>
+              <div className="bg-slate-800 rounded-2xl h-[70vh] w-[50vw] flex items-center justify-center">
+                <span className="text-slate-500 text-lg">Full Resolution Document</span>
               </div>
             )}
+          </div>
+
+          {/* Bottom toolbar */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full">
+            <button
+              onClick={(e) => { e.stopPropagation(); setRotated((r) => (r - 90) % 360); }}
+              className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Rotate Left"
+            >
+              <RotateCw className="w-4 h-4" style={{ transform: "scaleX(-1)" }} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setRotated((r) => (r + 90) % 360); }}
+              className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Rotate Right"
+            >
+              <RotateCw className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-white/20" />
+            <button
+              className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Download"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Watermark overlay component
+ * Uses CSS to render a diagonal repeating watermark pattern
+ */
+function Watermark({ large = false }: { large?: boolean }) {
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none select-none overflow-hidden"
+      style={{ zIndex: 10 }}
+    >
+      <div
+        className={cn(
+          "absolute inset-0 flex items-center justify-center",
+          large ? "opacity-[0.12]" : "opacity-[0.08]"
+        )}
+      >
+        <span
+          className={cn(
+            "font-bold tracking-widest uppercase text-slate-900 whitespace-nowrap",
+            large ? "text-6xl" : "text-2xl"
+          )}
+          style={{ transform: "rotate(-30deg)" }}
+        >
+          CONFIDENTIAL
+        </span>
+      </div>
+      {/* Additional scattered watermarks for density */}
+      <div className="absolute inset-0 opacity-[0.06]" style={{
+        backgroundImage: `repeating-linear-gradient(
+          -30deg,
+          transparent,
+          transparent 80px,
+          rgba(0,0,0,0.03) 80px,
+          rgba(0,0,0,0.03) 82px
+        )`,
+      }} />
+    </div>
   );
 }
 

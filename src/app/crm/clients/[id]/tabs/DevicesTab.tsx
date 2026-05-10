@@ -1,13 +1,18 @@
 "use client";
 
-import { Monitor, LogOut, Lock, KeyRound, AlertTriangle, CheckCircle } from "lucide-react";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import { LogOut, Lock, KeyRound, AlertTriangle, CheckCircle } from "lucide-react";
+import type { BaseTabProps } from "@/types/backoffice/client";
+import { IPGeoPopover } from "@/components/crm/clm/popovers/IPGeoPopover";
+import { lookupIPGeo } from "@/lib/clm/mock";
 
-interface Props {
-  data: ClientDetailData;
-}
-
-export default function DevicesTab({ data }: Props) {
+/**
+ * Devices & Security Tab.
+ *
+ * Each row's IP is now interactive — clicking opens the same
+ * IPGeoPopover used in CLM Case Detail (geo + VPN flags + related UIDs),
+ * so reviewers can spot shared-IP risk without leaving this page.
+ */
+export default function DevicesTab({ data }: BaseTabProps) {
   const { devices } = data;
 
   return (
@@ -31,7 +36,9 @@ export default function DevicesTab({ data }: Props) {
           <tbody>
             {devices.map((device) => (
               <tr key={device.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-slate-700">{device.ipAddress}</td>
+                <td className="px-4 py-3">
+                  <IPGeoPopover ip={device.ipAddress} geo={lookupIPGeo(device.ipAddress)} />
+                </td>
                 <td className="px-4 py-3 text-slate-700">
                   {device.country}
                   {device.city && ` · ${device.city}`}

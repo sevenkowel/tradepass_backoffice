@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -11,29 +10,35 @@ import {
   Shield,
   Wallet,
   BarChart3,
-  Tag,
   Loader2,
   TrendingUp,
   CircleDot,
   CheckCircle2,
   AlertTriangle,
+  UserPlus,
 } from "lucide-react";
-import { clientService } from "@/lib/crm/services/client.service";
-import type { ClientDetailData } from "@/types/backoffice/client-detail";
+import { ClientDetailProvider, useClientDetail } from "./ClientDetailContext";
+import { IBSummaryHover } from "@/components/crm/clm/popovers/IBSummaryHover";
+import { lookupIB } from "@/lib/clm/mock";
 
+/**
+ * Layout — owns the data fetch (via `ClientDetailProvider`) and renders
+ * the left sidebar. Nested pages (page.tsx, tabs) consume the same data
+ * through `useClientDetail()` so we only fetch once per navigation.
+ */
 export default function ClientProfileLayout({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const clientId = params.id as string;
-  const [detail, setDetail] = useState<ClientDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!clientId) return;
-    clientService.getDetail(clientId).then((data) => {
-      setDetail(data);
-      setLoading(false);
-    });
-  }, [clientId]);
+  return (
+    <ClientDetailProvider clientId={clientId}>
+      <ClientProfileShell>{children}</ClientProfileShell>
+    </ClientDetailProvider>
+  );
+}
+
+function ClientProfileShell({ children }: { children: React.ReactNode }) {
+  const { detail, loading } = useClientDetail();
 
   if (loading) {
     return (
@@ -204,6 +209,34 @@ export default function ClientProfileLayout({ children }: { children: React.Reac
             <InfoRow icon={MapPin} value={user.country || "-"} />
             <InfoRow icon={Calendar} value={new Date(user.createdAt).toLocaleDateString("zh-CN")} />
           </div>
+
+          {/* Referred by IB — only when the client has an `ibId`. The
+              hover card surfaces IB tier + performance vs peer median. */}
+          {user.ibId && (() => {
+            const ib = lookupIB(user.ibId);
+            if (!ib) return null;
+            return (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-slate-400" />
+                  邀请 IB
+                </h3>
+                <div className="flex items-center justify-between text-sm">
+                  <IBSummaryHover ib={ib} />
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                    ib.tier === "platinum" ? "bg-violet-100 text-violet-700" :
+                    ib.tier === "gold" ? "bg-amber-100 text-amber-700" :
+                    "bg-slate-100 text-slate-700"
+                  }`}>
+                    {ib.tier}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {ib.totalReferred.toLocaleString()} referred · KYC {Math.round(ib.kycPassRate * 100)}%
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Tags */}
           <div className="bg-white rounded-xl border border-slate-200 p-4">

@@ -1,12 +1,15 @@
 /**
- * CLM Workspace Service
- * Dashboard data and KPIs
+ * CLM Workspace Service — mock implementation.
+ *
+ * Counterpart to `services/api/workspace.service.api.ts`. The factory
+ * in `services/index.ts` exports whichever the config selects.
  */
 import type { WorkspaceData, WorkspaceKPI, QueueSummaryItem, RiskAlert, CaseActivity } from "@/types/clm";
+import type { IWorkspaceService } from "./types";
 import { mockWorkspaceKPI, mockQueueSummary, mockRiskAlerts, mockRecentActivity, mockMyTasks } from "../mock";
 import { delay } from "@/lib/utils";
 
-class WorkspaceService {
+class WorkspaceService implements IWorkspaceService {
   async getDashboard(): Promise<WorkspaceData> {
     await delay(300);
     return {

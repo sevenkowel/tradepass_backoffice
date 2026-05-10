@@ -18,12 +18,10 @@ import {
   Circle,
 } from "lucide-react";
 import type { ClientDetailData, TimelineEvent } from "@/types/backoffice/client-detail";
+import type { BaseTabProps } from "@/types/backoffice/client";
 
-interface Props {
-  data: ClientDetailData;
-}
 
-export default function TimelineTab({ data }: Props) {
+export default function TimelineTab({ data }: BaseTabProps) {
   const { timeline } = data;
 
   return (

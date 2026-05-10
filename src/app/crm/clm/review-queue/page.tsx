@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Download, UserPlus, ExternalLink, ScrollText, Shield, Timer, Clock } from "lucide-react";
+import { ArrowUpRight, UserPlus, ExternalLink, ScrollText, Shield, Timer, Clock } from "lucide-react";
 import {
-  Card,
   PageHeader,
-  Button,
   EnhancedDataTable,
   type Column,
   type RowAction,
 } from "@/components/crm/ui";
+import { cn } from "@/lib/utils";
 import { FilterBar } from "@/components/crm/ui/FilterBar";
 import { Breadcrumb } from "@/components/crm/layout";
 import { caseService } from "@/lib/clm/services";
@@ -19,7 +18,11 @@ import { RiskBadge } from "@/components/crm/ui/RiskBadge";
 import { SLABadge } from "@/components/crm/ui/SLABadge";
 import { CaseTypeBadge } from "@/components/crm/ui/CaseTypeBadge";
 import { AMLStatusBadge } from "@/components/crm/ui/AMLStatusBadge";
-import type { CLMCase, CaseListParams, KYCLevel, Priority, SourceChannel, AutoReviewResult } from "@/types/clm";
+import { BadgeBase, type BadgeTone } from "@/components/crm/ui/BadgeBase";
+import type { CLMCase, CaseListParams, CLMCaseStatus, KYCLevel, Priority, SourceChannel, AutoReviewVerdict } from "@/types/clm";
+import { useCurrentStaffId } from "@/hooks/useCurrentStaff";
+import { useListWithFilters } from "@/hooks/useListWithFilters";
+import { useGlobalSLATick } from "@/hooks/useGlobalSLATick";
 
 // ─── SLA Countdown Helpers ───────────────────────────────────────
 function computeSLA(slaDueAt: string): { status: string; label: string; urgent: boolean; overdue: boolean } {
@@ -40,36 +43,72 @@ const slaColors: Record<string, string> = {
   normal: "bg-emerald-50 text-emerald-700 border-emerald-100",
 };
 
-// ─── SLA Cell with live tick ─────────────────────────────────────
-function SLACell({ slaDueAt }: { slaDueAt: string }) {
-  const calc = useCallback(() => computeSLA(slaDueAt), [slaDueAt]);
-  const [info, setInfo] = useState(calc);
+// ─── Case status → badge tone (kept in sync with cases/page.tsx) ──
+const statusTone: Record<CLMCaseStatus, BadgeTone> = {
+  pending: "warning",
+  reviewing: "primary",
+  approved: "success",
+  rejected: "error",
+  escalated: "orange",
+  resubmission: "purple",
+  cancelled: "neutral",
+  auto_approved: "success",
+  auto_rejected: "error",
+  expired: "neutral",
+};
 
-  useEffect(() => {
-    setInfo(calc());
-    const timer = setInterval(() => setInfo(calc()), 10000);
-    return () => clearInterval(timer);
-  }, [calc]);
+const STATUS_TEXT: Record<CLMCaseStatus, string> = {
+  pending: "Pending",
+  reviewing: "Reviewing",
+  approved: "Approved",
+  rejected: "Rejected",
+  escalated: "Escalated",
+  resubmission: "Resubmission",
+  cancelled: "Cancelled",
+  auto_approved: "Auto Approved",
+  auto_rejected: "Auto Rejected",
+  expired: "Expired",
+};
+
+function statusLabel(s: CLMCaseStatus): string {
+  return STATUS_TEXT[s] ?? s.replace(/_/g, " ");
+}
+
+// ─── SLA Cell with live tick ─────────────────────────────────────
+//
+// Uses the global 10s ticker (`useGlobalSLATick`) instead of a per-cell
+// `setInterval`. With 100+ rows this turns N timers into 1 timer.
+function SLACell({ slaDueAt }: { slaDueAt: string }) {
+  const tick = useGlobalSLATick();
+  const info = useMemo(
+    () => computeSLA(slaDueAt),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slaDueAt, tick]
+  );
 
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${slaColors[info.status] || slaColors.normal}`}>
-      {info.urgent ? <Clock className="w-3 h-3" /> : <Timer className="w-3 h-3" />}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${slaColors[info.status] || slaColors.normal}`}>
+      {info.urgent ? <Clock className="w-3 h-3 flex-shrink-0" /> : <Timer className="w-3 h-3 flex-shrink-0" />}
       {info.label}
     </span>
   );
 }
 
-// ─── KYC Level Badge ────────────────────────────────────────────
+// ─── KYC Level Badge — quiet ring chip ──────────────────────────
 function LevelBadge({ level }: { level?: KYCLevel }) {
-  if (!level) return <span className="text-xs text-gray-400">—</span>;
-  const colors: Record<KYCLevel, string> = {
-    tier0: "bg-gray-100 text-gray-600",
-    tier1: "bg-blue-100 text-blue-700",
-    tier2: "bg-violet-100 text-violet-700",
-    tier3: "bg-amber-100 text-amber-700",
-    tier4: "bg-emerald-100 text-emerald-700",
+  if (!level) return <span className="text-xs text-slate-300">—</span>;
+  const ring: Record<KYCLevel, string> = {
+    tier0: "ring-slate-200 text-slate-600",
+    tier1: "ring-blue-200 text-blue-700",
+    tier2: "ring-violet-200 text-violet-700",
+    tier3: "ring-amber-200 text-amber-700",
+    tier4: "ring-emerald-200 text-emerald-700",
   };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors[level]}`}>{level.toUpperCase()}</span>;
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide ring-1 bg-white ${ring[level]}`}>
+      {level.replace("tier", "T")}
+    </span>
+  );
 }
 
 // ─── Priority Badge ─────────────────────────────────────────────
@@ -89,7 +128,7 @@ function PriorityBadge({ priority }: { priority?: Priority }) {
 }
 
 // ─── Auto Review Badge ──────────────────────────────────────────
-function AutoReviewBadge({ result }: { result?: AutoReviewResult }) {
+function AutoReviewBadge({ result }: { result?: AutoReviewVerdict }) {
   if (!result || result === "not_checked") return <span className="text-xs text-gray-400">—</span>;
   const colors: Record<string, string> = {
     pass: "bg-emerald-100 text-emerald-700",
@@ -102,30 +141,32 @@ function AutoReviewBadge({ result }: { result?: AutoReviewResult }) {
 // ─── Page Component ─────────────────────────────────────────────
 export default function ReviewQueuePage() {
   const router = useRouter();
-  const [cases, setCases] = useState<CLMCase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const staffId = useCurrentStaffId();
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [filters, setFilters] = useState<Partial<CaseListParams>>({});
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
 
-  const fetchCases = useCallback(async (params: Partial<CaseListParams> = {}) => {
-    setLoading(true);
-    try {
-      const result = await caseService.list({ page, pageSize, ...filters, ...params });
-      setCases(result.items);
-      setTotal(result.total);
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, filters]);
+  // Review Queue is the operator's "hot inbox": only cases that still
+  // need action belong here. Approved / rejected / cancelled cases live
+  // in /crm/clm/cases (the archive). The `statusIn` lock is server-side
+  // so it cannot be turned off via the user-facing status filter.
+  const ACTIVE_STATUSES: CLMCaseStatus[] = useMemo(
+    () => ["pending", "reviewing", "escalated", "resubmission"],
+    []
+  );
 
-  useEffect(() => {
-    fetchCases();
-  }, [fetchCases]);
+  // Single state-machine for page / filters / fetch (replaces the 4
+  // local useState + useCallback + useEffect that lived here before).
+  const list = useListWithFilters<CLMCase, Partial<CaseListParams>>({
+    fetcher: ({ page, pageSize, filters }) =>
+      caseService
+        .list({ page, pageSize, statusIn: ACTIVE_STATUSES, ...filters })
+        .then((r) => ({
+          items: r.items,
+          total: r.total,
+        })),
+    initialFilters: {},
+    pageSize: 10,
+  });
+  const { items: cases, loading, total, page, filters } = list;
 
   const handleFilterChange = useCallback((newFilters: Record<string, unknown>) => {
     const params: Partial<CaseListParams> = {};
@@ -139,176 +180,145 @@ export default function ReviewQueuePage() {
     if (newFilters.kycLevel) params.customerTier = newFilters.kycLevel as string;
     if (newFilters.priority) params.priority = newFilters.priority as Priority;
     if (newFilters.sourceChannel) params.sourceChannel = newFilters.sourceChannel as SourceChannel;
-    if (newFilters.autoReview) params.autoReviewResult = newFilters.autoReview as AutoReviewResult;
+    if (newFilters.autoReview) params.autoReviewResult = newFilters.autoReview as AutoReviewVerdict;
     if (newFilters.search) params.search = newFilters.search as string;
     if (newFilters.startDate) params.startDate = newFilters.startDate as string;
     if (newFilters.endDate) params.endDate = newFilters.endDate as string;
-    setPage(1);
-    setFilters(params);
-    fetchCases(params);
-  }, [fetchCases]);
+    list.setFilters(params);
+  }, [list]);
 
   const handleAssignToMe = async (caseItem: CLMCase) => {
-    await caseService.assign(caseItem.id, "staff-001", "staff-001");
-    fetchCases();
+    await caseService.assign(caseItem.id, staffId, staffId);
+    list.refresh();
   };
 
   // ─── Columns ──────────────────────────────────────────────────
+  // 9 columns. Customer is pinned (always visible); the other 8 can be
+  // hidden via the toolbar's "Columns" menu (preference is stored in
+  // localStorage under `crm.table.review-queue.hidden`). Sortable
+  // columns use the table's built-in client-side sort; composite
+  // columns specify `sortField` to point at the underlying property.
   const columns: Column<CLMCase>[] = [
-    // 1. Case ID
-    {
-      key: "caseNo",
-      title: "Case ID",
-      width: "100px",
-      render: (row) => (
-        <Link href={`/crm/clm/cases/${row.id}`} className="font-mono text-blue-600 hover:underline text-sm">
-          {row.caseNo}
-        </Link>
-      ),
-    },
-    // 2. UID (independent column)
-    {
-      key: "customerUid",
-      title: "UID",
-      width: "80px",
-      render: (row) => <span className="text-xs text-gray-500 font-mono">{row.customerUid}</span>,
-    },
-    // 3. Customer
+    // 1. Customer — primary identification + meta in one cell.
+    //    Pinned (`hideable: false`); sorts by customer name.
     {
       key: "customer",
       title: "Customer",
+      minWidth: "260px",
+      sortable: true,
+      sortField: "customerName",
+      hideable: false,
       render: (row) => (
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-medium text-blue-700 flex-shrink-0">
-            {row.customerName.charAt(0)}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-50 ring-1 ring-blue-100 flex items-center justify-center text-xs font-semibold text-primary flex-shrink-0">
+            {row.customerName.charAt(0).toUpperCase()}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{row.customerName}</p>
-            <p className="text-xs text-gray-400 truncate">{row.triggerSource}</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                href={`/crm/clm/cases/${row.id}`}
+                className="font-mono tabular-nums text-xs text-primary hover:underline whitespace-nowrap"
+              >
+                {row.caseNo}
+              </Link>
+              <span className="text-slate-300 select-none">·</span>
+              <p className="text-sm font-medium text-slate-900 truncate">{row.customerName}</p>
+              <PriorityBadge priority={row.priority} />
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500 truncate mt-0.5">
+              <span className="font-mono tabular-nums">{row.customerUid}</span>
+              <span className="text-slate-300 select-none">·</span>
+              <span>{row.country}</span>
+              {row.triggerSource && (
+                <>
+                  <span className="text-slate-300 select-none">·</span>
+                  <span className="truncate text-slate-400">{row.triggerSource}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       ),
     },
-    // 4. Country
-    {
-      key: "country",
-      title: "Country",
-      width: "70px",
-      render: (row) => <span className="text-sm text-gray-600">{row.country}</span>,
-    },
-    // 5. Type
+    // 2. Type
     {
       key: "type",
       title: "Type",
-      width: "90px",
+      width: "110px",
+      sortable: true,
       render: (row) => <CaseTypeBadge type={row.type} />,
     },
-    // 6. Risk
+    // 3. Risk
     {
       key: "riskLevel",
       title: "Risk",
-      width: "90px",
+      width: "100px",
+      sortable: true,
       render: (row) => <RiskBadge level={row.riskLevel} />,
     },
-    // 7. AML
+    // 4. AML
     {
       key: "amlStatus",
       title: "AML",
-      width: "80px",
+      width: "100px",
+      sortable: true,
       render: (row) => <AMLStatusBadge status={row.amlStatus} />,
     },
-    // 8. KYC Level
+    // 5. KYC Level — toned down (small ring chip). Hidden by default;
+    //    most reviewers don't filter on tier day-to-day.
     {
       key: "kycLevel",
       title: "Level",
       width: "70px",
+      sortable: true,
+      defaultHidden: true,
       render: (row) => <LevelBadge level={row.kycLevel} />,
     },
-    // 9. Priority
-    {
-      key: "priority",
-      title: "",
-      width: "70px",
-      render: (row) => <PriorityBadge priority={row.priority} />,
-    },
-    // 10. Status
+    // 6. Status — unified BadgeBase
     {
       key: "status",
       title: "Status",
-      width: "100px",
-      render: (row) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-          row.status === "approved" ? "bg-emerald-100 text-emerald-700" :
-          row.status === "rejected" ? "bg-red-100 text-red-700" :
-          row.status === "pending" ? "bg-amber-100 text-amber-700" :
-          row.status === "reviewing" ? "bg-blue-100 text-blue-700" :
-          row.status === "escalated" ? "bg-orange-100 text-orange-700" :
-          row.status === "resubmission" ? "bg-purple-100 text-purple-700" :
-          "bg-gray-100 text-gray-600"
-        }`}>
-          {row.status === "resubmission" ? "Resubmission" :
-           row.status === "auto_approved" ? "Auto Approved" :
-           row.status === "auto_rejected" ? "Auto Rejected" :
-           row.status.replace("_", " ")}
-        </span>
-      ),
+      width: "120px",
+      sortable: true,
+      render: (row) => <BadgeBase tone={statusTone[row.status]}>{statusLabel(row.status)}</BadgeBase>,
     },
-    // 11. SLA Countdown (live)
+    // 7. SLA — sorted by `slaDueAt` (earlier = more urgent).
     {
       key: "sla",
       title: "SLA",
-      width: "110px",
+      width: "120px",
+      sortable: true,
+      sortField: "slaDueAt",
       render: (row) => <SLACell slaDueAt={row.slaDueAt} />,
     },
-    // 12. Auto Review Result
+    // 8. Auto Review verdict — hidden by default.
     {
       key: "autoReview",
-      title: "Auto Rev",
+      title: "Auto",
       width: "80px",
+      sortable: true,
+      sortField: "autoReviewResult",
+      defaultHidden: true,
       render: (row) => <AutoReviewBadge result={row.autoReviewResult} />,
     },
-    // 13. Assignee
+    // 9. Reviewer + Updated (stacked); sort by reviewer name.
     {
-      key: "assignee",
+      key: "reviewer",
       title: "Reviewer",
-      width: "100px",
+      width: "140px",
+      sortable: true,
+      sortField: "assigneeName",
       render: (row) => (
-        <span className={`text-xs font-medium ${
-          row.assigneeName ? "text-gray-700" : "text-gray-400 italic"
-        }`}>
-          {row.assigneeName || "Unassigned"}
-        </span>
-      ),
-    },
-    // 14. Source Channel
-    {
-      key: "sourceChannel",
-      title: "Source",
-      width: "80px",
-      render: (row) => (
-        <span className="text-xs capitalize text-gray-500">{row.sourceChannel || "—"}</span>
-      ),
-    },
-    // 15. Created At
-    {
-      key: "createdAt",
-      title: "Created",
-      width: "90px",
-      render: (row) => (
-        <span className="text-xs text-gray-500" title={new Date(row.createdAt).toLocaleString()}>
-          {new Date(row.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-        </span>
-      ),
-    },
-    // 16. Updated At
-    {
-      key: "updatedAt",
-      title: "Updated",
-      width: "90px",
-      render: (row) => (
-        <span className="text-xs text-gray-400" title={new Date(row.updatedAt).toLocaleString()}>
-          {new Date(row.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </span>
+        <div className="min-w-0">
+          <p className={`text-xs font-medium truncate ${row.assigneeName ? "text-slate-700" : "text-slate-400 italic"}`}>
+            {row.assigneeName || "Unassigned"}
+          </p>
+          <p className="text-[11px] text-slate-400 font-mono tabular-nums mt-0.5" title={new Date(row.updatedAt).toLocaleString()}>
+            {new Date(row.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {", "}
+            {new Date(row.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+          </p>
+        </div>
       ),
     },
   ];
@@ -409,13 +419,13 @@ export default function ReviewQueuePage() {
       key: "status",
       label: "Case Status",
       type: "select" as const,
+      // Review Queue is locked to active statuses (see ACTIVE_STATUSES
+      // above). Terminal statuses live in `/crm/clm/cases`.
       options: [
         { label: "Pending", value: "pending" },
         { label: "Reviewing", value: "reviewing" },
         { label: "Resubmission", value: "resubmission" },
         { label: "Escalated", value: "escalated" },
-        { label: "Approved", value: "approved" },
-        { label: "Rejected", value: "rejected" },
       ],
     },
     {
@@ -454,113 +464,106 @@ export default function ReviewQueuePage() {
   const selectedCases = cases.filter((c) => selectedKeys.has(c.id));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "CLM Center" }, { label: "Review Queue" }]} />
       <PageHeader
         title="Review Queue"
-        description={`${total} pending · ${cases.filter(c => c.slaStatus === "timeout").length} timeout`}
-        actions={
-          <Button variant="secondary">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
-        }
+        description={`Active workload · ${total} cases waiting · ${cases.filter(c => c.slaStatus === "timeout").length} SLA timeout`}
       />
 
-      {/* Batch Actions */}
-      {selectedKeys.size > 0 && (
-        <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200">
-          <span className="text-sm text-blue-700 font-medium">{selectedKeys.size} selected</span>
-          <div className="flex gap-2 ml-auto">
-            <button
-              onClick={async () => {
-                await caseService.batchAssign(Array.from(selectedKeys), "staff-001", "staff-001");
-                setSelectedKeys(new Set());
-                fetchCases();
-              }}
-              className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50"
-            >
-              Assign to Me
-            </button>
-            <button className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-50">
-              Export Selected
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filter Bar */}
+      {/* Filter Bar — collapsed by default to keep the table front-and-center */}
       <FilterBar
         filters={filterOptions}
         searchable
         searchKeys={["caseNo", "customerName", "customerUid"]}
         searchPlaceholder="Search case ID, customer name or UID..."
         onSearch={handleFilterChange}
+        defaultOpen={false}
       />
 
-      {/* Data Table */}
-      <Card padding="none">
-        <EnhancedDataTable<CLMCase>
-          columns={columns}
-          data={cases}
-          keyExtractor={(row) => row.id}
-          selectable
-          selectedKeys={selectedKeys}
-          onSelectionChange={setSelectedKeys}
-          rowActions={rowActions}
-          onRowClick={(row) => router.push(`/crm/clm/cases/${row.id}`)}
-          emptyText={loading ? "" : "No cases found"}
-          loading={loading}
-          pagination={false}
-        />
-      </Card>
+      {/* Data Table — batch actions appear in the table's own toolbar
+          via `bulkActions`, no separate banner needed. */}
+      {/* Table — no extra Card wrapper; EnhancedDataTable provides its own
+          rounded border and integrated toolbar. */}
+      <EnhancedDataTable<CLMCase>
+        tableId="review-queue"
+        columns={columns}
+        data={cases}
+        keyExtractor={(row) => row.id}
+        selectable
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
+        rowActions={rowActions}
+        onRowClick={(row) => router.push(`/crm/clm/cases/${row.id}`)}
+        emptyText={loading ? "" : "No cases found"}
+        loading={loading}
+        pagination={false}
+        bulkActions={(keys) => (
+          <>
+            <button
+              onClick={async () => {
+                await caseService.batchAssign(Array.from(keys), staffId, staffId);
+                setSelectedKeys(new Set());
+                list.refresh();
+              }}
+              className="h-8 px-3 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50"
+            >
+              Assign to Me
+            </button>
+            <button className="h-8 px-3 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50">
+              Export Selected
+            </button>
+          </>
+        )}
+      />
 
       {/* Pagination */}
       {total > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span>Total {total}</span>
-            <select
-              value={pageSize}
-              onChange={() => setPage(1)}
-              className="h-8 px-2 border border-gray-200 rounded-lg text-sm focus:outline-none"
-            >
-              {[10, 20, 50].map((s) => (
-                <option key={s} value={s}>{s} / page</option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-3 text-slate-500">
+            <span>
+              Showing{" "}
+              <span className="font-medium text-slate-700 tabular-nums">
+                {(page - 1) * list.pageSize + 1}–{Math.min(page * list.pageSize, total)}
+              </span>{" "}
+              of <span className="tabular-nums">{total}</span>
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setPage(Math.max(1, page - 1))}
+              onClick={() => { list.setPage(Math.max(1, page - 1)); setSelectedKeys(new Set()); }}
               disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40"
+              className="h-9 px-3 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
-            {Array.from({ length: Math.min(5, Math.ceil(total / pageSize)) }, (_, i) => {
-              const totalPages = Math.ceil(total / pageSize);
+            {Array.from({ length: Math.min(5, Math.ceil(total / list.pageSize)) }, (_, i) => {
+              const totalPages = Math.ceil(total / list.pageSize);
               let p = page;
               if (totalPages <= 5) p = i + 1;
               else if (page <= 3) p = i + 1;
               else if (page >= totalPages - 2) p = totalPages - 4 + i;
               else p = page - 2 + i;
+              const isActive = page === p;
               return (
                 <button
                   key={p}
-                  onClick={() => setPage(p)}
-                  className={`w-8 h-8 text-sm rounded-lg border transition-colors ${
-                    page === p ? "bg-blue-600 text-white border-blue-600" : "border-gray-200 hover:bg-gray-50"
-                  }`}
+                  onClick={() => { list.setPage(p); setSelectedKeys(new Set()); }}
+                  className={cn(
+                    "w-9 h-9 text-sm rounded-lg border transition-colors tabular-nums",
+                    isActive
+                      ? "bg-primary text-white border-primary shadow-sm"
+                      : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                  )}
                 >
                   {p}
                 </button>
               );
             })}
             <button
-              onClick={() => setPage(Math.min(Math.ceil(total / pageSize), page + 1))}
-              disabled={page >= Math.ceil(total / pageSize)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40"
+              onClick={() => { list.setPage(Math.min(Math.ceil(total / list.pageSize), page + 1)); setSelectedKeys(new Set()); }}
+              disabled={page >= Math.ceil(total / list.pageSize)}
+              className="h-9 px-3 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>

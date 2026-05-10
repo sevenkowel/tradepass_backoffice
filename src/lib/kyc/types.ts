@@ -23,6 +23,7 @@ export type KYCStatus =
   | "agreement_pending"     // 待签署协议
   | "submitted"             // 已提交审核
   | "under_review"          // 审核中
+  | "supplemental_required" // 需要补充材料（reviewer 退回）
   | "approved"              // 已通过
   | "rejected";             // 已拒绝
 

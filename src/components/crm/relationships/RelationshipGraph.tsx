@@ -25,8 +25,33 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import ForceGraph2D from "./ForceGraphWrapper";
+import type {
+  ClientGraph,
+  ClientGraphEdge,
+  ClientGraphEdgeKind,
+  ClientGraphNode,
+} from "@/types/core";
+import {
+  EDGE_COLOR,
+  EDGE_DASH,
+  NODE_COLOR,
+  countEdgesByKind,
+} from "@/lib/risk-engine/graph";
 
-interface GraphNode {
+interface GraphResponse extends ClientGraph {
+  success: boolean;
+  error?: string;
+}
+
+interface RelationshipGraphProps {
+  clientId?: string;
+  onPickClient?: () => void;
+}
+
+/** Wire format from `/api/crm/clients/[id]/graph` still uses the legacy
+ *  `type` (node) and `type` (edge) field names. Convert on read so the
+ *  component itself only operates on the unified `kind` shape. */
+interface ApiNode {
   id: string;
   uid: string;
   name: string;
@@ -38,48 +63,49 @@ interface GraphNode {
   riskScore: number;
   lastLoginAt: string;
   createdAt: string;
-  type: "center" | "shared_ip" | "shared_device" | "same_id" | "mixed";
+  type: ClientGraphNode["kind"];
 }
 
-interface GraphEdge {
+interface ApiEdge {
   source: string;
   target: string;
-  type: "shared_ip" | "shared_device" | "same_id";
+  type: ClientGraphEdgeKind;
   label: string;
 }
 
-interface GraphResponse {
+interface ApiResponse {
   success: boolean;
-  center: GraphNode;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
+  center: ApiNode;
+  nodes: ApiNode[];
+  edges: ApiEdge[];
   error?: string;
 }
 
-interface RelationshipGraphProps {
-  clientId?: string;
-  onPickClient?: () => void;
+function apiNodeToCore(n: ApiNode): ClientGraphNode {
+  return {
+    id: n.id,
+    uid: n.uid,
+    name: n.name,
+    email: n.email,
+    phone: n.phone,
+    country: n.country,
+    kycStatus: n.kycStatus,
+    riskLevel: (n.riskLevel as ClientGraphNode["riskLevel"]) ?? "low",
+    riskScore: n.riskScore,
+    lastLoginAt: n.lastLoginAt,
+    createdAt: n.createdAt,
+    kind: n.type,
+  };
 }
 
-const NODE_FILL: Record<GraphNode["type"], string> = {
-  center: "#3b82f6",
-  shared_ip: "#f59e0b",
-  shared_device: "#10b981",
-  same_id: "#ef4444",
-  mixed: "#8b5cf6",
-};
-
-const EDGE_STROKE: Record<GraphEdge["type"], string> = {
-  shared_ip: "#f59e0b",
-  shared_device: "#10b981",
-  same_id: "#ef4444",
-};
-
-const EDGE_DASH: Record<GraphEdge["type"], string | undefined> = {
-  shared_ip: "5,5",
-  shared_device: undefined,
-  same_id: "2,3",
-};
+function apiEdgeToCore(e: ApiEdge): ClientGraphEdge {
+  return {
+    source: e.source,
+    target: e.target,
+    kind: e.type,
+    label: e.label,
+  };
+}
 
 const KYC_ICONS: Record<string, LucideIcon> = {
   verified: CheckCircle,
@@ -112,12 +138,12 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<Set<GraphEdge["type"]>>(
-    new Set(["shared_ip", "shared_device", "same_id"])
+  const [selectedKinds, setSelectedKinds] = useState<Set<ClientGraphEdgeKind>>(
+    new Set(["shared_ip", "shared_device", "same_id", "shared_payment", "ib_invited"])
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<ClientGraphNode | null>(null);
+  const [selectedNode, setSelectedNode] = useState<ClientGraphNode | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch graph
@@ -134,10 +160,17 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
       cache: "no-store",
     })
       .then((r) => r.json())
-      .then((d: GraphResponse) => {
+      .then((d: ApiResponse) => {
         if (cancelled) return;
-        if (d.success) setData(d);
-        else setError(d.error || "Failed to load");
+        if (d.success) {
+          const core: GraphResponse = {
+            success: true,
+            center: apiNodeToCore(d.center),
+            nodes: d.nodes.map(apiNodeToCore),
+            edges: d.edges.map(apiEdgeToCore),
+          };
+          setData(core);
+        } else setError(d.error || "Failed to load");
       })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
       .finally(() => !cancelled && setLoading(false));
@@ -148,8 +181,8 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
 
   const filteredEdges = useMemo(() => {
     if (!data) return [];
-    return data.edges.filter((e) => selectedTypes.has(e.type));
-  }, [data, selectedTypes]);
+    return data.edges.filter((e) => selectedKinds.has(e.kind));
+  }, [data, selectedKinds]);
 
   const visibleNodeIds = useMemo(() => {
     if (!data) return new Set<string>();
@@ -180,7 +213,7 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
     return { nodes, links: filteredEdges };
   }, [data, filteredEdges, visibleNodeIds]);
 
-  const matchesSearch = (n: GraphNode) => {
+  const matchesSearch = (n: ClientGraphNode) => {
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
@@ -190,26 +223,19 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
     );
   };
 
-  const counts = useMemo(() => {
-    if (!data) return { shared_ip: 0, shared_device: 0, same_id: 0 };
-    const c = { shared_ip: 0, shared_device: 0, same_id: 0 };
-    const seen: Record<GraphEdge["type"], Set<string>> = {
-      shared_ip: new Set(),
-      shared_device: new Set(),
-      same_id: new Set(),
-    };
-    for (const e of data.edges) seen[e.type].add(e.target);
-    c.shared_ip = seen.shared_ip.size;
-    c.shared_device = seen.shared_device.size;
-    c.same_id = seen.same_id.size;
-    return c;
-  }, [data]);
+  const counts = useMemo(
+    () =>
+      data
+        ? countEdgesByKind(data.edges)
+        : { shared_ip: 0, shared_device: 0, same_id: 0, shared_payment: 0, ib_invited: 0 },
+    [data]
+  );
 
-  const toggleType = (type: GraphEdge["type"]) => {
-    setSelectedTypes((prev) => {
+  const toggleKind = (kind: ClientGraphEdgeKind) => {
+    setSelectedKinds((prev) => {
       const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
       return next;
     });
   };
@@ -292,9 +318,9 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
           ).map(({ key, label, color, count }) => (
             <button
               key={key}
-              onClick={() => toggleType(key)}
+              onClick={() => toggleKind(key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                selectedTypes.has(key) ? color : "bg-slate-100 text-slate-400"
+                selectedKinds.has(key) ? color : "bg-slate-100 text-slate-400"
               }`}
             >
               {label} ({count})
@@ -317,11 +343,11 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
 
       {/* Legend */}
       <div className="flex items-center gap-6 text-xs text-slate-500 flex-wrap">
-        <Legend color={NODE_FILL.center} label={t("clients.relationships.legend.center")} />
-        <Legend color={NODE_FILL.shared_ip} label={`${t("clients.relationships.legend.sharedIp")} (${counts.shared_ip})`} />
-        <Legend color={NODE_FILL.shared_device} label={`${t("clients.relationships.legend.sharedDevice")} (${counts.shared_device})`} />
-        <Legend color={NODE_FILL.same_id} label={`${t("clients.relationships.legend.sameId")} (${counts.same_id})`} />
-        <Legend color={NODE_FILL.mixed} label={t("clients.relationships.legend.mixed")} />
+        <Legend color={NODE_COLOR.center} label={t("clients.relationships.legend.center")} />
+        <Legend color={NODE_COLOR.shared_ip} label={`${t("clients.relationships.legend.sharedIp")} (${counts.shared_ip})`} />
+        <Legend color={NODE_COLOR.shared_device} label={`${t("clients.relationships.legend.sharedDevice")} (${counts.shared_device})`} />
+        <Legend color={NODE_COLOR.same_id} label={`${t("clients.relationships.legend.sameId")} (${counts.same_id})`} />
+        <Legend color={NODE_COLOR.mixed} label={t("clients.relationships.legend.mixed")} />
         <div className="ml-auto flex items-center gap-2">
           <span className="font-medium">{t("clients.relationships.totals.label")}</span>
           <span>
@@ -348,13 +374,13 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
             height={GRAPH_H}
             backgroundColor="#f8fafc"
             cooldownTicks={120}
-            nodeLabel={(node) => (node as unknown as GraphNode).name}
+            nodeLabel={(node) => (node as unknown as ClientGraphNode).name}
             nodeRelSize={8}
             nodeVal={(node) => ((node as unknown as { __center: boolean }).__center ? 30 : 12)}
-            nodeColor={(node) => NODE_FILL[(node as unknown as GraphNode).type]}
+            nodeColor={(node) => NODE_COLOR[(node as unknown as ClientGraphNode).kind]}
             nodeCanvasObjectMode={() => "after"}
             nodeCanvasObject={(node, ctx, scale) => {
-              const n = node as unknown as GraphNode & { x?: number; y?: number; __center?: boolean };
+              const n = node as unknown as ClientGraphNode & { x?: number; y?: number; __center?: boolean };
               if (n.x == null || n.y == null) return;
               const fontSize = Math.max(10, 12 / scale);
               const isHighlighted = searchTerm.trim().length > 0 && matchesSearch(n);
@@ -377,19 +403,15 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
               ctx.fillText(n.uid, n.x, n.y + (n.__center ? 32 : 26));
               ctx.globalAlpha = 1;
             }}
-            linkColor={(link) => EDGE_STROKE[(link as unknown as GraphEdge).type]}
+            linkColor={(link) => EDGE_COLOR[(link as unknown as ClientGraphEdge).kind]}
             linkWidth={1.6}
             linkDirectionalParticles={(link) =>
-              (link as unknown as GraphEdge).type === "same_id" ? 2 : 0
+              (link as unknown as ClientGraphEdge).kind === "same_id" ? 2 : 0
             }
             linkDirectionalParticleSpeed={0.006}
-            linkLineDash={(link) => {
-              const dash = EDGE_DASH[(link as unknown as GraphEdge).type];
-              if (!dash) return null;
-              return dash.split(",").map((s) => Number(s));
-            }}
-            onNodeHover={(node) => setHoveredNode((node as GraphNode | null) ?? null)}
-            onNodeClick={(node) => setSelectedNode(node as unknown as GraphNode)}
+            linkLineDash={(link) => EDGE_DASH[(link as unknown as ClientGraphEdge).kind]}
+            onNodeHover={(node) => setHoveredNode((node as ClientGraphNode | null) ?? null)}
+            onNodeClick={(node) => setSelectedNode(node as unknown as ClientGraphNode)}
           />
         )}
 
@@ -430,14 +452,14 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
   );
 }
 
-function NodeSummary({ node, verbose = false }: { node: GraphNode; verbose?: boolean }) {
+function NodeSummary({ node, verbose = false }: { node: ClientGraphNode; verbose?: boolean }) {
   const KycIcon = KYC_ICONS[node.kycStatus] ?? AlertTriangle;
   const kycColor = KYC_COLORS[node.kycStatus] ?? "text-slate-400";
   const riskClass = RISK_COLORS[node.riskLevel] ?? RISK_COLORS.low;
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full" style={{ background: NODE_FILL[node.type] }} />
+        <div className="w-3 h-3 rounded-full" style={{ background: NODE_COLOR[node.kind] }} />
         <p className="font-semibold text-slate-900">{node.name}</p>
         <span className="text-[10px] text-slate-400">{node.uid}</span>
       </div>

@@ -9,6 +9,7 @@ import { Card, PageHeader, Button, StatusBadge } from "@/components/crm/ui";
 import { Breadcrumb } from "@/components/crm/layout";
 import { kycService } from "@/lib/crm/services/kyc.service";
 import type { UserKYC, KYCStatus } from "@/lib/kyc/types";
+import { useCurrentStaffId } from "@/hooks/useCurrentStaff";
 
 type Tab = "pending" | "approved" | "rejected";
 
@@ -110,11 +111,12 @@ export default function ReviewQueuePage() {
 
 function ReviewDetail({ record, onBack, onAction }: { record: UserKYC; onBack: () => void; onAction: () => void }) {
   const [notes, setNotes] = useState("");
+  const staffId = useCurrentStaffId();
 
   const handleAction = async (action: "approve" | "reject" | "resubmit") => {
-    if (action === "approve") await kycService.approve(record.id, "staff-001", notes);
-    else if (action === "reject") await kycService.reject(record.id, "staff-001", notes || "Review rejected");
-    else await kycService.requestResubmit(record.id, "staff-001", notes || "Please resubmit documents");
+    if (action === "approve") await kycService.approve(record.id, staffId, notes);
+    else if (action === "reject") await kycService.reject(record.id, staffId, notes || "Review rejected");
+    else await kycService.requestResubmit(record.id, staffId, notes || "Please resubmit documents");
     onAction();
     onBack();
   };
