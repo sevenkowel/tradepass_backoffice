@@ -6,17 +6,34 @@
 import type { CLMCustomerSnapshot } from "./customer";
 import type { CLMAuditLog } from "./audit";
 
+/**
+ * CLM Case type vocabulary — **compliance-scoped only**.
+ *
+ * CLM's positioning is user-profile / identity-data review. Financial
+ * operation reviews (deposits, withdrawals, trade anomalies) live in
+ * their own domains (Treasury / Risk). Adding a type here implies the
+ * Review Queue, Workspace KPIs, SLA monitoring, and Audit Trail all
+ * consider it a compliance task — so this list stays narrow.
+ *
+ * Notably absent: `withdrawal_review` / `deposit_review`. Those used
+ * to live here; they were moved out so the Review Queue stays the
+ * compliance inbox without case-by-case filtering.
+ */
 export type CLMCaseType =
   | "kyc"
   | "poa"
   | "liveness"
   | "video_verification"
-  | "withdrawal_review"
   | "edd"
   | "source_of_wealth"
   | "agreement_signing"
   | "risk_recheck"
-  | "manual_review";
+  | "manual_review"
+  // Phase 4 / PRD-driven: every Re-Verification request spawns a case
+  // of this type once the user submits. The case type is stable across
+  // the seven sub-types (re_identity / re_liveness / …) — sub-type lives
+  // on the linked `ReVerificationRequest`.
+  | "re_verification";
 
 export type CLMCaseStatus =
   | "pending"
@@ -110,6 +127,12 @@ export interface SubmittedMaterial {
   url: string;
   thumbnailUrl?: string;
   ocrResult?: OCRResult;
+  /**
+   * Fields the user confirmed / manually entered during the KYC form.
+   * Keys match OCRResult field names (e.g. "extractedName").
+   * When a value differs from ocrResult, the UI highlights the mismatch.
+   */
+  userSubmittedFields?: Record<string, string>;
   status: "submitted" | "verified" | "rejected";
   submittedAt: string;
   /**
@@ -162,6 +185,10 @@ export interface CaseComment {
   mentions: string[];
   isInternal: boolean;
   createdAt: string;
+  /** When set, this comment is a reply to the given timeline event or
+   *  comment id. Used by the timeline UI to draw a thread indent and
+   *  the connector arrow back to the parent. */
+  parentId?: string;
 }
 
 /**
@@ -180,6 +207,33 @@ export type TimelineEventCategory =
   | "comment"
   | "decision";
 
+/**
+ * Outcome of a `decision` event. Drives the badge colour shown on the
+ * right edge of the timeline row. `metadata.result` carries this when
+ * `category === "decision"`.
+ */
+export type TimelineDecisionResult =
+  | "approved"
+  | "rejected"
+  | "resubmit_requested"
+  | "escalated"
+  | "blacklisted"
+  | "auto_approved"
+  | "auto_rejected";
+
+/** Structured metadata the timeline UI knows how to render specially.
+ *  The `metadata` field is still loose `Record<string, unknown>`-shaped
+ *  so producers can add domain bits beyond these. */
+export interface TimelineMetadata {
+  /** For `decision` events. */
+  result?: TimelineDecisionResult;
+  /** Reviewer-supplied justification. Rendered as a quoted block. */
+  reason?: string;
+  /** Optional headline numeric (risk score, OCR confidence, …). */
+  score?: number;
+  [key: string]: unknown;
+}
+
 export interface CaseTimelineEvent {
   id: string;
   timestamp: string;
@@ -189,7 +243,11 @@ export interface CaseTimelineEvent {
   description: string;
   /** Visual category for the timeline UI. Defaults to `system` if absent. */
   category?: TimelineEventCategory;
-  metadata?: Record<string, unknown>;
+  metadata?: TimelineMetadata;
+  /** When set, this event is a thread reply to the given event id. The
+   *  timeline UI renders this with indent + parent connector. Currently
+   *  only `category === "comment"` events use this. */
+  parentId?: string;
 }
 
 export interface CaseListParams {
@@ -205,6 +263,23 @@ export interface CaseListParams {
    * resubmission`) regardless of which user-facing filter is active.
    */
   statusIn?: CLMCaseStatus[];
+  /**
+   * Restrict the result to a set of case types. The Review Queue uses
+   * this to scope itself to KYC-related work only — withdrawal /
+   * deposit reviews belong to Treasury, not the compliance inbox.
+   * The user-facing Task-Type filter narrows further inside this set.
+   */
+  typeIn?: CLMCaseType[];
+  /**
+   * Filter by how the case was resolved:
+   *   - `auto`    → status ∈ { auto_approved, auto_rejected }
+   *   - `manual`  → status ∈ { approved, rejected } (reviewer-decided)
+   *   - `pending` → still open (status ∈ active set)
+   *
+   * Encoded as a separate enum rather than `statusIn` so the Cases page
+   * can offer a one-tap "Show me everything the engine decided" filter.
+   */
+  decisionMode?: "auto" | "manual" | "pending";
   assignee?: "unassigned" | "me" | string;
   search?: string;
   startDate?: string;

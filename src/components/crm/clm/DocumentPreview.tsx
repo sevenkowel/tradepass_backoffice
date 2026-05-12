@@ -8,35 +8,29 @@ import type { SubmittedMaterial, OCRResult } from "@/types/clm";
 interface DocumentPreviewProps {
   material: SubmittedMaterial;
   className?: string;
+  /** When provided, replaces the single-column OCR table with a 3-column OCR vs user comparison. */
+  showUserComparison?: boolean;
 }
 
-export function DocumentPreview({ material, className }: DocumentPreviewProps) {
+export function DocumentPreview({ material, className, showUserComparison = false }: DocumentPreviewProps) {
   const [enlarged, setEnlarged] = useState(false);
   const [rotated, setRotated] = useState(0);
+  // The mock thumbnail URLs (e.g. `/mock/id-front.jpg`) don't resolve; we
+  // also defensively flip to the placeholder when a real URL fails to load
+  // so the page doesn't show a broken-image icon.
+  const [imageBroken, setImageBroken] = useState(false);
   const ocr = material.ocrResult;
-  const hasImage = !!material.thumbnailUrl;
+  const hasImage = !!material.thumbnailUrl && !imageBroken;
 
   return (
     <>
       <div className={cn("space-y-4", className)}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900">{material.label}</h4>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Submitted {new Date(material.submittedAt).toLocaleDateString()}
-            </p>
-          </div>
-          <span
-            className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider", {
-              "bg-emerald-100 text-emerald-700": material.status === "verified",
-              "bg-amber-100 text-amber-700": material.status === "submitted",
-              "bg-red-100 text-red-700": material.status === "rejected",
-            })}
-          >
-            {material.status}
-          </span>
-        </div>
+        {/* Header used to render its own `material.label` + status pill,
+            but the parent page (Case Detail) already owns the title and
+            shows a richer VerificationChip — duplicating both made each
+            card show "Passport (Identity)" twice. The component is now
+            preview-body only; if a future caller needs the title here,
+            wrap with a small header outside. */}
 
         {/* Document Image Preview */}
         {hasImage ? (
@@ -51,6 +45,7 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
                 alt={material.label}
                 className="w-full h-full object-contain"
                 draggable={false}
+                onError={() => setImageBroken(true)}
               />
               {/* Watermark Overlay */}
               <Watermark />
@@ -88,7 +83,9 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
                 <FileImage className="w-8 h-8 text-slate-300" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-slate-500">Document preview not available</p>
+                <p className="text-sm font-medium text-slate-500">
+                  {imageBroken ? "Preview failed to load" : "Document preview not available"}
+                </p>
                 <p className="text-xs text-slate-400 mt-1">Original file stored securely</p>
               </div>
             </div>
@@ -96,8 +93,12 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
           </div>
         )}
 
-        {/* OCR Table */}
-        {ocr && <OcrTable ocr={ocr} />}
+        {/* OCR / comparison table */}
+        {ocr && (
+          showUserComparison && material.userSubmittedFields
+            ? <OcrCompareTable ocr={ocr} userFields={material.userSubmittedFields} />
+            : <OcrTable ocr={ocr} />
+        )}
 
         {/* Mismatch warning */}
         {ocr && ocr.mismatches.length > 0 && (
@@ -126,7 +127,7 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
             className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            {material.thumbnailUrl ? (
+            {material.thumbnailUrl && !imageBroken ? (
               <div className="relative">
                 <img
                   src={material.thumbnailUrl}
@@ -134,12 +135,14 @@ export function DocumentPreview({ material, className }: DocumentPreviewProps) {
                   className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
                   style={{ transform: `rotate(${rotated}deg)` }}
                   draggable={false}
+                  onError={() => setImageBroken(true)}
                 />
                 <Watermark large />
               </div>
             ) : (
-              <div className="bg-slate-800 rounded-2xl h-[70vh] w-[50vw] flex items-center justify-center">
-                <span className="text-slate-500 text-lg">Full Resolution Document</span>
+              <div className="bg-slate-800 rounded-2xl h-[70vh] w-[50vw] flex flex-col items-center justify-center gap-3">
+                <FileImage className="w-12 h-12 text-slate-500" />
+                <span className="text-slate-400 text-sm">Full-resolution document not available in this preview</span>
               </div>
             )}
           </div>
@@ -210,6 +213,70 @@ function Watermark({ large = false }: { large?: boolean }) {
           rgba(0,0,0,0.03) 82px
         )`,
       }} />
+    </div>
+  );
+}
+
+const OCR_FIELD_DEFS: { key: keyof OCRResult; label: string }[] = [
+  { key: "extractedName",        label: "姓名" },
+  { key: "extractedNumber",      label: "证件号码" },
+  { key: "extractedNationality", label: "国籍" },
+  { key: "extractedDateOfBirth", label: "出生日期" },
+  { key: "extractedExpiryDate",  label: "有效期至" },
+];
+
+function OcrCompareTable({ ocr, userFields }: { ocr: OCRResult; userFields: Record<string, string> }) {
+  const confidenceColor = ocr.confidence >= 0.9 ? "text-emerald-600" : ocr.confidence >= 0.7 ? "text-amber-600" : "text-red-600";
+  const confidenceBg   = ocr.confidence >= 0.9 ? "bg-emerald-50"    : ocr.confidence >= 0.7 ? "bg-amber-50"    : "bg-red-50";
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Extracted Data</h5>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${confidenceBg} ${confidenceColor}`}>
+          {(ocr.confidence * 100).toFixed(0)}%
+        </span>
+      </div>
+      <div className="rounded-lg border border-slate-200 overflow-hidden text-xs">
+        {/* Header */}
+        <div className="grid grid-cols-[5rem_1fr_1fr] bg-slate-50 border-b border-slate-200">
+          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider" />
+          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-l border-slate-200">
+            OCR 提取
+          </div>
+          <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-l border-slate-200">
+            用户提交
+          </div>
+        </div>
+        {OCR_FIELD_DEFS.map(({ key, label }) => {
+          const ocrVal  = String(ocr[key] ?? "—");
+          const userVal = userFields[key] ?? ocrVal;
+          const differs = ocrVal !== userVal;
+          return (
+            <div key={key} className={`grid grid-cols-[5rem_1fr_1fr] border-b last:border-b-0 border-slate-100 ${differs ? "bg-amber-50/60" : ""}`}>
+              <div className="px-3 py-2 text-slate-500 font-medium">{label}</div>
+              <div className="px-3 py-2 border-l border-slate-100 text-slate-700 font-mono">{ocrVal}</div>
+              <div className="px-3 py-2 border-l border-slate-100 flex items-center gap-2">
+                <span className={`font-mono ${differs ? "text-amber-800 font-semibold" : "text-slate-700"}`}>{userVal}</span>
+                {differs && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200 text-amber-800 flex-shrink-0">
+                    已修改
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
+        {ocr.confidence >= 0.9 ? (
+          <><CheckCircle className="w-3 h-3 text-emerald-500" /> High confidence</>
+        ) : ocr.confidence >= 0.7 ? (
+          <><AlertCircle className="w-3 h-3 text-amber-500" /> Review recommended</>
+        ) : (
+          <><AlertCircle className="w-3 h-3 text-red-500" /> Low confidence</>
+        )}
+      </div>
     </div>
   );
 }

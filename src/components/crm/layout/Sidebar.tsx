@@ -32,11 +32,14 @@ import {
   ScrollText,
   SlidersHorizontal,
   Layers,
+  Route,
+  ShieldQuestion,
   type LucideIcon,
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
 import { useReviewQueueCount } from "@/hooks/useReviewQueueCount";
+import { LinkPending } from "./LinkPending";
 import type { PermissionModule } from "@/types/backoffice/role";
 
 // 菜单项类型 - 支持三级菜单 + 分割线 + 数字徽章 + 分组小标题
@@ -112,15 +115,28 @@ const menuGroups: MenuGroup[] = [
       { label: "Workspace", href: "/crm/clm/workspace", icon: Briefcase, permission: "compliance" },
       { label: "Review Queue", href: "/crm/clm/review-queue", icon: ClipboardList, permission: "compliance" },
       { label: "Cases", href: "/crm/clm/cases", icon: FileSearch, permission: "compliance" },
+      // Re-Verification — the standalone Rules entry was merged into
+      // Configuration → Routing & Rules (4th tab). Rule maintenance now
+      // lives next to the other rule families so operators see the whole
+      // automation surface in one place.
+      { label: "Re-Verification", icon: ShieldQuestion, isSectionLabel: true },
+      { label: "Requests", href: "/crm/clm/re-verification/requests", icon: ShieldQuestion, permission: "compliance" },
+      { label: "Templates", href: "/crm/clm/re-verification/templates", icon: ScrollText, permission: "compliance" },
+      { label: "History", href: "/crm/clm/re-verification/history", icon: ClipboardList, permission: "compliance" },
+      { label: "Operations", icon: Settings, isSectionLabel: true },
       { label: "SLA & Monitoring", href: "/crm/clm/sla-monitoring", icon: Gauge, permission: "compliance" },
       { label: "Audit Trail", href: "/crm/clm/audit-trail", icon: ScrollText, permission: "compliance" },
+      // Configuration — simplified to PRD v2.0's four items (KYC Flows /
+      // Routing & Workflow Rules / Agreement Documents / System Modules).
+      // The older Policies / Levels / Forms / Templates / Workflows /
+      // Routing pages remain at their old URLs for back-compat but no
+      // longer appear in nav; the new Flow + Rules pages cover the same
+      // ground without the per-tier / per-form fragmentation.
       { label: "Configuration", icon: Settings, isSectionLabel: true },
-      { label: "KYC Policies", href: "/crm/clm/policies", icon: SlidersHorizontal, permission: "compliance" },
-      { label: "KYC Levels", href: "/crm/clm/levels", icon: Layers, permission: "compliance" },
-      { label: "Forms & Fields", href: "/crm/clm/forms", icon: Settings, permission: "compliance" },
-      { label: "Templates", href: "/crm/clm/templates", icon: Shield, permission: "compliance" },
-      { label: "Agreements", href: "/crm/clm/agreements", icon: ScrollText, permission: "compliance" },
-      { label: "Workflows", href: "/crm/clm/workflows", icon: Settings, permission: "compliance" },
+      { label: "KYC Flows", href: "/crm/clm/kyc-flows", icon: Layers, permission: "compliance" },
+      { label: "Routing & Rules", href: "/crm/clm/rules", icon: Route, permission: "compliance" },
+      { label: "Agreement Documents", href: "/crm/clm/agreements", icon: ScrollText, permission: "compliance" },
+      { label: "System Modules", href: "/crm/clm/system-modules", icon: SlidersHorizontal, permission: "compliance" },
     ],
   },
   {
@@ -277,7 +293,17 @@ const SubMenuItem = memo(function SubMenuItem({ item, isActive }: SubMenuItemPro
   const showBadge = item.badge !== undefined && item.badge !== null && item.badge !== 0 && item.badge !== "";
 
   return (
-    <Link href={item.href || "#"}>
+    // `prefetch={false}` defeats Next's default per-link prefetch on this
+    // ~30-item nav. In dev that prefetch was triggering parallel route
+    // compilation across the whole CRM and starving the active page's
+    // own requests, which is what made menu clicks feel laggy. Next will
+    // still warm the route on hover/click — we just don't pre-warm every
+    // entry up-front.
+    //
+    // `LinkPending` lives as a child so it can call `useLinkStatus()`
+    // (which only works under a `<Link>` ancestor) and render a tiny
+    // spinner exactly while *this* link's navigation is pending.
+    <Link href={item.href || "#"} prefetch={false}>
       <div
         className={cn(
           "flex items-center justify-between py-2.5 pl-[48px] pr-3 rounded-lg transition-all duration-200 group",
@@ -289,18 +315,21 @@ const SubMenuItem = memo(function SubMenuItem({ item, isActive }: SubMenuItemPro
         <span className={cn("text-sm font-medium truncate", active && "font-semibold")}>
           {item.label}
         </span>
-        {showBadge && (
-          <span
-            className={cn(
-              "ml-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums flex-shrink-0",
-              active
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
-            )}
-          >
-            {item.badge}
-          </span>
-        )}
+        <span className="ml-2 inline-flex items-center gap-1.5 flex-shrink-0">
+          <LinkPending />
+          {showBadge && (
+            <span
+              className={cn(
+                "inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums",
+                active
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
+              )}
+            >
+              {item.badge}
+            </span>
+          )}
+        </span>
       </div>
     </Link>
   );
@@ -340,22 +369,30 @@ const SubMenuGroup = memo(function SubMenuGroup({ item, isActive, pathname, expa
           )}
         />
       </div>
-      {/* 子页面列表 */}
+      {/* 子页面列表 — same prefetch suppression as SubMenuItem; the
+          submenu only renders when expanded, so the cost was already
+          bounded, but `prefetch={false}` keeps the dev compiler from
+          firing on every render of an expanded submenu. */}
       {expanded && (
         <div className="mt-0.5 space-y-0.5">
           {item.children?.map((child) => (
-            <Link key={child.href || child.label} href={child.href || "#"}>
+            <Link
+              key={child.href || child.label}
+              href={child.href || "#"}
+              prefetch={false}
+            >
               <div
                 className={cn(
-                  "flex items-center py-2 pl-[64px] pr-3 rounded-lg transition-all duration-200",
+                  "flex items-center justify-between gap-2 py-2 pl-[64px] pr-3 rounded-lg transition-all duration-200",
                   pathname === child.href
                     ? "bg-blue-50 text-blue-700"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                 )}
               >
-                <span className={cn("text-sm font-medium", pathname === child.href && "font-semibold")}>
+                <span className={cn("text-sm font-medium truncate", pathname === child.href && "font-semibold")}>
                   {child.label}
                 </span>
+                <LinkPending />
               </div>
             </Link>
           ))}
@@ -369,7 +406,11 @@ const SubMenuGroup = memo(function SubMenuGroup({ item, isActive, pathname, expa
 interface MenuItemProps {
   group: MenuGroup;
   isExpanded: boolean;
-  onToggle: () => void;
+  /** Receives the group name so Sidebar can keep a single stable
+   *  callback reference instead of allocating a fresh arrow per group
+   *  on every render — `MenuItem`'s `memo` is otherwise bypassed and
+   *  every group re-renders on every Sidebar render. */
+  onToggle: (groupName: string) => void;
   isActive: (href?: string) => boolean;
   pathname: string;
   collapsed: boolean;
@@ -431,7 +472,7 @@ const MenuItem = memo(function MenuItem({ group, isExpanded, onToggle, isActive,
               ? "bg-slate-100/80" 
               : ""
         )}
-        onClick={() => !collapsed ? onToggle() : onToggle()}
+        onClick={() => onToggle(group.group)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
@@ -530,13 +571,32 @@ const BRAND_COLOR = "#2563eb";
 
 export function Sidebar({ brandInitials }: SidebarProps) {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useCrmSidebarStore();
-  const { user } = useAuthStore();
+  // Slice-level Zustand subscriptions — destructuring the whole store
+  // (`const { x, y } = useStore()`) makes the component re-render on
+  // any slice change in the store, even unrelated ones. Splitting into
+  // per-field selectors confines re-renders to the exact slices we use.
+  const sidebarCollapsed = useCrmSidebarStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useCrmSidebarStore((s) => s.toggleSidebar);
+  const user = useAuthStore((s) => s.user);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
-  // Live active-cases count for the Review Queue badge.
-  const { count: reviewQueueCount } = useReviewQueueCount();
+  // Live active-cases count for the Review Queue badge. Gated by a
+  // permissions check: operators without compliance view rights would
+  // never see the badge anyway, so we shouldn't be polling the case
+  // service for them every 60 s.
+  const canSeeComplianceBadge = useMemo(() => {
+    if (!user) return false;
+    const perms = user.role.permissions;
+    return perms.some(
+      (p) =>
+        (p.module === "compliance" || p.module === "*") &&
+        (p.actions as readonly string[]).some((a) => a === "view" || a === "*")
+    );
+  }, [user]);
+  const { count: reviewQueueCount } = useReviewQueueCount({
+    enabled: canSeeComplianceBadge,
+  });
 
   const initials = brandInitials || "TP";
 
@@ -671,10 +731,14 @@ export function Sidebar({ brandInitials }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto py-4 no-scrollbar">
           {filteredMenuGroups.map((group) => (
             <div key={group.group} className="mb-1">
+              {/* `onToggle` is a stable reference (useCallback). Passing
+                  the group name through the prop instead of capturing it
+                  in an inline arrow keeps `MenuItem`'s memo intact, so
+                  inactive groups don't re-render on every Sidebar update. */}
               <MenuItem
                 group={group}
                 isExpanded={expandedGroup === group.group}
-                onToggle={() => toggleGroup(group.group)}
+                onToggle={toggleGroup}
                 isActive={isActive}
                 pathname={pathname}
                 collapsed={sidebarCollapsed}

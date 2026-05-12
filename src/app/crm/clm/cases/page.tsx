@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Bot, User } from "lucide-react";
 import {
   Card,
   PageHeader,
@@ -18,6 +19,15 @@ import { AMLStatusBadge } from "@/components/crm/ui/AMLStatusBadge";
 import { BadgeBase, type BadgeTone } from "@/components/crm/ui/BadgeBase";
 import { useListWithFilters } from "@/hooks/useListWithFilters";
 import type { CLMCase, CaseListParams, CLMCaseStatus } from "@/types/clm";
+
+/** Derive the resolved decision mode from a case row. Drives both the
+ *  Decision column and the row icon when the case is closed. */
+type DecisionMode = "auto" | "manual" | "pending";
+function decisionModeOf(c: CLMCase): DecisionMode {
+  if (c.status === "auto_approved" || c.status === "auto_rejected") return "auto";
+  if (c.status === "approved" || c.status === "rejected") return "manual";
+  return "pending";
+}
 
 /** Map case status → badge tone (single source for the whole module). */
 const statusTone: Record<CLMCaseStatus, BadgeTone> = {
@@ -65,6 +75,8 @@ export default function CasesPage() {
         caseType: (next.caseType as Partial<CaseListParams>["caseType"]) || undefined,
         riskLevel: (next.riskLevel as Partial<CaseListParams>["riskLevel"]) || undefined,
         amlStatus: (next.amlStatus as Partial<CaseListParams>["amlStatus"]) || undefined,
+        decisionMode:
+          (next.decisionMode as Partial<CaseListParams>["decisionMode"]) || undefined,
       });
     },
     [list]
@@ -122,6 +134,43 @@ export default function CasesPage() {
         ),
       },
       {
+        // Decision column — chip showing who finalised the case. Auto =
+        // the engine resolved it; Manual = a reviewer did; Pending =
+        // still open. Lets operators QA the auto-decision rate at a glance.
+        key: "decision",
+        title: "Decision",
+        width: "140px",
+        sortField: "status",
+        render: (row) => {
+          const mode = decisionModeOf(row);
+          if (mode === "pending") {
+            return (
+              <span className="text-[11px] text-slate-400 italic">—</span>
+            );
+          }
+          if (mode === "auto") {
+            return (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-violet-100 text-violet-700"
+                title={row.reviewReason ?? "Auto-resolved by the rule engine"}
+              >
+                <Bot className="w-3 h-3" />
+                Auto
+              </span>
+            );
+          }
+          return (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700"
+              title={row.reviewedBy ? `Reviewed by ${row.reviewedBy}` : "Manual review"}
+            >
+              <User className="w-3 h-3" />
+              {row.reviewedBy ? row.reviewedBy : "Manual"}
+            </span>
+          );
+        },
+      },
+      {
         key: "slaStatus",
         title: "SLA",
         width: "130px",
@@ -164,12 +213,12 @@ export default function CasesPage() {
           { label: "POA", value: "poa" },
           { label: "Liveness", value: "liveness" },
           { label: "Video", value: "video_verification" },
-          { label: "Withdrawal", value: "withdrawal_review" },
           { label: "EDD", value: "edd" },
           { label: "SoW", value: "source_of_wealth" },
           { label: "Agreement", value: "agreement_signing" },
           { label: "Risk", value: "risk_recheck" },
           { label: "Manual", value: "manual_review" },
+          { label: "Re-Verify", value: "re_verification" },
         ],
       },
       {
@@ -192,6 +241,16 @@ export default function CasesPage() {
           { label: "Hit", value: "hit" },
           { label: "Pending", value: "pending" },
           { label: "Not Checked", value: "not_checked" },
+        ],
+      },
+      {
+        key: "decisionMode",
+        label: "Decision",
+        type: "select" as const,
+        options: [
+          { label: "Auto", value: "auto" },
+          { label: "Manual", value: "manual" },
+          { label: "Pending", value: "pending" },
         ],
       },
     ],

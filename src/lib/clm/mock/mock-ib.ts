@@ -62,6 +62,12 @@ const FIXTURES: Record<string, IBSummary> = {
   },
 };
 
+/** Lists all IBs in the fixture pool. Used by the Routing & Rules
+ *  ConditionBuilder to power the `ib_id` dropdown. */
+export function listIBs(): IBSummary[] {
+  return Object.values(FIXTURES);
+}
+
 /** Returns a fixture when known; otherwise synthesises a "standard"
  *  placeholder so UIs don't go blank for unmapped ids. */
 export function lookupIB(ibId: string): IBSummary | null {

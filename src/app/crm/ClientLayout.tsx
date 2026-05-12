@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Sidebar, TopBar } from "@/components/crm/layout";
+import { NavigationProgress } from "@/components/crm/layout/NavigationProgress";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { ToastContextProvider } from "@/components/ui";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
@@ -23,6 +24,11 @@ function BackofficeContent({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider>
       <ToastContextProvider>
+        {/* Top progress bar — gives instant feedback on slow nav so
+            menu clicks never feel "stuck", especially in dev where the
+            destination route compiles on demand. Mounted once at the
+            CRM root so every page transition benefits. */}
+        <NavigationProgress />
         <div className="min-h-screen bg-background">
           <TopBar />
           <Sidebar brandInitials={brandInitials} />

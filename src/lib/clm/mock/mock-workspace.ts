@@ -18,7 +18,7 @@ export const mockQueueSummary: QueueSummaryItem[] = [
   { queue: "Resubmission", caseType: "kyc", count: 30, priority: "high" },
   { queue: "AML Review", caseType: "manual_review", count: 12, priority: "critical" },
   { queue: "Video Verification", caseType: "video_verification", count: 5, priority: "high" },
-  { queue: "Withdrawal Review", caseType: "withdrawal_review", count: 8, priority: "high" },
+  { queue: "Re-Verification", caseType: "re_verification", count: 6, priority: "high" },
   { queue: "EDD", caseType: "edd", count: 3, priority: "critical" },
   { queue: "POA", caseType: "poa", count: 15, priority: "medium" },
   { queue: "Liveness", caseType: "liveness", count: 10, priority: "medium" },

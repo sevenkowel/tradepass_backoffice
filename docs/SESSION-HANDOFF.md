@@ -1,7 +1,7 @@
 # CRM Modernization — Session Handoff
 
 > Read this first when picking up the project in a new Claude Code session.
-> Last updated: 2026-05-10 (Phase 3 M6/M7 complete). Dev server runs at `localhost:3000` (user-managed, **not** via MCP preview).
+> Last updated: 2026-05-10 (Phase 3 + 4 complete). Dev server runs at `localhost:3000` (user-managed, **not** via MCP preview).
 
 ---
 
@@ -22,8 +22,8 @@
 | **0 — Design system foundation** | Color/spacing/radius/components, sidebar, layout, badges | ✅ Done |
 | **1 — Audit experience** (M1-Slim + M2) | Risk engine data, Case Detail full rebuild | ✅ Done |
 | **2 — Module alignment** (M3 / M4 / M3.5 / M5a-c) | Clients Risk Tab + IB / Device Tab IP / Risk Center upgrade | ✅ Done |
-| **3 — Infrastructure** (M6 / M7) | GlobalAuditLog, ClientGraph | ✅ Done (M2.7 deferred) |
-| **4 — Configuration & automation** (M8-M10) | CLM config pages, auto-routing, real APIs | 📋 TODO |
+| **3 — Infrastructure** (M6 / M7 / M2.7) | GlobalAuditLog, ClientGraph, Tags/Segments CRUD | ✅ Done |
+| **4 — Configuration & automation** (M8-M10) | CLM config pages, auto-routing, real APIs | ✅ Done |
 
 ---
 
@@ -203,6 +203,9 @@ Portal popovers     z-[100]            — IP / IB / Verification, row actions m
 7. Review-queue: status filter restricted to active statuses (`pending/reviewing/escalated/resubmission`); Cases page is the archive (all statuses)
 8. **(Phase 3)** Audit consolidation — three legacy `AuditLog` shapes (CLM rich · Client single-field · Compliance severity-tagged) merged into one `GlobalAuditLog`. Compliance Audit page is now a redirect to `/crm/clm/audit-trail`; Client Detail Logs tab fetches via `globalAuditService.listForClient`.
 9. **(Phase 3)** Graph consolidation — `RelationshipGraph` and Risk Tab's force chart now agree on `ClientGraphNode/Edge`. New edge kinds `shared_payment` and `ib_invited` are first-class so the API can extend without breaking UI.
+10. **(Phase 4 — M8)** Six CLM config screens collapsed onto one CRUD pattern. The shared `@/components/crm/clm/config/ConfigDrawer` is the right-side modal every page uses; pages own only their domain-specific form body. New screens and existing config-style pages should use the same primitive. PRD §6–8 alignment landed in a follow-up: `ConfigTemplate` carries structured `regulatoryRequirements` / `amlRequirements` / `riskControls[]` / `leverageRules[]` / `agreementRules` instead of bare counts; `KYCPolicy` has a `category` (review/risk/routing/escalation/sla/automation/permission); `KYCForm` is `sections[].fields[]` with `conditions` / `validation` / `countries` / `i18nLabels` field metadata.
+11. **(Phase 4 — M9)** Routing editor sits on top of `clmConfigService.workflows` — there's no parallel data model. Adding a new condition field or action type means extending `WorkflowCondition` / `WorkflowAction` in `@/types/clm/config.ts` and the `FIELD_OPTIONS` / `ACTION_OPTIONS` constants in `routing/page.tsx`.
+12. **(Phase 4 — M10)** Integration philosophy: every external service has both a sync mock helper (kept for existing pages) and an async resolver via `@/lib/integrations`. The resolver always falls back to the mock on any error so the UI stays useful when a third party is down.
 
 ---
 
@@ -231,21 +234,41 @@ If output is empty, the session's changes are clean.
 |---|---|---|
 | **M6** | `GlobalAuditLog` — `src/types/core/audit.ts` + `src/lib/audit/*`. Audit Trail rebuilt with domain chips (clients · clm · risk · compliance · funds · trading · staff · system), severity filter, free-text search. Client Detail Logs tab + Compliance Audit redirect both feed the same pool. | ✅ |
 | **M7** | `ClientGraph` — `src/types/core/client-graph.ts` + `src/lib/risk-engine/graph.ts`. `RelationshipGraph` rewritten to use unified `ClientGraphNode` / `ClientGraphEdge`. `/crm/risk/graph` is now real (high-risk shortlist + same picker). Client Detail Risk Tab uses unified colour palette via `NODE_COLOR` / `EDGE_COLOR`. | ✅ |
-| **M2.7** | Clients submodules — `Lifecycle / Segments / Tags / Notes`. Already wired to backend; only no-op CRUD buttons remain (Tags edit/delete, Segments create). | ⏸ deferred — pages function, just the create/edit modals are missing |
+| **M2.7** | Tags + Segments CRUD modals — `clientService.{updateTag,deleteTag,createSegment}` wired through the shared `ConfigDrawer`. Both pages have working create / edit / delete flows. | ✅ |
 
-### Phase 4 — Configuration & automation (~15-25h)
+### Phase 4 — Configuration & automation ✅ Done
 
-| M | What | Files |
+| M | What | Status |
 |---|---|---|
-| **M8** | CLM Configuration 6 placeholder pages: KYC Policies / Levels / Forms / Templates / Agreements / Workflows. Slice by business priority. | `src/app/crm/clm/{policies,levels,forms,templates,agreements,workflows}/page.tsx` |
-| **M9** | Auto-routing rules: visual rule editor for "if AML hit → Compliance queue" etc. | New `/crm/clm/routing` |
-| **M10** | Real API integration: Sumsub SDK, IP geo lookup, backend RiskProfile. Drop into existing scaffolds in `src/lib/clm/services/api/` |
+| **M8** | Six CLM config screens unified on one pattern: `clmConfigService` (mock + API stub) + shared `ConfigDrawer` for create/edit. Pages aligned to PRD §6–8: **Templates** is now a 3-pane tabbed detail editor (Regulatory · AML · Risk · Leverage · Agreement Rules); **Policies** has the §7.5 category sidebar (Review / Risk / Routing / Escalation / SLA / Automation / Permission); **Forms** is section-tree based with field metadata for conditional logic, validation, and country restrictions. | ✅ |
+| **M9** | `/crm/clm/routing` — visual rule editor that filters `clmConfigService.workflows` and exposes structured condition / action editing with a live `IF X AND Y THEN Z` preview. The legacy `rule` text field stays in sync so the Workflows card view stays accurate. Sidebar has a new "Routing" entry. | ✅ |
+| **M11** | **Re-Verification Center** (PRD `CLM-ReVerification-System-PRD.md`) — Continuous-compliance engine. Four pages under `/crm/clm/re-verification/{requests,templates,rules,history}`, plus the shared `NewRequestDrawer` for the manual 6-step trigger flow. Seven verification types (`re_identity / re_liveness / re_address / re_income / re_agreement / re_questionnaire / re_video`); four restriction levels × six scopes; four notification channels including a forced login popup with five severity tiers. New `re_verification` `CLMCaseType` so submitted requests flow through the existing Review Queue (PRD §15.1 reuse rule). | ✅ |
+| **M10** | Integration scaffolds in `src/lib/integrations/` (`config`, `ipgeo`, `risk-profile`, `sumsub`) + server routes `/api/crm/integrations/{ipgeo,risk-profile,sumsub/*}`. All three follow the same shape: master flag (`USE_REAL_INTEGRATIONS`) + per-integration creds → real provider, otherwise mock fallback. Sumsub uses HMAC-signed requests (server-side only, `node:crypto`). Env vars documented in `.env.example`. Page-level migration to async APIs is left for the next session as the real backend lands. | ✅ scaffolded |
+
+### Integration points (M10 — for the next session to plug real backends in)
+
+```
+src/lib/integrations/
+├── config.ts        # USE_REAL_INTEGRATIONS + per-provider env knobs
+├── ipgeo.ts         # getIPGeo(ip) — async, ipinfo / ipqs / ipapi / mock
+├── risk-profile.ts  # fetchRiskProfile({clientId, baseScore, amlStatus})
+├── sumsub.ts        # createApplicant / getApplicantStatus / generateAccessToken (HMAC-signed)
+└── index.ts         # public barrel
+
+src/app/api/crm/integrations/
+├── ipgeo/route.ts                       # GET ?ip=…
+├── risk-profile/route.ts                # POST { clientId, baseScore, amlStatus }
+└── sumsub/{applicant-status,access-token}/route.ts
+```
+
+Pages still call the **sync mocks** (`lookupIPGeo`, `lookupRiskProfile`) for now — switching them to the async fetch is a per-page refactor that can land alongside the real backend.
 
 ### Open visual / UX items (not yet raised)
 
 - `/crm/risk/{anomalies,aml,margin,nbp,whitelist,blacklist}` are still placeholders
 - Some Clients tabs (`Tickets / Permissions / Logs`) may need feature work
 - Workspace KPI strip is currently subtle — user hasn't complained but could be promoted
+- M10: migrate IP-geo / Risk-profile call sites from sync mock to async fetch when the real services land
 
 ---
 

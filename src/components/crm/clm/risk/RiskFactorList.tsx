@@ -13,7 +13,7 @@
  * what it is.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, Globe, Fingerprint, Wifi, Users, ShieldAlert, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RiskFactor, RiskFactorKey } from "@/types/core";
@@ -22,6 +22,10 @@ import type { RiskLevel } from "@/types/clm";
 interface Props {
   factors: RiskFactor[];
   className?: string;
+  /** Optional extra content appended inside a factor's expanded panel.
+   *  Returns null to skip. Receives the factor so callers can branch
+   *  on `factor.key` (e.g. only render Submission Context for `device_ip`). */
+  renderExtraExpanded?: (factor: RiskFactor) => ReactNode;
 }
 
 const FACTOR_ICON: Record<RiskFactorKey, typeof Globe> = {
@@ -47,7 +51,7 @@ const LEVEL_LABEL: Record<RiskLevel, string> = {
   critical: "Critical",
 };
 
-export function RiskFactorList({ factors, className }: Props) {
+export function RiskFactorList({ factors, className, renderExtraExpanded }: Props) {
   const [openKey, setOpenKey] = useState<RiskFactorKey | null>(null);
 
   return (
@@ -107,6 +111,7 @@ export function RiskFactorList({ factors, className }: Props) {
                 <p className="text-[10px] text-slate-400 mt-1">
                   Weight in composite: <span className="font-mono tabular-nums">{(f.weight * 100).toFixed(0)}%</span>
                 </p>
+                {renderExtraExpanded?.(f)}
               </div>
             )}
           </div>

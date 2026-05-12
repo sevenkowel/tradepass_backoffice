@@ -2,7 +2,7 @@
  * CLM Case Mock Data
  * 20+ realistic cases for prototype validation
  */
-import type { CLMCase, CLMCaseType, CLMCaseStatus, RiskLevel, AMLStatus } from "@/types/clm";
+import type { CLMCase, CLMCaseType, CLMCaseStatus, RiskLevel, AMLStatus, KYCFlowStepInfo, SubmissionContext } from "@/types/clm";
 
 const now = new Date();
 const minsAgo = (m: number) => new Date(now.getTime() - m * 60000).toISOString();
@@ -260,7 +260,11 @@ export const mockCases: CLMCase[] = [
     status: "pending",
     riskLevel: "medium",
     amlStatus: "pass",
-    triggerSource: "Large deposit threshold exceeded",
+    // Reframed: CLM doesn't review deposits, but a large-deposit event
+    // is a legitimate *trigger* for a compliance video re-check. The
+    // trigger source describes the compliance action, not the financial
+    // event itself.
+    triggerSource: "Video re-verification required (high-value deposit trigger)",
     assigneeId: undefined,
     assigneeName: undefined,
     slaMinutes: 60,
@@ -274,55 +278,10 @@ export const mockCases: CLMCase[] = [
     autoReviewResult: "not_checked",
   },
 
-  // === Withdrawal Review ===
-  {
-    id: "case-011",
-    caseNo: nextCaseNo("withdrawal"),
-    customerId: "cust-010",
-    customerName: "Silva Carlos",
-    customerUid: "10028400",
-    country: "BR",
-    type: "agreement_signing",
-    status: "pending",
-    riskLevel: "high",
-    amlStatus: "hit",
-    triggerSource: "Withdrawal $50,000",
-    assigneeId: "staff-003",
-    assigneeName: "Senior Reviewer",
-    slaMinutes: 30,
-    slaDueAt: minsAgo(-5),
-    slaStatus: "timeout",
-    createdAt: minsAgo(-35),
-    updatedAt: minsAgo(-35),
-    kycLevel: "tier1",
-    priority: "normal",
-    sourceChannel: "website",
-    autoReviewResult: "not_checked",
-  },
-  {
-    id: "case-012",
-    caseNo: nextCaseNo("withdrawal"),
-    customerId: "cust-011",
-    customerName: "Wong Mei Lin",
-    customerUid: "10028401",
-    country: "SG",
-    type: "agreement_signing",
-    status: "reviewing",
-    riskLevel: "medium",
-    amlStatus: "pass",
-    triggerSource: "Withdrawal $10,000",
-    assigneeId: "staff-001",
-    assigneeName: "Admin A",
-    slaMinutes: 30,
-    slaDueAt: minsAgo(15),
-    slaStatus: "near_timeout",
-    createdAt: minsAgo(-15),
-    updatedAt: minsAgo(-5),
-    kycLevel: "tier1",
-    priority: "normal",
-    sourceChannel: "website",
-    autoReviewResult: "not_checked",
-  },
+  // (Withdrawal-review seeds removed — those used to live here as
+  //  `agreement_signing` cases with a `Withdrawal $X` trigger source.
+  //  CLM is compliance-positioned and never holds fund-side approvals,
+  //  so financial-operation reviews now belong to Treasury.)
 
   // === EDD Cases ===
   {
@@ -387,11 +346,15 @@ export const mockCases: CLMCase[] = [
     customerName: "Andersson Erik",
     customerUid: "10028404",
     country: "SE",
-    type: "kyc",
+    // Risk-team detection of unusual trading drives a *compliance*
+    // re-check of the user's KYC profile — that's a CLM responsibility,
+    // tracked as `risk_recheck`. The trading anomaly itself stays on
+    // the Risk module's side; this case is the compliance follow-up.
+    type: "risk_recheck",
     status: "reviewing",
     riskLevel: "high",
     amlStatus: "hit",
-    triggerSource: "Trading pattern anomaly detected",
+    triggerSource: "KYC re-check after risk-side trading anomaly flag",
     assigneeId: "staff-003",
     assigneeName: "Senior Reviewer",
     slaMinutes: 60,
@@ -494,15 +457,70 @@ export const mockCases: CLMCase[] = [
     triggerSource: "New user registration",
     assigneeId: undefined,
     assigneeName: undefined,
+    reviewedBy: "System",
+    reviewedAt: hoursAgo(-1.5),
     slaMinutes: 30,
     slaDueAt: hoursAgo(-1),
     slaStatus: "normal",
     createdAt: hoursAgo(-2),
-    updatedAt: hoursAgo(-2),
+    updatedAt: hoursAgo(-1.5),
     kycLevel: "tier1",
     priority: "normal",
     sourceChannel: "website",
-    autoReviewResult: "not_checked",
+    autoReviewResult: "pass",
+  },
+  // Two additional auto-decisions so the Cases page demonstrates the
+  // "Decision: Auto" filter with variety: one auto-approved (clean
+  // signals), one auto-rejected (engine rejected on hard signals).
+  {
+    id: "case-019b",
+    caseNo: nextCaseNo("kyc"),
+    customerId: "cust-018b",
+    customerName: "Silva Maria",
+    customerUid: "10028410",
+    country: "BR",
+    type: "kyc",
+    status: "auto_approved",
+    riskLevel: "low",
+    amlStatus: "pass",
+    triggerSource: "New user registration",
+    reviewedBy: "System",
+    reviewedAt: hoursAgo(-4),
+    slaMinutes: 30,
+    slaDueAt: hoursAgo(-3.5),
+    slaStatus: "normal",
+    createdAt: hoursAgo(-5),
+    updatedAt: hoursAgo(-4),
+    kycLevel: "tier1",
+    priority: "normal",
+    sourceChannel: "mobile",
+    autoReviewResult: "pass",
+  },
+  {
+    id: "case-019c",
+    caseNo: nextCaseNo("kyc"),
+    customerId: "cust-018c",
+    customerName: "Test Reject Acc.",
+    customerUid: "10028411",
+    country: "RU",
+    type: "kyc",
+    status: "auto_rejected",
+    riskLevel: "critical",
+    amlStatus: "hit",
+    triggerSource: "New user registration",
+    reviewedBy: "System",
+    reviewedAt: hoursAgo(-6),
+    reviewDecision: "reject",
+    reviewReason: "AML watchlist match (OFAC SDN) — auto-rejected by engine.",
+    slaMinutes: 30,
+    slaDueAt: hoursAgo(-5.5),
+    slaStatus: "normal",
+    createdAt: hoursAgo(-7),
+    updatedAt: hoursAgo(-6),
+    kycLevel: "tier1",
+    priority: "high_risk",
+    sourceChannel: "website",
+    autoReviewResult: "reject",
   },
   {
     id: "case-020",
@@ -531,7 +549,18 @@ export const mockCases: CLMCase[] = [
 ];
 
 // Rich detail for the first case (used in Case Detail page)
-export const mockCaseDetail: Partial<CLMCase> = {
+export const mockCaseDetail: Partial<CLMCase> & {
+  kycFlowSteps?: KYCFlowStepInfo[];
+  submission?: SubmissionContext;
+} = {
+  kycFlowSteps: [
+    { id: "phone_email",        included: true,  completed: true  },
+    { id: "document",           included: true,  completed: true  },
+    { id: "liveness",           included: true,  completed: true  },
+    { id: "poa",                included: false, completed: false },
+    { id: "income_proof",       included: false, completed: false },
+    { id: "video_verification", included: false, completed: false },
+  ],
   personalInfo: {
     registrationTime: hoursAgo(-2),
     registrationIp: "203.113.168.45",
@@ -630,6 +659,18 @@ export const mockCaseDetail: Partial<CLMCase> = {
     { type: "shared_ip", targetUid: "10028392", targetName: "Rajesh Kumar", strength: 85, details: "Same IP: 192.168.1.1" },
     { type: "shared_device", targetUid: "10028394", targetName: "Le Van C", strength: 70, details: "Same device fingerprint" },
   ],
+  submission: {
+    ip: "45.222.178.91",
+    device: "Chrome 120 / Windows 11",
+    submittedAt: hoursAgo(-2),
+    sharedIpAccountIds: [
+      "10028392", "10028394", "10028401", "10028407", "10028412",
+      "10028418", "10028423",
+    ],
+    sharedDeviceAccountIds: [
+      "10028394", "10028412", "10028423",
+    ],
+  },
   customerSnapshot: {
     id: "cust-001",
     uid: "10028391",
@@ -667,6 +708,13 @@ export const mockCaseDetail: Partial<CLMCase> = {
         extractedExpiryDate: "2030-05-15",
         confidence: 0.94,
         mismatches: [],
+      },
+      userSubmittedFields: {
+        extractedName: "Nguyen Van An",
+        extractedNumber: "B1234567",
+        extractedNationality: "Vietnam",
+        extractedDateOfBirth: "1990-05-15",
+        extractedExpiryDate: "2030-05-15",
       },
       verification: {
         provider: "sumsub",
@@ -940,6 +988,19 @@ export const mockCaseDetail: Partial<CLMCase> = {
       action: "Internal Note Added",
       description: "AML hit needs verification. Please check with compliance team.",
       category: "comment",
+    },
+    {
+      id: "evt-009",
+      timestamp: minsAgo(-20),
+      actor: "Admin A",
+      actorRole: "Senior Reviewer",
+      action: "Resubmission Requested",
+      description: "POA document was 1.6 MB but blurred — operator could not match the address. Asked the customer for a clearer scan.",
+      category: "decision",
+      metadata: {
+        result: "resubmit_requested",
+        reason: "POA scan is blurred; the address line is unreadable. Please re-upload a sharp copy of a recent (≤3 months) utility bill or bank statement.",
+      },
     },
   ],
   auditLogs: [

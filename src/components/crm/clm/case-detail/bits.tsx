@@ -96,8 +96,31 @@ export function fmtDate(d: string | Date): string {
   });
 }
 
-/** SLA computation — single source so both the header and any cell agree. */
+export function fmtDateTime(d: string | Date): string {
+  return new Date(d).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+/** SLA status — 5 buckets, kept in sync with the Review Queue list view. */
+export type SLAStatus = "timeout" | "critical" | "warning" | "near" | "normal";
+
+/** SLA computation — single source so both the header and any cell agree.
+ *  Status thresholds match `review-queue/page.tsx::computeSLA`:
+ *    ≤ 0min  → timeout (overdue)
+ *    ≤ 5min  → critical (urgent)
+ *    ≤ 10min → warning  (urgent)
+ *    ≤ 30min → near
+ *    > 30min → normal
+ */
 export function computeSLA(slaDueAt: string): {
+  status: SLAStatus;
   label: string;
   urgent: boolean;
   overdue: boolean;
@@ -105,10 +128,21 @@ export function computeSLA(slaDueAt: string): {
   const diffMs = new Date(slaDueAt).getTime() - Date.now();
   const diffMin = Math.round(diffMs / 60000);
   if (diffMin <= 0)
-    return { label: `${Math.abs(diffMin)}m overdue`, urgent: true, overdue: true };
+    return { status: "timeout",  label: `${Math.abs(diffMin)}m overdue`, urgent: true,  overdue: true  };
   if (diffMin <= 5)
-    return { label: `${diffMin}m left`, urgent: true, overdue: false };
+    return { status: "critical", label: `${diffMin}m left`,              urgent: true,  overdue: false };
+  if (diffMin <= 10)
+    return { status: "warning",  label: `${diffMin}m left`,              urgent: true,  overdue: false };
   if (diffMin <= 30)
-    return { label: `${diffMin}m left`, urgent: false, overdue: false };
-  return { label: `${diffMin}m left`, urgent: false, overdue: false };
+    return { status: "near",     label: `${diffMin}m left`,              urgent: false, overdue: false };
+  return    { status: "normal",  label: `${diffMin}m left`,              urgent: false, overdue: false };
 }
+
+/** Tone classes for an SLA status pill — matches the Review Queue list. */
+export const SLA_TONE: Record<SLAStatus, string> = {
+  timeout:  "bg-red-100 text-red-700 border-red-200",
+  critical: "bg-red-50 text-red-600 border-red-100",
+  warning:  "bg-orange-50 text-orange-700 border-orange-100",
+  near:     "bg-amber-50 text-amber-700 border-amber-100",
+  normal:   "bg-emerald-50 text-emerald-700 border-emerald-100",
+};

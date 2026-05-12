@@ -14,12 +14,12 @@ const config: Record<CLMCaseType, { tone: BadgeTone; label: string }> = {
   poa:                 { tone: "purple",  label: "POA" },
   liveness:            { tone: "teal",    label: "Liveness" },
   video_verification:  { tone: "indigo",  label: "Video" },
-  withdrawal_review:   { tone: "orange",  label: "Withdrawal" },
   edd:                 { tone: "error",   label: "EDD" },
   source_of_wealth:    { tone: "warning", label: "SoW" },
   agreement_signing:   { tone: "neutral", label: "Agreement" },
   risk_recheck:        { tone: "rose",    label: "Risk" },
   manual_review:       { tone: "neutral", label: "Manual" },
+  re_verification:     { tone: "indigo",  label: "Re-Verify" },
 };
 
 export function CaseTypeBadge({ type, className }: CaseTypeBadgeProps) {

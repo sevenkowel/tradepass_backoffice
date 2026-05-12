@@ -148,6 +148,11 @@ export default function ReviewQueuePage() {
   // need action belong here. Approved / rejected / cancelled cases live
   // in /crm/clm/cases (the archive). The `statusIn` lock is server-side
   // so it cannot be turned off via the user-facing status filter.
+  //
+  // Case-type scope: CLM is compliance-positioned, so every member of
+  // `CLMCaseType` is in-scope by definition. Withdrawal / deposit /
+  // trade-anomaly reviews are NOT CLM cases — they live in their own
+  // domains (Treasury / Risk) and never reach this query.
   const ACTIVE_STATUSES: CLMCaseStatus[] = useMemo(
     () => ["pending", "reviewing", "escalated", "resubmission"],
     []

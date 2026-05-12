@@ -58,8 +58,9 @@ export default function SLAMonitoringPage() {
       { name: "POA", types: ["poa"] },
       { name: "AML", types: ["manual_review", "edd"] },
       { name: "Video", types: ["video_verification", "liveness"] },
-      { name: "Withdrawal", types: ["withdrawal_review"] },
-      { name: "Risk", types: ["risk_recheck"] },
+      { name: "Agreement", types: ["agreement_signing"] },
+      { name: "Risk", types: ["risk_recheck", "source_of_wealth"] },
+      { name: "Re-Verify", types: ["re_verification"] },
     ];
 
     return queues.map((q) => {

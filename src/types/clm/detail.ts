@@ -6,6 +6,104 @@
 import type { CLMCase, AMLStatus } from "./case";
 
 // ============================================================
+// ============================================================
+// KYC Flow Steps — for Escalate modal
+// ============================================================
+export type KYCFlowStepId =
+  | "phone_email"
+  | "document"
+  | "liveness"
+  | "poa"
+  | "income_proof"
+  | "video_verification";
+
+export const KYC_FLOW_STEP_LABELS: Record<KYCFlowStepId, string> = {
+  phone_email:        "手机 / 邮箱验证",
+  document:           "证件认证",
+  liveness:           "活体认证",
+  poa:                "住址证明",
+  income_proof:       "收入证明",
+  video_verification: "视频认证",
+};
+
+export interface KYCFlowStepInfo {
+  id: KYCFlowStepId;
+  /** Whether this step is already part of the user's current KYC flow. */
+  included: boolean;
+  /** Whether the user has successfully completed this step. */
+  completed: boolean;
+}
+
+// ============================================================
+// Type-specific content — Liveness
+// ============================================================
+export interface LivenessResult {
+  confidenceScore: number;        // 0–100
+  passed: boolean;
+  attemptCount: number;
+  completedAt: string;
+  provider: string;
+  selfieImageUrl?: string;
+  documentFaceImageUrl?: string;
+}
+
+// ============================================================
+// Type-specific content — POA
+// ============================================================
+export interface POADetail {
+  submittedDocumentType: string;
+  documentUrl?: string;
+  documentIssuedDate?: string;
+  declaredAddress: string;
+  extractedAddress?: string;
+  /** null = not yet validated */
+  addressMatch?: boolean | null;
+}
+
+// ============================================================
+// Type-specific content — Video Verification
+// ============================================================
+export interface VideoChecklistItem {
+  id: string;
+  label: string;
+  /** null = reviewer has not yet marked this item */
+  passed: boolean | null;
+}
+
+export interface VideoVerificationDetail {
+  videoUrl?: string;
+  recordedAt: string;
+  durationSeconds?: number;
+  checklist: VideoChecklistItem[];
+}
+
+// ============================================================
+// Submission Context — IP + device used to file this case
+// ============================================================
+/**
+ * Snapshot of the request environment for THIS case submission
+ * (separate from `PersonalInfo.registrationIp/Device` which is the
+ * original account-registration snapshot).
+ *
+ * The `shared*AccountIds` arrays are populated by a backend look-up
+ * over a recent window (e.g. 90 days) — they're the anti-fraud signal
+ * the reviewer needs to spot multi-account abuse from a shared IP /
+ * shared device fingerprint.
+ */
+export interface SubmissionContext {
+  ip: string;
+  device: string;
+  submittedAt: string;
+  /** Optional geo enrichment of `ip`. Use `lookupIPGeo()` in mocks. */
+  ipGeo?: import("@/types/core").IPGeoInfo;
+  /** Other accounts (UIDs) seen on this same IP in the recent window.
+   *  Excludes the current case's customer. Empty = no duplication. */
+  sharedIpAccountIds: string[];
+  /** Other accounts on this same device fingerprint. */
+  sharedDeviceAccountIds: string[];
+}
+
+// ============================================================
 // CaseDetail — extends CLMCase with full detail data
 // ============================================================
 export interface CaseDetail extends CLMCase {
@@ -17,6 +115,17 @@ export interface CaseDetail extends CLMCase {
   manualReview?: ManualReviewInfo;
   reviewerHistory?: ReviewAction[];
   relationshipGraph?: RelationNode[];
+  /** IP + device used to submit this case (separate from registration). */
+  submission?: SubmissionContext;
+  // ── Type-specific fields ─────────────────────────────────
+  /** KYC cases: which flow steps are included + completion state. */
+  kycFlowSteps?: KYCFlowStepInfo[];
+  /** Liveness cases: face-match result. */
+  livenessResult?: LivenessResult;
+  /** POA cases: document + address comparison. */
+  poaDetail?: POADetail;
+  /** Video verification cases: checklist + recording. */
+  videoVerification?: VideoVerificationDetail;
 }
 
 // ============================================================

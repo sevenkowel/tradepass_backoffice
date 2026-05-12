@@ -1,23 +1,31 @@
 "use client";
 
 /**
- * IPGeoPopover — click-anchored popover with IP forensics.
+ * IPGeoPopover — hover-anchored popover with IP forensics.
  *
- * Used on Case Detail's customer card and Clients' Device Tab. Clicking
- * the IP text opens this popover; clicking outside closes it.
+ * Used on Case Detail's customer card and Clients' Device Tab. Hovering
+ * the IP text opens this popover; leaving the anchor (or popover) closes
+ * it after a small delay so the user can move the cursor between them
+ * without the card dismissing.
  *
  * Renders through a Portal into `document.body` so the popover always
  * sits above sticky sidebars / sticky table cells regardless of the
  * stacking context that contains the anchor.
+ *
+ * Mirrors `IBSummaryHover` — same enter/leave semantics, same close
+ * delay, same close-on-scroll/resize. The two popovers used to differ
+ * (click vs hover) for no good reason; aligning them keeps the customer
+ * card consistent.
  */
 
 import { createPortal } from "react-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { IPGeoInfo } from "@/types/core";
-import { usePortalPopover } from "./usePortalPopover";
 
 const POPOVER_WIDTH = 288; // 18rem (Tailwind w-72)
+const HOVER_CLOSE_DELAY = 120;
 
 function flagOf(country: string): string {
   if (!country || country.length !== 2) return "🌐";
@@ -35,27 +43,67 @@ interface Props {
 }
 
 export function IPGeoPopover({ ip, geo, className }: Props) {
-  const { anchorRef, popoverRef, open, pos, togglePopover } =
-    usePortalPopover<HTMLButtonElement>({ width: POPOVER_WIDTH });
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const computePos = useCallback(() => {
+    const r = anchorRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const margin = 8;
+    const left = Math.max(margin, Math.min(r.left, window.innerWidth - POPOVER_WIDTH - margin));
+    setPos({ top: r.bottom + 4, left });
+  }, []);
+
+  const handleEnter = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    computePos();
+    setOpen(true);
+  };
+  const handleLeave = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), HOVER_CLOSE_DELAY);
+  };
+
+  // Close on scroll / resize so the card doesn't drift away from its anchor.
+  useEffect(() => {
+    if (!open) return;
+    const onMove = () => setOpen(false);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+    };
+  }, [open]);
+
+  // Cancel any pending close timer on unmount so we don't toggle state
+  // on a torn-down component.
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, []);
 
   return (
     <>
-      <button
+      <span
         ref={anchorRef}
-        onClick={togglePopover}
-        className={cn(
-          "font-mono tabular-nums text-xs text-primary hover:underline underline-offset-2 cursor-pointer",
-          className
-        )}
+        className={cn("relative inline-block", className)}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
       >
-        {ip}
-      </button>
+        <span className="font-mono tabular-nums text-xs text-primary hover:underline underline-offset-2 cursor-pointer">
+          {ip}
+        </span>
+      </span>
       {open && typeof document !== "undefined" &&
         createPortal(
           <div
-            ref={popoverRef}
             className="fixed z-[100] w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-4 text-sm"
             style={{ top: pos.top, left: pos.left }}
+            onMouseEnter={handleEnter}
+            onMouseLeave={handleLeave}
           >
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2 min-w-0">

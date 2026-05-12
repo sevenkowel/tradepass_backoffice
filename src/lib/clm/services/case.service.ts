@@ -14,14 +14,26 @@ import type {
   PaginatedResult,
   CaseComment,
   CaseDetail,
+  KYCFlowStepInfo,
+  LivenessResult,
+  POADetail,
+  SubmissionContext,
+  VideoVerificationDetail,
 } from "@/types/clm";
 import type { ICaseService } from "./types";
 import { mockCases, mockCaseDetail } from "../mock";
+import { lookupRiskProfile } from "@/lib/risk-engine/mock-risk-profiles";
 import { delay } from "@/lib/utils";
 
 class CaseService implements ICaseService {
   private cases = [...mockCases];
   private auditLogs: import("@/types/clm").CLMAuditLog[] = [];
+  /** In-memory store for comments added at runtime, keyed by case id. */
+  private extraComments = new Map<string, CaseComment[]>();
+  /** Extra timeline events synthesised from runtime actions (e.g. each
+   *  comment also appends a `category: "comment"` timeline event so the
+   *  unified Timeline UI can render comments inline with system events). */
+  private extraEvents = new Map<string, import("@/types/clm").CaseTimelineEvent[]>();
 
   async list(params: CaseListParams = {}): Promise<PaginatedResult<CLMCase>> {
     await delay(300);
@@ -61,6 +73,39 @@ class CaseService implements ICaseService {
     if (params.statusIn && params.statusIn.length > 0) {
       const set = new Set(params.statusIn);
       result = result.filter((c) => set.has(c.status));
+    }
+
+    // Filter by case-type set — kept as a general capability though
+    // the Review Queue no longer needs it: every `CLMCaseType` is
+    // compliance-scoped now that withdrawal/deposit cases were moved
+    // out of the union. A future Treasury queue could re-use this.
+    if (params.typeIn && params.typeIn.length > 0) {
+      const set = new Set(params.typeIn);
+      result = result.filter((c) => set.has(c.type));
+    }
+
+    // Filter by decision mode — auto / manual / pending. Translates to
+    // a status partition so the Cases page can answer "show me the
+    // engine's decisions" without juggling a multi-select.
+    if (params.decisionMode) {
+      if (params.decisionMode === "auto") {
+        result = result.filter(
+          (c) => c.status === "auto_approved" || c.status === "auto_rejected"
+        );
+      } else if (params.decisionMode === "manual") {
+        result = result.filter(
+          (c) => c.status === "approved" || c.status === "rejected"
+        );
+      } else {
+        // `pending` — anything still open / not finally resolved.
+        const open = new Set<CLMCase["status"]>([
+          "pending",
+          "reviewing",
+          "escalated",
+          "resubmission",
+        ]);
+        result = result.filter((c) => open.has(c.status));
+      }
     }
 
     // Filter by assignee
@@ -132,14 +177,24 @@ class CaseService implements ICaseService {
     const caseItem = this.cases.find((c) => c.id === id);
     if (!caseItem) return null;
 
+    const extras = this.extraComments.get(id) ?? [];
+    const extraEvts = this.extraEvents.get(id) ?? [];
+
     // Merge with detail data for the first case (richest)
     if (id === "case-001") {
-      return { ...caseItem, ...mockCaseDetail };
+      return {
+        ...caseItem,
+        ...mockCaseDetail,
+        comments: [...(mockCaseDetail.comments ?? []), ...extras],
+        timeline: [...(mockCaseDetail.timeline ?? []), ...extraEvts],
+      };
     }
 
     // Generate basic detail for all other cases
+    const typeSpecific = buildTypeSpecificDetail(caseItem);
     return {
       ...caseItem,
+      ...typeSpecific,
       personalInfo: {
         registrationTime: caseItem.createdAt,
         registrationIp: "192.168.1.***",
@@ -195,20 +250,25 @@ class CaseService implements ICaseService {
           },
         },
       ],
-      riskAssessment: {
-        riskScore: caseItem.riskLevel === "critical" ? 88 : caseItem.riskLevel === "high" ? 72 :
-                   caseItem.riskLevel === "medium" ? 55 : 25,
-        riskLevel: caseItem.riskLevel,
-        amlStatus: caseItem.amlStatus,
-        countryRisk: "medium",
-        deviceRisk: "normal",
-        ipRisk: "normal",
-        fundingRisk: "normal",
-        multiAccountRisk: "none",
-        indicators: caseItem.amlStatus === "hit" ? [
-          { type: "aml_hit", level: "high", description: "Name matched AML watchlist" },
-        ] : [],
-      },
+      riskAssessment: (() => {
+        const score = caseItem.riskLevel === "critical" ? 88 : caseItem.riskLevel === "high" ? 72 :
+                      caseItem.riskLevel === "medium" ? 55 : 25;
+        const profile = lookupRiskProfile(caseItem.customerId, score, caseItem.amlStatus);
+        return {
+          riskScore: score,
+          riskLevel: caseItem.riskLevel,
+          amlStatus: caseItem.amlStatus,
+          countryRisk: "medium" as const,
+          deviceRisk: "normal" as const,
+          ipRisk: "normal" as const,
+          fundingRisk: "normal" as const,
+          multiAccountRisk: "none" as const,
+          indicators: caseItem.amlStatus === "hit" ? [
+            { type: "aml_hit", level: "high" as const, description: "Name matched AML watchlist" },
+          ] : [],
+          factors: profile.factors,
+        };
+      })(),
       experience: {
         family: { maritalStatus: "married", dependents: 1 },
         education: { level: "bachelor", field: "Business" },
@@ -237,11 +297,13 @@ class CaseService implements ICaseService {
                          caseItem.riskLevel === "medium" ? 50 : 30,
         overall: caseItem.amlStatus === "hit" ? "manual_review" : "auto_pass",
       },
-      comments: [],
+      comments: extras,
       timeline: [
         { id: `evt-${id}-1`, timestamp: caseItem.createdAt, actor: "System", actorRole: "System", action: "Case Created", description: `Auto-created from ${caseItem.triggerSource}` },
         ...(caseItem.assigneeId ? [{ id: `evt-${id}-2`, timestamp: caseItem.updatedAt, actor: caseItem.assigneeName || "System", actorRole: "Reviewer", action: "Case Assigned", description: `Assigned to ${caseItem.assigneeName}` }] : []),
+        ...extraEvts,
       ],
+      submission: buildSubmissionContext(caseItem),
     };
   }
 
@@ -304,12 +366,30 @@ class CaseService implements ICaseService {
     };
   }
 
-  // Comments
+  // Comments — runtime store. Also mirrors each comment as a
+  // `category: "comment"` timeline event so the unified Timeline UI
+  // renders the conversation interleaved with system events.
   async addComment(id: string, comment: CaseComment): Promise<void> {
     await delay(200);
     const caseItem = this.cases.find((c) => c.id === id);
     if (!caseItem) return;
-    // In real implementation, persist comment
+
+    const comments = this.extraComments.get(id) ?? [];
+    comments.push(comment);
+    this.extraComments.set(id, comments);
+
+    const events = this.extraEvents.get(id) ?? [];
+    events.push({
+      id: `evt-comment-${comment.id}`,
+      timestamp: comment.createdAt,
+      actor: comment.authorName,
+      actorRole: comment.authorRole,
+      action: comment.parentId ? "Reply" : "Note Added",
+      description: comment.content,
+      category: "comment",
+      parentId: comment.parentId,
+    });
+    this.extraEvents.set(id, events);
   }
 
   // Batch operations
@@ -348,3 +428,107 @@ class CaseService implements ICaseService {
 }
 
 export const caseService = new CaseService();
+
+/* ─── Type-specific detail builder ──────────────────────────────────────── */
+
+function buildTypeSpecificDetail(c: CLMCase): Partial<CaseDetail> {
+  switch (c.type) {
+    case "kyc":
+    case "edd":
+    case "source_of_wealth":
+    case "manual_review":
+    case "re_verification": {
+      const steps: KYCFlowStepInfo[] = [
+        { id: "phone_email",        included: true,  completed: true  },
+        { id: "document",           included: true,  completed: true  },
+        { id: "liveness",           included: true,  completed: true  },
+        { id: "poa",                included: false, completed: false },
+        { id: "income_proof",       included: false, completed: false },
+        { id: "video_verification", included: false, completed: false },
+      ];
+      return { kycFlowSteps: steps };
+    }
+
+    case "liveness": {
+      const score = c.riskLevel === "high" || c.riskLevel === "critical" ? 52 : 87;
+      const result: LivenessResult = {
+        confidenceScore: score,
+        passed: score >= 80,
+        attemptCount: score < 80 ? 3 : 1,
+        completedAt: c.updatedAt,
+        provider: "TradePass",
+        selfieImageUrl: "/mock/liveness-selfie.jpg",
+        documentFaceImageUrl: "/mock/id-front.jpg",
+      };
+      return { livenessResult: result };
+    }
+
+    case "poa": {
+      const match = c.riskLevel === "low";
+      const detail: POADetail = {
+        submittedDocumentType: "Utility Bill",
+        documentUrl: "/mock/poa-doc.jpg",
+        documentIssuedDate: new Date(Date.now() - 45 * 24 * 3600 * 1000).toISOString(),
+        declaredAddress: "123 Main Street, City, Country",
+        extractedAddress: match ? "123 Main Street, City, Country" : "45 Different Ave, Other City",
+        addressMatch: match,
+      };
+      return { poaDetail: detail };
+    }
+
+    case "video_verification": {
+      const detail: VideoVerificationDetail = {
+        videoUrl: "/mock/verification-video.mp4",
+        recordedAt: c.createdAt,
+        durationSeconds: 127,
+        checklist: [
+          { id: "vc-1", label: "用户本人出镜，面部清晰可见",               passed: null },
+          { id: "vc-2", label: "手持有效证件，证件信息可读",               passed: null },
+          { id: "vc-3", label: "口头确认姓名与证件一致",                   passed: null },
+          { id: "vc-4", label: "口头确认本次申请为本人自愿",               passed: null },
+          { id: "vc-5", label: "录制环境无明显强迫/胁迫迹象",             passed: null },
+          { id: "vc-6", label: "面部特征与证件照片吻合",                   passed: null },
+        ],
+      };
+      return { videoVerification: detail };
+    }
+
+    case "agreement_signing": {
+      // agreements already generated in getById; nothing extra needed
+      return {};
+    }
+
+    default:
+      return {};
+  }
+}
+
+/* ─── Submission context (IP/device duplication signals) ────────────────── */
+
+const SHARED_POOL = [
+  "10028392", "10028393", "10028394", "10028395",
+  "10028401", "10028407", "10028412", "10028418",
+  "10028423", "10028431", "10028445", "10028452",
+];
+
+/** Deterministic small hash → reproducible duplication counts per case. */
+function hash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function buildSubmissionContext(c: CLMCase): SubmissionContext {
+  const h = hash(c.id);
+  // 0–11 sample size for IP, 0–6 for device — biased so most cases have a
+  // few duplicates rather than zero (the interesting risk signal).
+  const ipShareCount     = h % 12;
+  const deviceShareCount = Math.floor((h >>> 4) % 7);
+  return {
+    ip: `${45 + (h % 30)}.${100 + ((h >>> 8) % 150)}.${(h >>> 16) % 256}.${(h >>> 24) % 256}`,
+    device: (h % 3 === 0) ? "Chrome 120 / Windows 11" : (h % 3 === 1) ? "Safari 17 / macOS 14" : "Chrome Mobile / Android 14",
+    submittedAt: c.createdAt,
+    sharedIpAccountIds:     SHARED_POOL.slice(0, ipShareCount),
+    sharedDeviceAccountIds: SHARED_POOL.slice(0, deviceShareCount),
+  };
+}

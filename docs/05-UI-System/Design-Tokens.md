@@ -150,6 +150,22 @@ CRM-tuned scale, 7 stops. No marketing-style hero spacing.
 
 Anything bigger should not exist in a CRM page.
 
+### 3a. Vertical rhythm — three tiers
+
+Card-density is the most common bug we ship: lists feel cramped because nested
+`space-y-*` collapse into each other. **Always use one of these three tiers**;
+do not invent values.
+
+| Tier | Tailwind | Where it applies |
+|------|----------|------------------|
+| Page sections | `space-y-4` (16px) | Top-level `<main>` rhythm — between Documents / Liveness / Review Details / etc. The aside columns also use this tier. |
+| Intra-card stack | `space-y-3` (12px) | Inside a card, between groups (e.g. an `InfoRow` list, header → body, body → footer). |
+| Inline groups | `space-y-2` (8px) | Tight clusters: list of comments, list of conditions, label → input. |
+
+The previous default (`space-y-3` everywhere) was 4 px too tight for a workspace
+density. Bumping the page tier to 16 px without changing card padding keeps the
+density inside cards but lets the page breathe.
+
 ---
 
 ## 4. Radius
