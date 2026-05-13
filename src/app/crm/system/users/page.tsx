@@ -215,7 +215,7 @@ function UsersPageContent() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
@@ -459,7 +459,7 @@ function UsersPageContent() {
               为管理员 <strong>&quot;{adminToAction?.username}&quot;</strong> 设置新密码
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
+          <div className="space-y-3 mt-4">
             <div className="flex gap-2">
               <Input
                 type="text"

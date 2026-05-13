@@ -20,7 +20,7 @@ export default function FundsTab({ data }: BaseTabProps) {
       <h3 className="text-lg font-semibold text-slate-900">资金管理</h3>
 
       {/* 统计 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-emerald-50 rounded-xl p-4">
           <div className="flex items-center gap-2 text-emerald-600 mb-1">
             <ArrowDownLeft className="w-4 h-4" />

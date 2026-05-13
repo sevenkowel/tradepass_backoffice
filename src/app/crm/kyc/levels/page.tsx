@@ -17,7 +17,7 @@ export default function KYCLevelsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "KYC Levels" }]} />
       <PageHeader title="KYC Levels" description="Define KYC tiers, requirements, and permission mappings" />
 
@@ -42,7 +42,7 @@ export default function KYCLevelsPage() {
               </div>
             </div>
             {expanded === lvl.id && (
-              <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+              <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-3">
                 <div>
                   <h4 className="text-xs font-medium text-slate-500 mb-2">Required Steps</h4>
                   {lvl.requiredSteps.map(s => (

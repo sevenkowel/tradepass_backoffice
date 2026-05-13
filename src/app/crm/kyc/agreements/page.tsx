@@ -16,7 +16,7 @@ export default function AgreementDocsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Agreement Docs" }]} />
       <PageHeader title="Agreement Documents" description="Manage agreement versions and forced re-sign policies"
         actions={<Button><Edit3 size={16} /> New Agreement</Button>}

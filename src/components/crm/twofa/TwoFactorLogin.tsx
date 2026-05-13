@@ -109,7 +109,7 @@ export function TwoFactorLogin({
       </div>
 
       {/* Code Input */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <p className="text-sm text-center text-muted-foreground">
           {useBackupCode
             ? "请输入 12 位备份码"

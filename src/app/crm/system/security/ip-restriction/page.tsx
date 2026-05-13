@@ -197,7 +197,7 @@ export default function IpRestrictionPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-slate-100">
@@ -283,7 +283,7 @@ export default function IpRestrictionPage() {
           <DialogHeader>
             <DialogTitle>添加 IP 规则</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4 mt-4">
+          <form onSubmit={handleCreate} className="space-y-3 mt-4">
             <div className="space-y-2">
               <Label>规则类型</Label>
               <div className="flex gap-4">

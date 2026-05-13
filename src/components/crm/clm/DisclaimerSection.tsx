@@ -19,7 +19,7 @@ export function DisclaimerSection({ data, className }: DisclaimerSectionProps) {
   ];
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3">
         {items.map((item) => (
           <div key={item.label} className="flex items-center gap-3">

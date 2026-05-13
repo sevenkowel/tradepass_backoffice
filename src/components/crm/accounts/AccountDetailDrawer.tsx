@@ -70,7 +70,7 @@ export function AccountDetailDrawer({ account, open, onClose }: AccountDetailDra
         </div>
 
         {/* Balance Cards */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
               <CreditCard className="w-4 h-4" />

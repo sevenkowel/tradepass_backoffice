@@ -67,7 +67,7 @@ export default function UIShowcasePage() {
       {/* Colors */}
       <section>
         <h2 className="text-xl font-semibold mb-4">颜色系统</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <ColorCard name="Primary" color="bg-blue-600" text="text-white" />
           <ColorCard name="Success" color="bg-emerald-500" text="text-white" />
           <ColorCard name="Warning" color="bg-amber-500" text="text-white" />
@@ -83,7 +83,7 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">按钮 Button</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-3">
             <div className="flex flex-wrap gap-2">
               <Button>Default</Button>
               <Button variant="secondary">Secondary</Button>
@@ -108,7 +108,7 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">徽章 Badge</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-3">
             <div className="flex flex-wrap gap-2">
               <Badge>Default</Badge>
               <Badge variant="primary">Primary</Badge>
@@ -129,8 +129,8 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">表单元素</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="p-6 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="name" required>姓名</Label>
                 <Input id="name" placeholder="请输入姓名" />
@@ -161,7 +161,7 @@ export default function UIShowcasePage() {
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Checkbox Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
                   <div className="w-5 h-5 rounded border-2 border-[var(--tp-primary)] bg-[var(--tp-primary)] flex items-center justify-center">
                     <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -207,7 +207,7 @@ export default function UIShowcasePage() {
               </div>
 
               {/* Radio Column */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
                   <div className="w-5 h-5 rounded-full border-2 border-[var(--tp-primary)] flex items-center justify-center">
                     <div className="w-2.5 h-2.5 rounded-full bg-[var(--tp-primary)]" />
@@ -337,7 +337,7 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">警告 Alert</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-3">
             <Alert>
               <AlertTitle>默认提示</AlertTitle>
               <AlertDescription>这是一条默认提示信息</AlertDescription>
@@ -434,7 +434,7 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">进度条 Progress</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-3">
             <Progress value={30} label="进行中" showValue />
             <Progress value={60} variant="success" label="成功进度" showValue />
             <Progress value={80} variant="warning" label="警告进度" showValue />
@@ -447,7 +447,7 @@ export default function UIShowcasePage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">骨架屏 Skeleton</h2>
         <Card>
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-3">
             <div className="flex items-center gap-4">
               <Skeleton circle className="h-12 w-12" />
               <div className="space-y-2">
@@ -519,7 +519,7 @@ export default function UIShowcasePage() {
       {/* Card Examples */}
       <section>
         <h2 className="text-xl font-semibold mb-4">卡片 Card</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Card>
             <CardHeader>
               <CardTitle>卡片标题</CardTitle>

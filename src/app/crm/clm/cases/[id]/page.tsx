@@ -33,6 +33,7 @@ import type {
 import { KYC_FLOW_STEP_LABELS } from "@/types/clm";
 import { useCurrentStaff, useCurrentStaffId } from "@/hooks/useCurrentStaff";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
+import { useToast } from "@/components/ui/use-toast";
 import {
   InfoRow, Collapsible, fmtDate, fmtDateTime, computeSLA as computeSLAShared, SLA_TONE,
 } from "@/components/crm/clm/case-detail/bits";
@@ -77,7 +78,7 @@ export default function CaseDetailPage() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     experience: true,
     agreements: true,
-    declarations: false,
+    declarations: true,
   });
   const allSectionsExpanded = Object.values(expandedSections).every(Boolean);
   const toggleAllSections = () => {
@@ -120,19 +121,78 @@ export default function CaseDetailPage() {
     setQuickNote("");
   }, [caseId]);
 
+  const toast = useToast();
+
   const h = {
-    approve:   async (n?: string) => { await caseService.approve(caseId, staffId, n); refresh(); },
+    approve:   async (n?: string) => {
+      try {
+        await caseService.approve(caseId, staffId, n);
+        setOpenDialog(null);
+        await refresh();
+        toast.success("Case approved");
+      } catch (err) {
+        console.error("[CLM] approve failed:", err);
+        toast.error(err instanceof Error ? err.message : "Please try again.", {
+          title: "Failed to approve case",
+        });
+        throw err;
+      }
+    },
     reject:    async (r: string, bl: boolean) => {
-      await caseService.reject(caseId, staffId, bl ? `BLACKLIST: ${r}` : r);
-      refresh();
+      try {
+        await caseService.reject(caseId, staffId, bl ? `BLACKLIST: ${r}` : r);
+        setOpenDialog(null);
+        await refresh();
+        toast.success(bl ? "Case rejected + blacklisted" : "Case rejected");
+      } catch (err) {
+        console.error("[CLM] reject failed:", err);
+        toast.error(err instanceof Error ? err.message : "Please try again.", {
+          title: "Failed to reject case",
+        });
+        throw err;
+      }
     },
-    resubmit:  async (r: string) => { await caseService.requestResubmission(caseId, staffId, r); refresh(); },
+    resubmit:  async (r: string) => {
+      try {
+        await caseService.requestResubmission(caseId, staffId, r);
+        setOpenDialog(null);
+        await refresh();
+        toast.success("Resubmission requested");
+      } catch (err) {
+        console.error("[CLM] resubmit failed:", err);
+        toast.error(err instanceof Error ? err.message : "Please try again.", {
+          title: "Failed to request resubmission",
+        });
+        throw err;
+      }
+    },
     escalate:  async (steps: string[], note: string) => {
-      const msg = steps.length ? `Escalate: add [${steps.join(", ")}]. Note: ${note}` : note;
-      await caseService.escalate(caseId, staffId, msg);
-      refresh();
+      try {
+        const msg = steps.length ? `Escalate: add [${steps.join(", ")}]. Note: ${note}` : note;
+        await caseService.escalate(caseId, staffId, msg);
+        setOpenDialog(null);
+        await refresh();
+        toast.success("Case escalated");
+      } catch (err) {
+        console.error("[CLM] escalate failed:", err);
+        toast.error(err instanceof Error ? err.message : "Please try again.", {
+          title: "Failed to escalate case",
+        });
+        throw err;
+      }
     },
-    accept:    async () => { await caseService.assign(caseId, staffId, staffId); refresh(); },
+    accept:    async () => {
+      try {
+        await caseService.assign(caseId, staffId, staffId);
+        await refresh();
+        toast.success("Case assigned to you");
+      } catch (err) {
+        console.error("[CLM] accept failed:", err);
+        toast.error(err instanceof Error ? err.message : "Please try again.", {
+          title: "Failed to assign case",
+        });
+      }
+    },
   };
 
   /** Timeline rendered newest-first. Comments are already part of the
@@ -147,7 +207,7 @@ export default function CaseDetailPage() {
     const text = content.trim();
     if (!text) return;
     const nc: CaseComment = {
-      id: `cmt-${Date.now()}`,
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       authorId: staffId,
       authorName: currentStaff?.username ?? "Operator",
       authorRole: currentStaff?.role?.name ?? "Reviewer",
@@ -212,9 +272,9 @@ export default function CaseDetailPage() {
       )}
 
       {/* Body */}
-      <div className="flex gap-4 mt-4">
+      <div className="flex gap-3 mt-3">
         {/* LEFT sidebar */}
-        <aside className="w-72 flex-shrink-0 space-y-4 sticky top-[64px] self-start">
+        <aside className="w-72 flex-shrink-0 space-y-3 sticky top-[64px] self-start">
           {/* Case info — first card (case no, chips, SLA, assignee, IP/device) */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             {/* Top row: case no */}
@@ -317,7 +377,7 @@ export default function CaseDetailPage() {
               {[
                 { label: "Profile", href: `/crm/clients/${caseItem.customerId}`,            icon: Shield },
                 { label: "Funds",   href: `/crm/clients/${caseItem.customerId}?tab=funds`,  icon: FileText },
-                { label: "Trades",  href: `/crm/clients/${caseItem.customerId}?tab=trades`, icon: Monitor },
+                { label: "Trading", href: `/crm/clients/${caseItem.customerId}?tab=trading`, icon: Monitor },
                 { label: "Risk",    href: `/crm/clients/${caseItem.customerId}?tab=risk`,   icon: AlertTriangle },
               ].map(({ label, href, icon: Icon }) => (
                 <Link key={label} href={href}
@@ -331,7 +391,7 @@ export default function CaseDetailPage() {
         </aside>
 
         {/* CENTER — type-based content */}
-        <main className="flex-1 min-w-0 space-y-4">
+        <main className="flex-1 min-w-0 space-y-3">
           <TypeBasedContent
             caseItem={caseItem}
             docMaterials={docMaterials}
@@ -467,7 +527,7 @@ function TypeBasedContent({
     case "agreement_signing":
       return caseItem.agreements && caseItem.agreements.length > 0 ? (
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">协议签署详情</h2>
+          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Agreement Signing Detail</h2>
           <AgreementSection data={caseItem.agreements} />
         </section>
       ) : null;
@@ -479,7 +539,7 @@ function TypeBasedContent({
           {docMaterials.length > 0 && (
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Submitted Documents</h2>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {docMaterials.map(m => (
                   <div key={m.id} className="space-y-2">
                     <div className="flex items-baseline justify-between gap-2 flex-wrap">
@@ -549,7 +609,7 @@ function SharedBottomSections({
           {allSectionsExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         </button>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {showExperience && caseItem.experience && (
           <Collapsible title="Experience Questionnaire" open={expandedSections.experience} onToggle={() => tog("experience")}>
             <ExperienceSection data={caseItem.experience} />
@@ -575,14 +635,14 @@ function SharedBottomSections({
 function LivenessContent({ result }: { result?: LivenessResult }) {
   if (!result) return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-      <p className="text-sm text-slate-400 text-center py-6">活体认证结果加载中…</p>
+      <p className="text-sm text-slate-400 text-center py-6">Loading liveness result…</p>
     </section>
   );
 
   const passed = result.confidenceScore >= 80;
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">活体认证结果</h2>
+      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Liveness Result</h2>
       <div className="flex items-start gap-6">
         <div className="text-center shrink-0">
           <div className={`w-20 h-20 rounded-full border-4 flex flex-col items-center justify-center ${
@@ -594,24 +654,24 @@ function LivenessContent({ result }: { result?: LivenessResult }) {
             <span className={`text-[10px] font-medium ${passed ? "text-emerald-600" : "text-red-600"}`}>/ 100</span>
           </div>
           <p className={`text-xs font-semibold mt-2 ${passed ? "text-emerald-600" : "text-red-600"}`}>
-            {passed ? "✓ 通过" : "✗ 未通过"}
+            {passed ? "✓ Passed" : "✗ Failed"}
           </p>
         </div>
         <div className="flex-1 space-y-2 text-xs">
-          <InfoRow label="供应商" value={result.provider} />
-          <InfoRow label="尝试次数" value={`${result.attemptCount} 次`} />
-          <InfoRow label="完成时间" value={fmtDate(result.completedAt)} />
-          <InfoRow label="最低通过线" value="80 分" />
+          <InfoRow label="Provider" value={result.provider} />
+          <InfoRow label="Attempts" value={`${result.attemptCount}`} />
+          <InfoRow label="Completed" value={fmtDate(result.completedAt)} />
+          <InfoRow label="Pass threshold" value="80" />
         </div>
       </div>
 
       {(result.selfieImageUrl || result.documentFaceImageUrl) && (
         <div className="mt-4 pt-4 border-t border-slate-100">
-          <p className="text-xs font-semibold text-slate-600 mb-3">人脸比对</p>
+          <p className="text-xs font-semibold text-slate-600 mb-3">Face Match</p>
           <div className="grid grid-cols-2 gap-3">
             {result.selfieImageUrl && (
               <div>
-                <p className="text-[11px] text-slate-500 mb-1.5">活体自拍</p>
+                <p className="text-[11px] text-slate-500 mb-1.5">Liveness Selfie</p>
                 <div className="aspect-square rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 overflow-hidden">
                   <User className="w-12 h-12" />
                 </div>
@@ -619,7 +679,7 @@ function LivenessContent({ result }: { result?: LivenessResult }) {
             )}
             {result.documentFaceImageUrl && (
               <div>
-                <p className="text-[11px] text-slate-500 mb-1.5">证件照片</p>
+                <p className="text-[11px] text-slate-500 mb-1.5">ID Photo</p>
                 <div className="aspect-square rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 overflow-hidden">
                   <User className="w-12 h-12" />
                 </div>
@@ -640,26 +700,26 @@ function POAContent({ detail, materials }: {
 }) {
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">住址证明审核</h2>
+      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Proof of Address Review</h2>
       {detail && (
         <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-          <InfoRow label="文件类型" value={detail.submittedDocumentType} />
+          <InfoRow label="Document Type" value={detail.submittedDocumentType} />
           {detail.documentIssuedDate && (
-            <InfoRow label="出具日期" value={fmtDate(detail.documentIssuedDate)} />
+            <InfoRow label="Issued" value={fmtDate(detail.documentIssuedDate)} />
           )}
           <div className="col-span-2">
-            <InfoRow label="申报地址" value={detail.declaredAddress} />
+            <InfoRow label="Declared Address" value={detail.declaredAddress} />
           </div>
           {detail.extractedAddress && (
             <div className="col-span-2">
-              <InfoRow label="文件提取地址" value={detail.extractedAddress} />
+              <InfoRow label="Extracted Address" value={detail.extractedAddress} />
             </div>
           )}
           {detail.addressMatch !== null && detail.addressMatch !== undefined && (
             <div className="col-span-2">
-              <InfoRow label="地址匹配" value={
+              <InfoRow label="Address Match" value={
                 <span className={`font-semibold ${detail.addressMatch ? "text-emerald-600" : "text-red-600"}`}>
-                  {detail.addressMatch ? "✓ 一致" : "✗ 不一致"}
+                  {detail.addressMatch ? "✓ Matches" : "✗ Mismatch"}
                 </span>
               } />
             </div>
@@ -695,7 +755,7 @@ function VideoContent({ detail, checks, onCheck }: {
 
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">视频认证审核</h2>
+      <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Video Verification Review</h2>
       <div className="rounded-lg bg-slate-900 aspect-video flex items-center justify-center mb-4 relative overflow-hidden">
         <div className="text-center">
           <Play className="w-10 h-10 text-white/40 mx-auto mb-2" />
@@ -707,19 +767,19 @@ function VideoContent({ detail, checks, onCheck }: {
         </div>
         {detail?.recordedAt && (
           <p className="absolute bottom-2 right-3 text-[10px] text-white/30">
-            录制于 {fmtDate(detail.recordedAt)}
+            Recorded {fmtDate(detail.recordedAt)}
           </p>
         )}
       </div>
       {detail?.checklist && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-slate-700">审核核查清单</p>
+            <p className="text-xs font-semibold text-slate-700">Review Checklist</p>
             {allDone && (
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
                 allPassed ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
               }`}>
-                {allPassed ? "✓ 全部通过" : "✗ 存在问题"}
+                {allPassed ? "✓ All passed" : "✗ Issues found"}
               </span>
             )}
           </div>
@@ -732,12 +792,12 @@ function VideoContent({ detail, checks, onCheck }: {
                   <div className="flex items-center gap-1">
                     <button onClick={() => onCheck(item.id, true)}
                       className={`p-1 rounded ${v === true ? "text-emerald-600" : "text-slate-300 hover:text-emerald-500"}`}
-                      title="通过">
+                      title="Pass">
                       <CheckCircle2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => onCheck(item.id, false)}
                       className={`p-1 rounded ${v === false ? "text-red-600" : "text-slate-300 hover:text-red-500"}`}
-                      title="未通过">
+                      title="Fail">
                       <XCircle className="w-4 h-4" />
                     </button>
                   </div>
@@ -746,7 +806,7 @@ function VideoContent({ detail, checks, onCheck }: {
             })}
           </div>
           {!allDone && (
-            <p className="text-[11px] text-slate-400 mt-2">请逐项标注审核结果后再做决策。</p>
+            <p className="text-[11px] text-slate-400 mt-2">Mark each item before making a decision.</p>
           )}
         </div>
       )}
@@ -1009,7 +1069,7 @@ function SubmissionContextSection({
       {personalInfo && (
         <div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">
-            注册时
+            At Registration
             <span className="font-normal text-slate-300 ml-1.5 normal-case">
               {fmtDate(personalInfo.registrationTime)}
             </span>
@@ -1041,7 +1101,7 @@ function SubmissionContextSection({
       {/* Opening (this case submission) */}
       <div>
         <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">
-          开户时
+          At Submission
           <span className="font-normal text-slate-300 ml-1.5 normal-case">
             {fmtDate(submission.submittedAt)}
           </span>
@@ -1172,7 +1232,7 @@ function FinalDecisionSummary({ caseItem }: { caseItem: CLMCase & Partial<CaseDe
         </span>
       </div>
       {caseItem.reviewedBy && (
-        <p className="text-slate-600">审核人：{caseItem.reviewedBy}</p>
+        <p className="text-slate-600">Reviewer: {caseItem.reviewedBy}</p>
       )}
       {caseItem.reviewedAt && (
         <p className="text-slate-500 mt-0.5">{fmtDate(caseItem.reviewedAt)}</p>
@@ -1219,14 +1279,14 @@ function EscalateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>升级审核流程</DialogTitle>
+          <DialogTitle>Escalate review</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-3 py-2">
           <div>
-            <p className="text-xs font-semibold text-slate-700 mb-2">选择需要新增的验证步骤</p>
+            <p className="text-xs font-semibold text-slate-700 mb-2">Add verification steps</p>
             {escalatableSteps.length === 0 ? (
-              <p className="text-xs text-slate-400 py-2">当前 Flow 已包含所有验证步骤，无法升级。</p>
+              <p className="text-xs text-slate-400 py-2">All verification steps are already part of this flow — nothing left to add.</p>
             ) : (
               <div className="space-y-2">
                 {escalatableSteps.map((s) => (
@@ -1247,11 +1307,19 @@ function EscalateDialog({
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-slate-700 mb-1.5">备注（可选）</p>
+            <p className="text-xs font-semibold text-slate-700 mb-1.5">
+              Note {escalatableSteps.length === 0
+                ? <span className="text-red-600">*</span>
+                : <span className="text-slate-400 font-normal">(optional)</span>}
+            </p>
             <textarea
               value={escalateNote}
               onChange={(e) => setEscalateNote(e.target.value)}
-              placeholder="升级原因或补充说明…"
+              placeholder={
+                escalatableSteps.length === 0
+                  ? "Required — explain why this case needs escalation."
+                  : "Reason or additional context for the escalation…"
+              }
               rows={3}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
@@ -1263,14 +1331,18 @@ function EscalateDialog({
             onClick={() => onOpenChange(false)}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors"
           >
-            取消
+            Cancel
           </button>
           <button
             onClick={handleConfirm}
-            disabled={loading || (escalatableSteps.length > 0 && escalateSteps.size === 0)}
+            disabled={
+              loading ||
+              (escalatableSteps.length > 0 && escalateSteps.size === 0) ||
+              (escalatableSteps.length === 0 && !escalateNote.trim())
+            }
             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "处理中…" : "确认升级"}
+            {loading ? "Escalating…" : "Confirm Escalate"}
           </button>
         </DialogFooter>
       </DialogContent>
@@ -1508,18 +1580,19 @@ function BottomActionBar({
         {/* Left spacer — matches left aside width */}
         <div className="w-72 flex-shrink-0 hidden lg:block" />
 
-        {/* Center — note input (left) + decision buttons (right) */}
-        <div className="flex-1 min-w-0 flex items-center gap-3">
+        {/* Center — both note and decision buttons right-aligned so they
+            cluster together on the right edge of the document column. */}
+        <div className="flex-1 min-w-0 flex items-center justify-end gap-3">
           {/* Note quick-input */}
-          <div className="flex-1 flex items-center gap-2 min-w-0">
-            <div className="flex-1 relative">
+          <div className="flex items-center gap-2 min-w-0 w-72">
+            <div className="flex-1 relative min-w-0">
               <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
                 value={quickNote}
                 onChange={(e) => setQuickNote(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitNote(); } }}
-                placeholder="Add a note… (Enter to send)"
+                placeholder="Add a note…"
                 className="w-full pl-9 pr-3 h-9 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
               />
             </div>
@@ -1534,7 +1607,7 @@ function BottomActionBar({
           </div>
 
           {/* Decision buttons */}
-          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {isPending && (
               <button
                 onClick={onAccept}

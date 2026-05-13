@@ -141,7 +141,7 @@ export function RoleForm({ role, open, onOpenChange, onSuccess }: RoleFormProps)
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto pr-2 space-y-6">
             {/* Basic Info */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-sm font-medium text-[var(--tp-fg)] border-b border-gray-200 dark:border-gray-700 pb-2">
                 基本信息
               </h3>
@@ -182,7 +182,7 @@ export function RoleForm({ role, open, onOpenChange, onSuccess }: RoleFormProps)
             </div>
 
             {/* Permissions */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-sm font-medium text-[var(--tp-fg)] border-b border-gray-200 dark:border-gray-700 pb-2">
                 权限配置
               </h3>

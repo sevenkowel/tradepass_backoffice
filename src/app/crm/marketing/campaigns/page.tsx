@@ -346,7 +346,7 @@ export default function CampaignsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "进行中活动", value: stats.active, color: "text-emerald-600", bg: "bg-emerald-100", icon: Play },
           { label: "总预算", value: fmt(stats.totalBudget), color: "text-blue-600", bg: "bg-blue-100", icon: BarChart3 },
@@ -404,7 +404,7 @@ export default function CampaignsPage() {
           description="还没有营销活动，点击右上角新建第一个"
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filtered.map((campaign) => {
             const cfg = STATUS_CFG[campaign.status];
             const typeCfg = TYPE_CFG[campaign.type];

@@ -24,7 +24,7 @@ export function DocumentPreview({ material, className, showUserComparison = fals
 
   return (
     <>
-      <div className={cn("space-y-4", className)}>
+      <div className={cn("space-y-3", className)}>
         {/* Header used to render its own `material.label` + status pill,
             but the parent page (Case Detail) already owns the title and
             shows a richer VerificationChip — duplicating both made each

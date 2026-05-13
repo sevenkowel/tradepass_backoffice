@@ -272,7 +272,7 @@ function OverviewTab({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <Card padding="md">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
           Metadata
@@ -811,7 +811,7 @@ function SigningTab({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <Card padding="md">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
           Reading controls

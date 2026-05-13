@@ -99,7 +99,7 @@ export default function FunnelPage() {
           <span className="text-sm text-gray-500 ml-auto">总转化率: {overallRate}%</span>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {conversionRates.map((stage, i) => (
             <div key={stage.id} className="relative">
               <div className="flex items-center gap-4">
@@ -185,7 +185,7 @@ export default function FunnelPage() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">

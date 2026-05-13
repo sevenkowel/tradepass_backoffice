@@ -17,8 +17,9 @@
  * The page now answers a single question: "what should I do next?"
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Inbox,
   Clock,
@@ -38,14 +39,55 @@ import { useCurrentStaffId, useCurrentStaffName } from "@/hooks/useCurrentStaff"
 
 type TaskFilter = "pending" | "near_timeout" | "escalated";
 
+const TASK_FILTERS: TaskFilter[] = ["pending", "near_timeout", "escalated"];
+
+function isTaskFilter(v: string | null): v is TaskFilter {
+  return v !== null && (TASK_FILTERS as string[]).includes(v);
+}
+
 export default function WorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <WorkspacePageInner />
+    </Suspense>
+  );
+}
+
+function WorkspacePageInner() {
   const staffId = useCurrentStaffId();
   const staffName = useCurrentStaffName();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [myTasks, setMyTasks] = useState<CLMCase[]>([]);
   const [riskAlerts, setRiskAlerts] = useState<RiskAlert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<TaskFilter>("pending");
+
+  const tabParam = searchParams.get("tab");
+  const initialFilter: TaskFilter = isTaskFilter(tabParam) ? tabParam : "pending";
+  const [filter, setFilter] = useState<TaskFilter>(initialFilter);
+
+  // Reflect external URL changes (back / forward) into local state.
+  useEffect(() => {
+    if (isTaskFilter(tabParam) && tabParam !== filter) {
+      setFilter(tabParam);
+    }
+  }, [tabParam, filter]);
+
+  // Mirror filter changes back into the URL so the tab survives reloads
+  // and is sharable via copy/paste.
+  const handleFilterChange = useCallback(
+    (next: TaskFilter) => {
+      setFilter(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "pending") params.delete("tab");
+      else params.set("tab", next);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -128,7 +170,7 @@ export default function WorkspacePage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* My Tasks (col-span-2) */}
         <Card padding="none" className="lg:col-span-2">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
@@ -152,7 +194,7 @@ export default function WorkspacePage() {
             ).map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setFilter(tab.key)}
+                onClick={() => handleFilterChange(tab.key)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
                   filter === tab.key
                     ? "bg-white text-primary shadow-sm border border-slate-200"

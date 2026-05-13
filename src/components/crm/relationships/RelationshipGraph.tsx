@@ -293,7 +293,7 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
   if (!data) return null;
 
   return (
-    <div className="space-y-4" ref={containerRef}>
+    <div className="space-y-3" ref={containerRef}>
       {/* Controls */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex-1 min-w-[240px] relative">

@@ -11,7 +11,7 @@ interface RiskAssessmentPanelProps {
 
 export function RiskAssessmentPanel({ assessment, className }: RiskAssessmentPanelProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* Risk Score Header */}
       <div className="flex items-center gap-4">
         <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold", {

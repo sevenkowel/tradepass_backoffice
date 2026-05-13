@@ -31,7 +31,7 @@ export default function ReviewPolicyPage() {
   const [tab, setTab] = useState<Tab>("auto");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Review Policy" }]} />
       <PageHeader title="Review Policy" description="Auto-review thresholds and manual routing configuration"
         actions={<Button variant="secondary"><Play size={16} /> Simulate</Button>}

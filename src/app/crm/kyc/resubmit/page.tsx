@@ -31,11 +31,11 @@ export default function ResubmissionPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Resubmission" }]} />
       <PageHeader title="Resubmission Center" description="Review supplemental document submissions" />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="!p-4"><p className="text-sm text-slate-500">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{records.length}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Overdue</p><p className="text-2xl font-bold text-red-600 mt-1">{records.filter(r => !!r.submittedAt && (Date.now() - new Date(r.submittedAt).getTime()) > 72*3600000).length}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Avg Response</p><p className="text-2xl font-bold mt-1">-</p></Card>

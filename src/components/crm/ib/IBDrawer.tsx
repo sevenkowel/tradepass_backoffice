@@ -64,7 +64,7 @@ export function IBDrawer({ ib, open, onClose }: IBDrawerProps) {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
               <Users className="w-4 h-4" />
@@ -100,7 +100,7 @@ export function IBDrawer({ ib, open, onClose }: IBDrawerProps) {
         </div>
 
         {/* Volume & Deposit */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
               <TrendingUp className="w-4 h-4" />

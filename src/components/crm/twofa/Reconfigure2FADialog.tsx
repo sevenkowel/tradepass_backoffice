@@ -101,7 +101,7 @@ export function Reconfigure2FADialog({ open, onOpenChange }: Reconfigure2FADialo
         </DialogHeader>
 
         {step === "verify" && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-800">
@@ -178,7 +178,7 @@ export function Reconfigure2FADialog({ open, onOpenChange }: Reconfigure2FADialo
         )}
 
         {step === "qrcode" && setupData && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground text-center">
               扫描新的二维码完成重新配置
             </p>
@@ -240,7 +240,7 @@ export function Reconfigure2FADialog({ open, onOpenChange }: Reconfigure2FADialo
         )}
 
         {step === "confirm" && backupCodes && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="text-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Check className="w-6 h-6 text-green-600" />

@@ -19,14 +19,14 @@ export default function OverviewTab({ data }: BaseTabProps) {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label={t("clients.detail.overview.kpi.balance")} value={`$${valueMetrics.currentBalance.toLocaleString()}`} icon={Wallet} color="blue" />
         <KpiCard label={t("clients.detail.overview.kpi.netDeposit")} value={`$${valueMetrics.netDeposit.toLocaleString()}`} icon={ArrowDownLeft} color="emerald" />
         <KpiCard label={t("clients.detail.overview.kpi.profit")} value={`+$${valueMetrics.totalProfit.toLocaleString()}`} icon={TrendingUp} color="violet" />
         <KpiCard label={t("clients.detail.overview.kpi.openPositions")} value={`${valueMetrics.openPositions}`} icon={Activity} color="amber" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label={t("clients.detail.overview.kpi.totalDeposit")} value={`$${(user.totalDeposit || 0).toLocaleString()}`} icon={ArrowDownLeft} color="slate" />
         <KpiCard label={t("clients.detail.overview.kpi.totalWithdrawal")} value={`$${(user.totalWithdrawal || 0).toLocaleString()}`} icon={ArrowUpRight} color="slate" />
         <KpiCard label={t("clients.detail.overview.kpi.equity")} value={`$${valueMetrics.equity.toLocaleString()}`} icon={Wallet} color="slate" />

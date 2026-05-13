@@ -207,7 +207,7 @@ export default function SecurityLogsPage() {
       <PageHeader title="安全事件日志" description="查看和处理系统安全事件和告警" />
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         <Card className="!p-4">
           <p className="text-sm text-slate-500">今日事件</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{events.length}</p>

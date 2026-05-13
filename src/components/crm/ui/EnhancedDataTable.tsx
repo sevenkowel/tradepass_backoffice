@@ -317,7 +317,7 @@ export function EnhancedDataTable<T>({
   const hasHidden = hiddenKeys.size > 0;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       {/*
         One outer wrapper hosts the toolbar and the scroll container so
         the rounded-xl border + radius is applied to the whole "card"

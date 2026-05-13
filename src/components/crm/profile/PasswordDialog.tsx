@@ -153,7 +153,7 @@ export function PasswordDialog({ open, onOpenChange, onSubmit, isSubmitting }: P
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-3 mt-4">
           <PasswordInput
             label="当前密码"
             value={formData.currentPassword}

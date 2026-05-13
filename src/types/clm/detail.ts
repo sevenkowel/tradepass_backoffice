@@ -18,12 +18,12 @@ export type KYCFlowStepId =
   | "video_verification";
 
 export const KYC_FLOW_STEP_LABELS: Record<KYCFlowStepId, string> = {
-  phone_email:        "手机 / 邮箱验证",
-  document:           "证件认证",
-  liveness:           "活体认证",
-  poa:                "住址证明",
-  income_proof:       "收入证明",
-  video_verification: "视频认证",
+  phone_email:        "Phone / Email Verification",
+  document:           "Identity Document",
+  liveness:           "Liveness Check",
+  poa:                "Proof of Address",
+  income_proof:       "Income Proof",
+  video_verification: "Video Verification",
 };
 
 export interface KYCFlowStepInfo {

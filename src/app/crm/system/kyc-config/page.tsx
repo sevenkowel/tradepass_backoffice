@@ -322,7 +322,7 @@ function DashboardTab({ config }: { config: UnifiedKYCConfig }) {
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -507,7 +507,7 @@ function RegionsTab({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {regions.map(([code, region]) => (
             <motion.div
               key={code}
@@ -693,7 +693,7 @@ function RegionsTab({
               Features
             </h4>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {/* OCR */}
               <div className="p-4 bg-[var(--tp-surface-2)] rounded-lg">
                 <div className="flex items-center justify-between mb-3">
@@ -963,7 +963,7 @@ function StagesTab({
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {stages.map(([id, stage]) => (
           <div
             key={id}
@@ -992,7 +992,7 @@ function StagesTab({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <label className="flex items-center gap-2 p-3 bg-[var(--tp-surface-2)] rounded-lg cursor-pointer">
                 <input
                   type="checkbox"
@@ -1101,7 +1101,7 @@ function TiersTab({
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {config.tiers.map((tier) => (
           <div
             key={tier.level}
@@ -1122,7 +1122,7 @@ function TiersTab({
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <div className="text-sm font-medium text-[var(--tp-fg)] mb-2">
                   Required Stages
@@ -1149,7 +1149,7 @@ function TiersTab({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[var(--tp-border)]">
+              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--tp-border)]">
                 <div>
                   <div className="text-xs text-[var(--tp-fg-muted)] mb-1">Daily Deposit Limit</div>
                   <input
@@ -1369,7 +1369,7 @@ function SettingsTab({
           System Status
         </h4>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <label className="flex items-center justify-between p-4 bg-[var(--tp-surface-2)] rounded-lg cursor-pointer">
             <span className="text-[var(--tp-fg)]">System Enabled</span>
             <input
@@ -1399,7 +1399,7 @@ function SettingsTab({
           Default Settings
         </h4>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-[var(--tp-fg-muted)] mb-2">
               Default Region
@@ -1471,7 +1471,7 @@ function SettingsTab({
           Auto Approval
         </h4>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <label className="flex items-center justify-between p-4 bg-[var(--tp-surface-2)] rounded-lg cursor-pointer">
             <span className="text-[var(--tp-fg)]">Auto Approval Enabled</span>
             <input

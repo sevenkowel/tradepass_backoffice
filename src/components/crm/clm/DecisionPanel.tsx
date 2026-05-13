@@ -165,7 +165,7 @@ export function DecisionPanel({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* ── Risk Summary ── */}
       {(riskScore !== undefined || hasRiskFlags) && (
         <div className="space-y-3">

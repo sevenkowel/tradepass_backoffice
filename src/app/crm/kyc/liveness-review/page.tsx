@@ -16,11 +16,11 @@ export default function LivenessReviewPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Liveness Review" }]} />
       <PageHeader title="Liveness Review" description="Review liveness detection results and video recordings" />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="!p-4"><p className="text-sm text-slate-500">Total</p><p className="text-2xl font-bold mt-1">{records.length}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{records.filter(r => r.status === "pending").length}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Passed</p><p className="text-2xl font-bold text-emerald-600 mt-1">{records.filter(r => r.status === "passed").length}</p></Card>

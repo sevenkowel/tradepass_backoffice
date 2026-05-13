@@ -237,7 +237,7 @@ function ArticleDrawer({ article, onClose, onPublish, onArchive }: {
         </div>
 
         {/* Author & region */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-[var(--tp-fg-muted)] mb-1">作者</p>
             <div className="flex items-center gap-1.5">
@@ -365,7 +365,7 @@ export default function NewsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "文章总数", value: articles.length, icon: <Newspaper className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "已发布", value: publishedCount, icon: <CheckCircle className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },

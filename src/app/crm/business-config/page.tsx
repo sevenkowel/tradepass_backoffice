@@ -133,7 +133,7 @@ export default function BusinessConfigPage() {
 
       {/* Config Item Cards */}
       {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="!p-6 animate-pulse">
               <div className="h-6 bg-slate-200 rounded w-3/4 mb-3" />
@@ -143,7 +143,7 @@ export default function BusinessConfigPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {configItems.map((item) => (
             <Link key={item.key} href={item.href} className={cn(item.href === "#" && "pointer-events-none")}>
               <Card className="!p-5 h-full transition-all duration-200 hover:shadow-md hover:border-blue-200 cursor-pointer group">

@@ -153,7 +153,7 @@ export default function PromoManagementPage() {
         <Card className="mb-6">
           <CardContent className="p-5">
             <h3 className="text-sm font-semibold mb-4 text-[rgb(var(--tp-fg-rgb))]">新建优惠码</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="text-xs text-[rgba(var(--tp-fg-rgb),0.5)] mb-1 block">优惠码 *</label>
                 <Input
@@ -253,7 +253,7 @@ export default function PromoManagementPage() {
           description="点击上方按钮创建第一个优惠码"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {promos.map((promo) => (
             <Card key={promo.id} className={cn("overflow-hidden", !promo.isActive && "opacity-60")}>
               <CardContent className="p-4">

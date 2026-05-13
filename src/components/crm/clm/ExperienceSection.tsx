@@ -11,7 +11,7 @@ interface ExperienceSectionProps {
 
 export function ExperienceSection({ data, className }: ExperienceSectionProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* Family */}
       <SectionCard icon={<Users className="w-4 h-4" />} title="Family Information">
         <div className="grid grid-cols-2 gap-3">

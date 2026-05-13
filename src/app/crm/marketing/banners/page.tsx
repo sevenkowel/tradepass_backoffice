@@ -216,7 +216,7 @@ function BannerDetailDrawer({ banner, onClose, onToggle }: { banner: Banner; onC
 
         {/* Date range */}
         {(banner.startDate || banner.endDate) && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {banner.startDate && (
               <div>
                 <p className="text-xs text-[var(--tp-fg-muted)] mb-1">开始日期</p>
@@ -319,7 +319,7 @@ export default function BannersPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "上线中", value: activeCount, icon: <ToggleRight className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },
           { label: "总曝光", value: fmt(totalImpressions), icon: <Eye className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
@@ -370,7 +370,7 @@ export default function BannersPage() {
       {filtered.length === 0 ? (
         <EmptyState icon={<Image className="w-12 h-12" />} title="暂无 Banner" description="调整筛选条件或上传新 Banner" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <AnimatePresence>
             {filtered.map((banner, i) => (
               <motion.div

@@ -27,7 +27,6 @@ export type CLMCaseType =
   | "edd"
   | "source_of_wealth"
   | "agreement_signing"
-  | "risk_recheck"
   | "manual_review"
   // Phase 4 / PRD-driven: every Re-Verification request spawns a case
   // of this type once the user submits. The case type is stable across

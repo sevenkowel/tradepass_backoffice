@@ -202,7 +202,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
                       基本信息
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="flex items-center gap-3">
                         <Mail className="w-4 h-4 text-slate-400" />
                         <div>
@@ -243,7 +243,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                   </div>
 
                   {/* Account Summary */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-4">
                       <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-1">
                         <Wallet className="w-4 h-4" />
@@ -313,7 +313,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
 
               {/* Accounts Tab */}
               {activeTab === "accounts" && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {mockAccounts.map((account) => (
                     <div
                       key={account.id}
@@ -332,7 +332,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                           管理
                         </button>
                       </div>
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-4 gap-3">
                         <div>
                           <div className="text-xs text-slate-500 mb-1">余额</div>
                           <div className="font-semibold text-slate-900 dark:text-white">
@@ -491,7 +491,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-xl">
                       <div className="text-xs text-slate-500 mb-2">身份证</div>
                       <div className="flex items-center gap-2">
@@ -538,7 +538,7 @@ export function UserDetailDrawer({ user, isOpen, onClose }: UserDetailDrawerProp
                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
                       推荐统计
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-center">
                         <div className="text-2xl font-bold text-slate-900 dark:text-white">
                           12

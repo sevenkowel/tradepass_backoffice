@@ -38,8 +38,8 @@ function DocumentCard({ doc, riskIndicators }: { doc: KYCDocument; riskIndicator
   const docTypeLabel = (type: DocumentType) => t(`clients.detail.kyc.docType.${type}`);
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="bg-slate-100 rounded-xl p-4 flex flex-col items-center justify-center min-h-[280px]">
           <div className="w-full h-48 bg-slate-200 rounded-lg flex items-center justify-center border-2 border-dashed border-slate-300">
             <div className="text-center">

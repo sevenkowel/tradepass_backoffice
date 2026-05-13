@@ -106,7 +106,7 @@ const EMPTY: DraftRule = {
   scanFrequency: "daily",
   conditions: [{ field: "country", operator: "eq", value: "" }],
   type: "re_identity",
-  level: "important",
+  level: "restrict",
   scopes: ["withdrawal"],
   validityHours: 24 * 7,
   channels: ["email", "inbox", "login_popup"],
@@ -598,10 +598,9 @@ export function ReVerificationRulesTab() {
                   setDraft({ ...draft, level: e.target.value as RestrictionLevel })
                 }
                 options={[
-                  { label: "Soft Reminder", value: "soft_reminder" },
-                  { label: "Important", value: "important" },
-                  { label: "Blocking", value: "blocking" },
-                  { label: "Full Restriction", value: "full_restriction" },
+                  { label: "Notice",   value: "notice" },
+                  { label: "Restrict", value: "restrict" },
+                  { label: "Suspend",  value: "suspend" },
                 ]}
               />
             </Field>

@@ -338,36 +338,6 @@ export const mockCases: CLMCase[] = [
     reviewDecision: "approve",
   },
 
-  // === Risk Recheck ===
-  {
-    id: "case-015",
-    caseNo: nextCaseNo("risk"),
-    customerId: "cust-014",
-    customerName: "Andersson Erik",
-    customerUid: "10028404",
-    country: "SE",
-    // Risk-team detection of unusual trading drives a *compliance*
-    // re-check of the user's KYC profile — that's a CLM responsibility,
-    // tracked as `risk_recheck`. The trading anomaly itself stays on
-    // the Risk module's side; this case is the compliance follow-up.
-    type: "risk_recheck",
-    status: "reviewing",
-    riskLevel: "high",
-    amlStatus: "hit",
-    triggerSource: "KYC re-check after risk-side trading anomaly flag",
-    assigneeId: "staff-003",
-    assigneeName: "Senior Reviewer",
-    slaMinutes: 60,
-    slaDueAt: minsAgo(30),
-    slaStatus: "normal",
-    createdAt: hoursAgo(-1),
-    updatedAt: minsAgo(-15),
-    kycLevel: "tier1",
-    priority: "normal",
-    sourceChannel: "website",
-    autoReviewResult: "not_checked",
-  },
-
   // === Manual Review ===
   {
     id: "case-016",

@@ -28,7 +28,7 @@ export function AutoReviewSection({ data, className }: AutoReviewSectionProps) {
   ];
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       <h3 className="text-base font-semibold text-gray-900">Review Engine Results</h3>
 
       {/* Overall Verdict */}

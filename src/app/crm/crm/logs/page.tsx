@@ -221,7 +221,7 @@ function LogDetailDrawer({ log, onClose }: { log: CommunicationLog; onClose: () 
         </div>
 
         {/* Details */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {log.duration && (
             <div>
               <p className="text-xs text-[var(--tp-fg-muted)] mb-1">沟通时长</p>
@@ -316,7 +316,7 @@ export default function CommunicationLogsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "记录总数", value: logs.length, icon: <FileText className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "已解决", value: resolvedCount, icon: <CheckCircle className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },

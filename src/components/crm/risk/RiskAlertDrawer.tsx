@@ -102,7 +102,7 @@ export function RiskAlertDrawer({ alert, open, onClose }: RiskAlertDrawerProps) 
         <div>
           <h4 className="text-sm font-medium text-gray-900 mb-3">Account Information</h4>
           <div className="bg-gray-50 rounded-xl p-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <div className="text-xs text-gray-500">Account ID</div>
                 <div className="text-sm font-medium text-gray-900">
@@ -145,7 +145,7 @@ export function RiskAlertDrawer({ alert, open, onClose }: RiskAlertDrawerProps) 
         {/* Timeline */}
         <div>
           <h4 className="text-sm font-medium text-gray-900 mb-3">Timeline</h4>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex gap-3">
               <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
               <div>

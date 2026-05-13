@@ -51,6 +51,17 @@ class AuditService implements IAuditService {
       .filter((l) => l.targetId === caseId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
+
+  async log(entry: Omit<CLMAuditLog, "id" | "auditId" | "createdAt">): Promise<void> {
+    const now = new Date().toISOString();
+    const record: CLMAuditLog = {
+      id: crypto.randomUUID(),
+      auditId: `AUD-${now.replace(/[^0-9]/g, "").slice(0, 14)}`,
+      createdAt: now,
+      ...entry,
+    };
+    this.logs.unshift(record);
+  }
 }
 
 export const auditService = new AuditService();

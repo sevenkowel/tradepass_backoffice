@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowUpRight, UserPlus, ExternalLink, ScrollText, Shield, Timer, Clock } from "lucide-react";
 import {
   PageHeader,
@@ -19,7 +19,7 @@ import { SLABadge } from "@/components/crm/ui/SLABadge";
 import { CaseTypeBadge } from "@/components/crm/ui/CaseTypeBadge";
 import { AMLStatusBadge } from "@/components/crm/ui/AMLStatusBadge";
 import { BadgeBase, type BadgeTone } from "@/components/crm/ui/BadgeBase";
-import type { CLMCase, CaseListParams, CLMCaseStatus, KYCLevel, Priority, SourceChannel, AutoReviewVerdict } from "@/types/clm";
+import type { CLMCase, CaseListParams, CLMCaseStatus, Priority, SourceChannel, AutoReviewVerdict } from "@/types/clm";
 import { useCurrentStaffId } from "@/hooks/useCurrentStaff";
 import { useListWithFilters } from "@/hooks/useListWithFilters";
 import { useGlobalSLATick } from "@/hooks/useGlobalSLATick";
@@ -94,23 +94,6 @@ function SLACell({ slaDueAt }: { slaDueAt: string }) {
   );
 }
 
-// ─── KYC Level Badge — quiet ring chip ──────────────────────────
-function LevelBadge({ level }: { level?: KYCLevel }) {
-  if (!level) return <span className="text-xs text-slate-300">—</span>;
-  const ring: Record<KYCLevel, string> = {
-    tier0: "ring-slate-200 text-slate-600",
-    tier1: "ring-blue-200 text-blue-700",
-    tier2: "ring-violet-200 text-violet-700",
-    tier3: "ring-amber-200 text-amber-700",
-    tier4: "ring-emerald-200 text-emerald-700",
-  };
-  return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide ring-1 bg-white ${ring[level]}`}>
-      {level.replace("tier", "T")}
-    </span>
-  );
-}
-
 // ─── Priority Badge ─────────────────────────────────────────────
 function PriorityBadge({ priority }: { priority?: Priority }) {
   if (!priority || priority === "normal") return null;
@@ -138,9 +121,63 @@ function AutoReviewBadge({ result }: { result?: AutoReviewVerdict }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors[result]}`}>{result}</span>;
 }
 
+/* URL ⇄ filter mapping — single source of truth so deep-links from
+ * Workspace KPI tiles and Audit Trail rows hydrate the table state. */
+const URL_FILTER_KEYS = [
+  "caseType", "riskLevel", "country", "amlStatus", "slaStatus", "status",
+  "assignee", "priority", "sourceChannel", "autoReview", "search",
+  "startDate", "endDate",
+] as const;
+
+type UrlFilterKey = (typeof URL_FILTER_KEYS)[number];
+
+function urlToFilters(sp: URLSearchParams): Partial<CaseListParams> {
+  const out: Partial<CaseListParams> = {};
+  for (const key of URL_FILTER_KEYS) {
+    const value = sp.get(key);
+    if (!value) continue;
+    if (key === "autoReview") out.autoReviewResult = value as AutoReviewVerdict;
+    else (out as Record<string, unknown>)[key] = value;
+  }
+  return out;
+}
+
+function filtersToUrl(filters: Partial<CaseListParams>): string {
+  const sp = new URLSearchParams();
+  const map: Record<UrlFilterKey, unknown> = {
+    caseType: filters.caseType,
+    riskLevel: filters.riskLevel,
+    country: filters.country,
+    amlStatus: filters.amlStatus,
+    slaStatus: filters.slaStatus,
+    status: filters.status,
+    assignee: filters.assignee,
+    priority: filters.priority,
+    sourceChannel: filters.sourceChannel,
+    autoReview: filters.autoReviewResult,
+    search: filters.search,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  };
+  for (const [k, v] of Object.entries(map)) {
+    if (v != null && v !== "") sp.set(k, String(v));
+  }
+  return sp.toString();
+}
+
 // ─── Page Component ─────────────────────────────────────────────
 export default function ReviewQueuePage() {
+  return (
+    <Suspense fallback={null}>
+      <ReviewQueuePageInner />
+    </Suspense>
+  );
+}
+
+function ReviewQueuePageInner() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const staffId = useCurrentStaffId();
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
@@ -158,6 +195,11 @@ export default function ReviewQueuePage() {
     []
   );
 
+  // Hydrate filter state from the URL on the first render only. After
+  // that the page is the source of truth and pushes changes back to the
+  // URL via `router.replace`.
+  const initialFilters = useMemo(() => urlToFilters(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Single state-machine for page / filters / fetch (replaces the 4
   // local useState + useCallback + useEffect that lived here before).
   const list = useListWithFilters<CLMCase, Partial<CaseListParams>>({
@@ -168,10 +210,21 @@ export default function ReviewQueuePage() {
           items: r.items,
           total: r.total,
         })),
-    initialFilters: {},
+    initialFilters,
     pageSize: 10,
   });
   const { items: cases, loading, total, page, filters } = list;
+
+  // Mirror filter changes back into the URL — deep-links from elsewhere
+  // (Workspace KPI tiles, Audit Trail rows) stay in sync.
+  const lastQs = useRef<string | null>(null);
+  useEffect(() => {
+    const qs = filtersToUrl(filters);
+    if (qs === lastQs.current) return;
+    lastQs.current = qs;
+    const target = qs ? `${pathname}?${qs}` : pathname;
+    router.replace(target, { scroll: false });
+  }, [filters, pathname, router]);
 
   const handleFilterChange = useCallback((newFilters: Record<string, unknown>) => {
     const params: Partial<CaseListParams> = {};
@@ -182,7 +235,6 @@ export default function ReviewQueuePage() {
     if (newFilters.slaStatus) params.slaStatus = newFilters.slaStatus as CLMCase["slaStatus"];
     if (newFilters.status) params.status = newFilters.status as CLMCase["status"];
     if (newFilters.assignee) params.assignee = newFilters.assignee as string;
-    if (newFilters.kycLevel) params.customerTier = newFilters.kycLevel as string;
     if (newFilters.priority) params.priority = newFilters.priority as Priority;
     if (newFilters.sourceChannel) params.sourceChannel = newFilters.sourceChannel as SourceChannel;
     if (newFilters.autoReview) params.autoReviewResult = newFilters.autoReview as AutoReviewVerdict;
@@ -269,17 +321,7 @@ export default function ReviewQueuePage() {
       sortable: true,
       render: (row) => <AMLStatusBadge status={row.amlStatus} />,
     },
-    // 5. KYC Level — toned down (small ring chip). Hidden by default;
-    //    most reviewers don't filter on tier day-to-day.
-    {
-      key: "kycLevel",
-      title: "Level",
-      width: "70px",
-      sortable: true,
-      defaultHidden: true,
-      render: (row) => <LevelBadge level={row.kycLevel} />,
-    },
-    // 6. Status — unified BadgeBase
+    // 5. Status — unified BadgeBase
     {
       key: "status",
       title: "Status",
@@ -353,11 +395,15 @@ export default function ReviewQueuePage() {
   ];
 
   // ─── Filters ──────────────────────────────────────────────────
+  // The `value` field hydrates the FilterBar from the current filter
+  // state — that's what lets deep-links like `?assignee=me` render with
+  // the chip pre-selected on first paint.
   const filterOptions = [
     {
       key: "caseType",
       label: "Task Type",
       type: "select" as const,
+      value: filters.caseType ?? "",
       options: [
         { label: "KYC", value: "kyc" },
         { label: "POA", value: "poa" },
@@ -370,6 +416,7 @@ export default function ReviewQueuePage() {
       key: "riskLevel",
       label: "Risk Level",
       type: "select" as const,
+      value: filters.riskLevel ?? "",
       options: [
         { label: "Low", value: "low" },
         { label: "Medium", value: "medium" },
@@ -381,6 +428,7 @@ export default function ReviewQueuePage() {
       key: "amlStatus",
       label: "AML Status",
       type: "select" as const,
+      value: filters.amlStatus ?? "",
       options: [
         { label: "Pass", value: "pass" },
         { label: "Hit", value: "hit" },
@@ -389,21 +437,10 @@ export default function ReviewQueuePage() {
       ],
     },
     {
-      key: "kycLevel",
-      label: "KYC Level",
-      type: "select" as const,
-      options: [
-        { label: "Tier 0", value: "tier0" },
-        { label: "Tier 1", value: "tier1" },
-        { label: "Tier 2", value: "tier2" },
-        { label: "Tier 3", value: "tier3" },
-        { label: "Tier 4", value: "tier4" },
-      ],
-    },
-    {
       key: "priority",
       label: "Priority",
       type: "select" as const,
+      value: filters.priority ?? "",
       options: [
         { label: "VIP", value: "vip" },
         { label: "High Risk", value: "high_risk" },
@@ -414,6 +451,7 @@ export default function ReviewQueuePage() {
       key: "slaStatus",
       label: "SLA Status",
       type: "select" as const,
+      value: filters.slaStatus ?? "",
       options: [
         { label: "Normal", value: "normal" },
         { label: "Near Timeout", value: "near_timeout" },
@@ -424,6 +462,7 @@ export default function ReviewQueuePage() {
       key: "status",
       label: "Case Status",
       type: "select" as const,
+      value: filters.status ?? "",
       // Review Queue is locked to active statuses (see ACTIVE_STATUSES
       // above). Terminal statuses live in `/crm/clm/cases`.
       options: [
@@ -437,6 +476,7 @@ export default function ReviewQueuePage() {
       key: "assignee",
       label: "Reviewer",
       type: "select" as const,
+      value: filters.assignee ?? "",
       options: [
         { label: "Unassigned", value: "unassigned" },
         { label: "Me", value: "me" },
@@ -446,6 +486,7 @@ export default function ReviewQueuePage() {
       key: "sourceChannel",
       label: "Source",
       type: "select" as const,
+      value: filters.sourceChannel ?? "",
       options: [
         { label: "Website", value: "website" },
         { label: "IB", value: "ib" },
@@ -458,6 +499,7 @@ export default function ReviewQueuePage() {
       key: "autoReview",
       label: "Auto Review",
       type: "select" as const,
+      value: filters.autoReviewResult ?? "",
       options: [
         { label: "Pass", value: "pass" },
         { label: "Reject", value: "reject" },

@@ -18,7 +18,7 @@ export default function AccountsTab({ data }: BaseTabProps) {
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {accounts.map((account) => (
           <AccountCard key={account.id} account={account} />
         ))}
@@ -62,7 +62,7 @@ function AccountCard({ account }: { account: TradingAccount }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Metric label="余额" value={`$${account.balance.toLocaleString()}`} />
         <Metric label="净值" value={`$${account.equity.toLocaleString()}`} />
         <Metric label="保证金" value={`$${account.margin.toLocaleString()}`} />

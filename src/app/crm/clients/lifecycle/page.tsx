@@ -78,7 +78,7 @@ export default function LifecyclePage() {
         <div className="p-3 text-sm text-slate-500">{t("clients.relationships.loading")}</div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {stageKeys.map((key) => {
           const Icon = stageIcons[key];
           const colorClass = stageColors[key];

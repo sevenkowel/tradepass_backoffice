@@ -120,7 +120,7 @@ export default function TradingReportsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "总交易量", value: fmt(totalVolume), sub: `日均 ${fmt(avgDailyVol)}`, icon: Activity, bg: "bg-indigo-100", color: "text-indigo-600", up: true, change: "12.4" },
           { label: "总订单数", value: fmtK(totalOrders), sub: `日均 ${fmtK(Math.round(totalOrders / DAILY_VOLUME.length))}`, icon: BarChart3, bg: "bg-blue-100", color: "text-blue-600", up: true, change: "8.7" },

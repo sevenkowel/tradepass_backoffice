@@ -13,7 +13,7 @@ export default function TradingTab({ data }: BaseTabProps) {
       <h3 className="text-lg font-semibold text-slate-900">交易分析</h3>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="总手数" value={`${tradingStats.totalLots} Lots`} icon={BarChart3} color="blue" />
         <StatCard label="胜率" value={`${tradingStats.winRate}%`} icon={TrendingUp} color="emerald" />
         <StatCard label="EA 交易" value={tradingStats.isEATrading ? "是" : "否"} icon={Cpu} color="violet" />

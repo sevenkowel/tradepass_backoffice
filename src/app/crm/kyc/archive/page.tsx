@@ -28,7 +28,7 @@ export default function ComplianceArchivePage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Compliance Archive" }]} />
       <PageHeader title="Compliance Archive" description="KYC records timeline with full export"
         actions={<Button variant="secondary"><Download size={16} /> Export PDF</Button>}

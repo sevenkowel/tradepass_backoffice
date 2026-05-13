@@ -18,8 +18,8 @@
  * chrome (overlay, ESC-to-close, sticky header / footer, loading state on
  * the save button).
  */
-import { useEffect } from "react";
-import { X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export interface ConfigDrawerProps {
@@ -32,6 +32,10 @@ export interface ConfigDrawerProps {
   saveDisabled?: boolean;
   /** Loading flag on the Save button. */
   saving?: boolean;
+  /** Marks the form as having unsaved changes. When `true`, attempts to
+   *  close the drawer (Cancel / ESC / backdrop / X) prompt for confirmation
+   *  before discarding. */
+  dirty?: boolean;
   onClose: () => void;
   onSave: () => void;
   /** Form body. */
@@ -49,21 +53,35 @@ export function ConfigDrawer({
   saveLabel = "Save",
   saveDisabled,
   saving,
+  dirty,
   onClose,
   onSave,
   children,
   destructive,
   width = 480,
 }: ConfigDrawerProps) {
-  // ESC closes the drawer.
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Always reset the confirm dialog whenever the drawer transitions to
+  // closed — keeps the next open cycle clean.
+  useEffect(() => {
+    if (!open) setConfirmDiscard(false);
+  }, [open]);
+
+  const requestClose = useCallback(() => {
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  }, [dirty, onClose]);
+
+  // ESC closes the drawer (with confirmation when dirty).
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   if (!open) return null;
 
@@ -73,7 +91,7 @@ export function ConfigDrawer({
       <button
         className="flex-1 bg-black/40"
         aria-label="Close"
-        onClick={onClose}
+        onClick={requestClose}
       />
       {/* Panel */}
       <aside
@@ -88,14 +106,14 @@ export function ConfigDrawer({
             )}
           </div>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Close"
             className="p-1 -mr-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100"
           >
             <X className="w-4 h-4" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {children}
         </div>
         <footer className="px-5 py-3 border-t border-slate-200 flex items-center justify-between gap-2 sticky bottom-0 bg-white">
@@ -110,7 +128,7 @@ export function ConfigDrawer({
             <span />
           )}
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>
+            <Button variant="secondary" size="sm" onClick={requestClose}>
               Cancel
             </Button>
             <Button
@@ -122,6 +140,44 @@ export function ConfigDrawer({
             </Button>
           </div>
         </footer>
+
+        {/* Discard-changes confirmation */}
+        {confirmDiscard && (
+          <div className="absolute inset-0 z-10 bg-slate-900/30 flex items-center justify-center px-5">
+            <div className="w-full max-w-sm rounded-lg bg-white shadow-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">Discard changes?</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    You have unsaved edits. Closing this drawer will throw them away.
+                  </p>
+                </div>
+              </div>
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setConfirmDiscard(false)}
+                >
+                  Keep editing
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setConfirmDiscard(false);
+                    onClose();
+                  }}
+                >
+                  Discard
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </aside>
     </div>
   );

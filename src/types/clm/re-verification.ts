@@ -73,12 +73,23 @@ export type ReVerificationTriggerReason =
 /* Restrictions (PRD §12)                                                    */
 /* ------------------------------------------------------------------------- */
 
-/** §12.1 — restriction severity. */
-export type RestrictionLevel =
-  | "soft_reminder"       // notification only
-  | "important"           // login popup
-  | "blocking"            // restrict operations
-  | "full_restriction";   // disable account access
+/**
+ * §12.1 — restriction severity.
+ *
+ * Three-tier ladder aligned with `PopupSeverity` so operators reason about
+ * "what the system does to the account" with the same vocabulary they use
+ * for "how the login popup behaves":
+ *
+ *   notice    — no functional limit; only notifications fire
+ *   restrict  — selected scopes (deposit / withdrawal / …) are locked
+ *   suspend   — entire account access is disabled until verified
+ *
+ * Legacy values (`soft_reminder` / `important` / `blocking` / `full_restriction`)
+ * collapsed: `soft_reminder` + `important` both meant "notify only" with
+ * different popup aggressiveness; that distinction is now a Notice sub-knob
+ * (`mustAcknowledge`) on `NotificationConfig`, not a restriction tier.
+ */
+export type RestrictionLevel = "notice" | "restrict" | "suspend";
 
 /** §12.2 — which capabilities the restriction touches. */
 export type RestrictionScope =
@@ -119,19 +130,39 @@ export interface RestrictionConfig {
 /** §13.1 — supported delivery channels. */
 export type NotificationChannel = "email" | "inbox" | "push" | "login_popup";
 
-/** §13.2 — popup behaviour when the channel is `login_popup`. */
-export type PopupSeverity =
-  | "info"        // closable
-  | "warning"     // reminder
-  | "important"   // strong reminder
-  | "blocking"    // restrict operations
-  | "hard_block"; // disable system access
+/**
+ * §13.2 — popup behaviour when the channel is `login_popup`.
+ *
+ * Three-tier friction ladder aligned with industry conventions
+ * (Stripe / Coinbase / Robinhood / AWS account-verification):
+ *
+ *   notice   — closable banner reminder; user can keep using everything
+ *   restrict — locked scopes (deposit / withdrawal / …); user can still
+ *              navigate but the selected actions are unavailable
+ *   suspend  — full app lock; nothing usable until verification submits
+ *
+ * Sub-knobs preserve the granularity the old 5-tier model had without
+ * adding another tier:
+ *   - `noticeFrequency` — whether a Notice repeats on every login
+ *   - `mustAcknowledge` — whether a Notice requires an "I understand"
+ *                         click instead of a passive ×
+ */
+export type PopupSeverity = "notice" | "restrict" | "suspend";
+
+/** How often a Notice-tier banner re-appears. Ignored for restrict/suspend. */
+export type NoticeFrequency = "once" | "every_login";
 
 export interface NotificationConfig {
   /** Active channels for this request. */
   channels: NotificationChannel[];
   /** When `login_popup` is in `channels`, this is required. */
   popupSeverity?: PopupSeverity;
+  /** Only meaningful when `popupSeverity === "notice"`. Defaults to "once". */
+  noticeFrequency?: NoticeFrequency;
+  /** Only meaningful when `popupSeverity === "notice"`. When `true`, the
+   *  banner replaces the × with an "I understand" CTA — preserves the
+   *  old `important` tier's CYA acknowledgement without a new level. */
+  mustAcknowledge?: boolean;
   /** Slot reference into `ReVerificationTemplate.id`, optional — when
    *  empty the request renders an inline `customMessage`. */
   templateId?: string;

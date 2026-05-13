@@ -25,6 +25,10 @@ class ApiAuditService implements IAuditService {
   async getByCaseId(_caseId: string): Promise<CLMAuditLog[]> {
     throw notImplemented("getByCaseId");
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async log(_entry: Omit<CLMAuditLog, "id" | "auditId" | "createdAt">): Promise<void> {
+    throw notImplemented("log");
+  }
 }
 
 export const apiAuditService = new ApiAuditService();

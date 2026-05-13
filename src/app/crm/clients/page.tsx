@@ -357,7 +357,7 @@ export default function ClientsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <Card className="!p-4">
           <p className="text-sm text-slate-500">{t("clients.stat.total")}</p>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>

@@ -411,7 +411,7 @@ export default function PaymentChannelsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -550,7 +550,7 @@ function ChannelEditForm({
         </div>
 
         {/* Type & Status */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">类型</label>
             <select
@@ -579,7 +579,7 @@ function ChannelEditForm({
         </div>
 
         {/* Fee */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">费率类型</label>
             <select
@@ -611,7 +611,7 @@ function ChannelEditForm({
         {/* Limits */}
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">单笔限额</label>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
               <input
@@ -636,7 +636,7 @@ function ChannelEditForm({
         </div>
 
         {/* Daily/Monthly Limits */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">日限额</label>
             <div className="relative">
@@ -678,7 +678,7 @@ function ChannelEditForm({
         </div>
 
         {/* Processing Time & Provider */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">处理时间</label>
             <input

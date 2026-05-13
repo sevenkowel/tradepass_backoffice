@@ -216,7 +216,6 @@ export default function CasesPage() {
           { label: "EDD", value: "edd" },
           { label: "SoW", value: "source_of_wealth" },
           { label: "Agreement", value: "agreement_signing" },
-          { label: "Risk", value: "risk_recheck" },
           { label: "Manual", value: "manual_review" },
           { label: "Re-Verify", value: "re_verification" },
         ],

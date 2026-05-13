@@ -310,7 +310,7 @@ function RolesPageContent() {
       />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="!p-4">
           <p className="text-sm text-slate-500 dark:text-slate-400">总角色数</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{roles.length}</p>

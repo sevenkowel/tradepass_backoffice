@@ -459,11 +459,21 @@ export interface KYCFlowAgreementModule extends KYCFlowSimpleModule {
 export interface KYCFlow extends ConfigBase {
   name: string;
   description?: string;
+  /* Flow runs in this fixed order (UI is non-reorderable):
+   *   Step 0  Contact            (implicit pre-step, always shown)
+   *   Step 1  Identity           (locked, always required)
+   *   Step 2  Proof of Address   (toggle)
+   *   Step 3  Income Proof       (toggle)
+   *   Step 4  Questionnaire      (toggle)
+   *   Step 5  Video Verification (toggle)
+   *   Step 6  Agreement Signing  (locked, always required)
+   */
   contact: KYCFlowContactModule;
   identity: KYCFlowIdentityModule;
   proofOfAddress: KYCFlowSimpleModule;
   incomeProof: KYCFlowSimpleModule;
   questionnaire: KYCFlowQuestionnaireModule;
+  videoVerification: KYCFlowSimpleModule;
   agreement: KYCFlowAgreementModule;
 }
 

@@ -136,7 +136,7 @@ export default function RiskTab({ data }: BaseTabProps) {
   }, [riskRelationships, user.name, t]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h3 className="text-lg font-semibold text-slate-900">
         {t("clients.detail.risk.title")}
       </h3>

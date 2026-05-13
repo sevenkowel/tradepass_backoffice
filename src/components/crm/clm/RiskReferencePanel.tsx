@@ -92,7 +92,7 @@ export function RiskReferencePanel({ caseItem }: RiskReferencePanelProps) {
   const scoreText = colorMap[scoreColor].text;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
       {/* Overall Risk Score */}
       <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
         <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold", scoreBg, scoreText)}>

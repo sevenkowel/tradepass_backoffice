@@ -90,6 +90,8 @@ interface DraftState {
   notification: {
     channels: NotificationChannel[];
     popupSeverity: PopupSeverity;
+    noticeFrequency: "once" | "every_login";
+    mustAcknowledge: boolean;
     templateId: string;
     customMessage: string;
     ctaUrl: string;
@@ -101,17 +103,19 @@ const EMPTY_DRAFT: DraftState = {
   triggerReason: "manual_request",
   reasonText: "",
   restriction: {
-    level: "important",
+    level: "restrict",
     scopes: ["withdrawal"],
     effectiveKind: "immediate",
     delayHours: 24,
     scheduledAt: "",
     validityHours: 24 * 7,
-    expirationEscalationLevel: "blocking",
+    expirationEscalationLevel: "suspend",
   },
   notification: {
     channels: ["email", "inbox", "login_popup"],
-    popupSeverity: "important",
+    popupSeverity: "restrict",
+    noticeFrequency: "every_login",
+    mustAcknowledge: false,
     templateId: "",
     customMessage: "",
     ctaUrl: "/account/verification",
@@ -307,6 +311,16 @@ export function NewRequestDrawer({
             popupSeverity: draft.notification.channels.includes("login_popup")
               ? draft.notification.popupSeverity
               : undefined,
+            noticeFrequency:
+              draft.notification.channels.includes("login_popup") &&
+              draft.notification.popupSeverity === "notice"
+                ? draft.notification.noticeFrequency
+                : undefined,
+            mustAcknowledge:
+              draft.notification.channels.includes("login_popup") &&
+              draft.notification.popupSeverity === "notice"
+                ? draft.notification.mustAcknowledge
+                : undefined,
             templateId: draft.notification.templateId || undefined,
             customMessage: draft.notification.templateId
               ? undefined
@@ -657,10 +671,9 @@ export function NewRequestDrawer({
                 })
               }
               options={[
-                { label: "(none)", value: "" },
-                { label: "Important", value: "important" },
-                { label: "Blocking", value: "blocking" },
-                { label: "Full Restriction", value: "full_restriction" },
+                { label: "(none)",     value: "" },
+                { label: "Restrict",   value: "restrict" },
+                { label: "Suspend",    value: "suspend" },
               ]}
             />
           </Field>
@@ -695,42 +708,84 @@ export function NewRequestDrawer({
           })}
         </div>
         {draft.notification.channels.includes("login_popup") && (
-          <Field
-            label={
-              <span className="inline-flex items-center gap-2">
-                Popup severity
-                <button
-                  type="button"
-                  onClick={() => setSeverityPreviewOpen(true)}
-                  className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 hover:underline"
-                >
-                  <Eye className="w-3 h-3" />
-                  View examples
-                </button>
-              </span>
-            }
-            hint="Drives whether the popup is closable / blocking"
-          >
-            <Select
-              value={draft.notification.popupSeverity}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  notification: {
-                    ...draft.notification,
-                    popupSeverity: e.target.value as PopupSeverity,
-                  },
-                })
+          <>
+            <Field
+              label={
+                <span className="inline-flex items-center gap-2">
+                  Popup severity
+                  <button
+                    type="button"
+                    onClick={() => setSeverityPreviewOpen(true)}
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 hover:underline"
+                  >
+                    <Eye className="w-3 h-3" />
+                    View examples
+                  </button>
+                </span>
               }
-              options={[
-                { label: "Info — closable", value: "info" },
-                { label: "Warning — reminder", value: "warning" },
-                { label: "Important — strong reminder", value: "important" },
-                { label: "Blocking — restrict ops", value: "blocking" },
-                { label: "Hard block — disable access", value: "hard_block" },
-              ]}
-            />
-          </Field>
+              hint="Three-tier ladder — Notice is dismissable, Suspend locks the whole app."
+            >
+              <Select
+                value={draft.notification.popupSeverity}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    notification: {
+                      ...draft.notification,
+                      popupSeverity: e.target.value as PopupSeverity,
+                    },
+                  })
+                }
+                options={[
+                  { label: "Notice — dismissable reminder",            value: "notice"   },
+                  { label: "Restrict — locks selected scopes",         value: "restrict" },
+                  { label: "Suspend — full app lock until verified",   value: "suspend"  },
+                ]}
+              />
+            </Field>
+            {/* Sub-knobs only show for the Notice tier — they replace the
+                old Warning / Important tiers without adding new ones. */}
+            {draft.notification.popupSeverity === "notice" && (
+              <div className="grid grid-cols-2 gap-3 mt-2 pl-3 border-l-2 border-blue-100">
+                <Field label="Frequency" hint="How often the banner reappears.">
+                  <Select
+                    value={draft.notification.noticeFrequency}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        notification: {
+                          ...draft.notification,
+                          noticeFrequency: e.target.value as "once" | "every_login",
+                        },
+                      })
+                    }
+                    options={[
+                      { label: "Once — dismiss and gone",       value: "once" },
+                      { label: "Every login — reminder banner", value: "every_login" },
+                    ]}
+                  />
+                </Field>
+                <Field label="Dismiss mode" hint="Acknowledge button preserves the old Important behaviour.">
+                  <Select
+                    value={draft.notification.mustAcknowledge ? "ack" : "x"}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        notification: {
+                          ...draft.notification,
+                          mustAcknowledge: e.target.value === "ack",
+                        },
+                      })
+                    }
+                    options={[
+                      { label: "× — passive close",          value: "x" },
+                      { label: "Must click \"I understand\"", value: "ack" },
+                    ]}
+                  />
+                </Field>
+              </div>
+            )}
+          </>
         )}
         <div className="grid grid-cols-2 gap-3 mt-3">
           <Field label="Template" hint="Filter by chosen verification type">
@@ -823,70 +878,66 @@ export type { UserPick };
  *   - Backdrop dismisses cleanly; ESC also works
  */
 
+type FrictionKind = "low" | "medium" | "high";
+
 interface SeverityExample {
   value: PopupSeverity;
   label: string;
-  /** What the user actually experiences in plain language. */
-  behaviour: string;
+  /** Single-line summary: "Can ___" / "Must ___" / "Cannot ___". */
+  summary: string;
+  /** Coarse friction tier — drives the ✅ / ⚠️ / ❌ icon + colour. */
+  friction: FrictionKind;
   tone: string;       // pill background+text
   ring: string;       // selected ring class
   mockTone: string;   // the mocked popup card background
   mockIcon: string;   // small leading icon character
-  dismissible: "X" | "—" | "✕ disabled";
 }
 
 const SEVERITY_EXAMPLES: SeverityExample[] = [
   {
-    value: "info",
-    label: "Info",
-    behaviour: "Closable banner; user can dismiss and continue trading.",
+    value: "notice",
+    label: "Notice",
+    summary: "Can dismiss and keep using the app. Frequency + acknowledge are sub-knobs.",
+    friction: "low",
     tone: "bg-slate-100 text-slate-700",
     ring: "ring-slate-300",
     mockTone: "bg-white border-slate-200",
     mockIcon: "ℹ",
-    dismissible: "X",
   },
   {
-    value: "warning",
-    label: "Warning",
-    behaviour: "Reminder banner; closable but visually emphasised on every login.",
-    tone: "bg-amber-50 text-amber-700",
-    ring: "ring-amber-300",
-    mockTone: "bg-amber-50 border-amber-200",
-    mockIcon: "⚠",
-    dismissible: "X",
-  },
-  {
-    value: "important",
-    label: "Important",
-    behaviour: "Strong reminder; user must click an acknowledge button to dismiss.",
-    tone: "bg-amber-100 text-amber-800",
-    ring: "ring-amber-400",
-    mockTone: "bg-amber-50 border-amber-300",
-    mockIcon: "⚠",
-    dismissible: "—",
-  },
-  {
-    value: "blocking",
-    label: "Blocking",
-    behaviour: "Non-dismissible modal. User can still navigate, but the listed scopes (deposit / withdrawal / …) are disabled until they complete verification.",
+    value: "restrict",
+    label: "Restrict",
+    summary: "Selected scopes (deposit / withdrawal / …) are locked. App stays usable.",
+    friction: "medium",
     tone: "bg-orange-100 text-orange-700",
     ring: "ring-orange-400",
     mockTone: "bg-orange-50 border-orange-300",
     mockIcon: "🔒",
-    dismissible: "✕ disabled",
   },
   {
-    value: "hard_block",
-    label: "Hard block",
-    behaviour: "Full-screen modal; the user cannot use any part of the app — including read-only views — until verification is submitted.",
+    value: "suspend",
+    label: "Suspend",
+    summary: "Cannot use any part of the app until verification is submitted.",
+    friction: "high",
     tone: "bg-red-100 text-red-700",
     ring: "ring-red-400",
     mockTone: "bg-red-50 border-red-300",
     mockIcon: "⛔",
-    dismissible: "✕ disabled",
   },
 ];
+
+const FRICTION_META: Record<
+  FrictionKind,
+  { icon: string; label: string; tone: string }
+> = {
+  low:    { icon: "✓", label: "Dismissable",      tone: "text-emerald-600 bg-emerald-50 border-emerald-200" },
+  medium: { icon: "!", label: "Requires action",  tone: "text-amber-700 bg-amber-50 border-amber-200" },
+  high:   { icon: "✕", label: "Hard locked",      tone: "text-red-700 bg-red-50 border-red-200" },
+};
+
+/** Mocked scope chips for the Blocking tier — match the language users
+ *  see in the actual popup. */
+const MOCK_LOCKED_SCOPES = ["Deposit", "Withdrawal"];
 
 function SeverityPreviewModal({
   open,
@@ -947,10 +998,17 @@ function SeverityPreviewModal({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {/* Escalation strip — visualises that the tiers are an ordered
+              friction ladder, not a free set of choices. The current
+              selection gets a marker so the user immediately sees
+              "where they are" on that ladder. */}
+          <FrictionLadder selected={selected} />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {SEVERITY_EXAMPLES.map((ex) => {
               const isSelected = ex.value === selected;
+              const friction = FRICTION_META[ex.friction];
               return (
                 <div
                   key={ex.value}
@@ -971,35 +1029,22 @@ function SeverityPreviewModal({
                         </span>
                       )}
                     </span>
-                    <span className="text-[10px] text-slate-400">
-                      close: <span className="font-mono">{ex.dismissible}</span>
+                    {/* Friction chip — replaces the cryptic "close: ✕ disabled"
+                        with a positive "what the user can do" phrase. */}
+                    <span
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-semibold ${friction.tone}`}
+                    >
+                      <span className="font-mono leading-none">{friction.icon}</span>
+                      {friction.label}
                     </span>
                   </div>
 
-                  {/* Mini popup mock */}
-                  <div className={`relative rounded-md border px-3 py-2.5 ${ex.mockTone}`}>
-                    <div className="flex items-start gap-2">
-                      <span className="text-base leading-none mt-0.5">{ex.mockIcon}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-slate-900 truncate">
-                          Verification required
-                        </p>
-                        <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
-                          Please complete the re-verification step before continuing.
-                        </p>
-                      </div>
-                      <span
-                        className={`text-slate-400 text-sm leading-none select-none ${
-                          ex.dismissible !== "X" ? "opacity-30" : ""
-                        }`}
-                      >
-                        ×
-                      </span>
-                    </div>
-                  </div>
+                  {/* Mini popup mock — varies per tier so the user sees
+                      the actual UX, not a generic banner with a faded ×. */}
+                  <SeverityMock example={ex} />
 
                   <p className="text-[11px] text-slate-600 leading-relaxed mt-2">
-                    {ex.behaviour}
+                    {ex.summary}
                   </p>
                 </div>
               );
@@ -1016,6 +1061,147 @@ function SeverityPreviewModal({
             Close
           </button>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Friction Ladder — single-row visualiser of the five tiers                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function FrictionLadder({ selected }: { selected: PopupSeverity }) {
+  const selectedIdx = SEVERITY_EXAMPLES.findIndex((e) => e.value === selected);
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50 px-3 py-2.5">
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+        Friction Ladder · low → high
+      </p>
+      <div className="flex items-stretch gap-1">
+        {SEVERITY_EXAMPLES.map((ex, idx) => {
+          const isSelected = idx === selectedIdx;
+          const reached = idx <= selectedIdx;
+          // Three-tier palette: green → orange → red. Reads as a single
+          // progression instead of a 5-step gradient that requires the
+          // operator to memorise where the threshold is.
+          const reachedTone =
+            idx === 0 ? "bg-emerald-300" : idx === 1 ? "bg-orange-400" : "bg-red-500";
+          return (
+            <div key={ex.value} className="flex-1 min-w-0">
+              <div
+                className={`h-2 rounded-full ${reached ? reachedTone : "bg-slate-200"}`}
+              />
+              <div className="mt-1.5 text-center">
+                <p
+                  className={`text-xs truncate ${
+                    isSelected
+                      ? "font-bold text-slate-900"
+                      : reached
+                      ? "text-slate-600"
+                      : "text-slate-400"
+                  }`}
+                >
+                  {ex.label}
+                </p>
+                {isSelected && (
+                  <p className="text-[10px] text-blue-600 font-semibold mt-0.5 uppercase tracking-wider">
+                    ▲ you are here
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Tier-specific popup mocks                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+function SeverityMock({ example }: { example: SeverityExample }) {
+  const { value, mockTone, mockIcon } = example;
+
+  // Notice — closable banner with a real × icon. Sub-knobs (frequency,
+  // mustAcknowledge) are shown as small badges in the corner.
+  if (value === "notice") {
+    return (
+      <div className={`relative rounded-md border px-3 py-2.5 ${mockTone}`}>
+        <div className="flex items-start gap-2">
+          <span className="text-base leading-none mt-0.5">{mockIcon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-900 truncate">
+              Verification required
+            </p>
+            <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+              Please complete the re-verification step.
+            </p>
+          </div>
+          <span className="text-slate-400 text-sm leading-none select-none">×</span>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1 text-[10px]">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+            Optional: every login
+          </span>
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+            Optional: "I understand" CTA
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Restrict — show the locked scopes as chips so the consequence is concrete.
+  if (value === "restrict") {
+    return (
+      <div className={`relative rounded-md border px-3 py-2.5 ${mockTone}`}>
+        <div className="flex items-start gap-2">
+          <span className="text-base leading-none mt-0.5">{mockIcon}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-900 truncate">
+              Verification required
+            </p>
+            <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+              These actions are locked until you verify:
+            </p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {MOCK_LOCKED_SCOPES.map((s) => (
+                <span
+                  key={s}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-200/60 text-orange-800 text-[10px] font-medium line-through"
+                >
+                  <span className="font-mono">🔒</span>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Suspend — full-screen lock overlay. Stretches a backdrop on top of
+  // the mock to evoke "the whole app is gated" without rendering a real
+  // full-screen modal inside the modal we're already in.
+  return (
+    <div className={`relative rounded-md border px-3 py-2.5 overflow-hidden ${mockTone}`}>
+      {/* Fake dark overlay representing "app locked" */}
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-[1px] z-0 pointer-events-none" />
+      <div className="relative z-10 flex flex-col items-center text-center py-1">
+        <span className="text-xl leading-none">{mockIcon}</span>
+        <p className="text-xs font-semibold text-white mt-1">
+          Verification required
+        </p>
+        <p className="text-[11px] text-white/80 leading-relaxed mt-0.5">
+          App is locked until you submit verification.
+        </p>
+        <span className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded-md bg-white text-red-700 text-[10px] font-bold uppercase tracking-wider">
+          Submit verification
+        </span>
       </div>
     </div>
   );

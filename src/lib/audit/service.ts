@@ -107,4 +107,24 @@ export const globalAuditService = {
       .filter((l) => l.target.kind === "case" && l.target.id === caseId)
       .slice(0, limit);
   },
+
+  /** Push a runtime audit event into the pool so all readers see it
+   *  immediately — no page reload needed. Best-effort: never throws. */
+  log(entry: Omit<GlobalAuditLog, "id" | "createdAt">): void {
+    try {
+      const pool = getPool();
+      const now = new Date();
+      const seq = pool.length.toString(36).padStart(4, "0").toUpperCase();
+      const stamp = `${now.getFullYear().toString().slice(-2)}${(now.getMonth() + 1).toString().padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}`;
+      const record: GlobalAuditLog = {
+        id: crypto.randomUUID(),
+        auditId: `AUD-${stamp}-${seq}`,
+        createdAt: now.toISOString(),
+        ...entry,
+      };
+      pool.unshift(record);
+    } catch (e) {
+      console.warn("[globalAuditService.log]", e);
+    }
+  },
 };

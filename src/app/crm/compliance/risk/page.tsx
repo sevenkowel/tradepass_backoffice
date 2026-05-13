@@ -258,7 +258,7 @@ export default function ComplianceRiskPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -378,7 +378,7 @@ export default function ComplianceRiskPage() {
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-3">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-xs text-red-600 mb-1">描述</p>
                 <p className="text-sm text-red-800">{selectedAlert.description}</p>

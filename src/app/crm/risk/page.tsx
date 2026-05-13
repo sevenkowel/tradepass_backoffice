@@ -249,7 +249,7 @@ export default function RiskDashboardPage() {
       {/* Risk Metrics */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Risk Metrics</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {riskMetrics.map((metric) => (
             <div
               key={metric.id}
@@ -288,7 +288,7 @@ export default function RiskDashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {statsCards.map((stat, index) => (
           <div
             key={index}

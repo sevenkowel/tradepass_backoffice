@@ -14,20 +14,64 @@ import type {
   PaginatedResult,
   CaseComment,
   CaseDetail,
+  CLMAuditAction,
   KYCFlowStepInfo,
   LivenessResult,
   POADetail,
   SubmissionContext,
   VideoVerificationDetail,
 } from "@/types/clm";
+import type { AuditSeverity } from "@/types/core";
 import type { ICaseService } from "./types";
 import { mockCases, mockCaseDetail } from "../mock";
 import { lookupRiskProfile } from "@/lib/risk-engine/mock-risk-profiles";
+import { lookupReviewer } from "@/lib/clm/mock/mock-reviewer";
+import { auditService } from "./audit.service";
+import { globalAuditService } from "@/lib/audit/service";
 import { delay } from "@/lib/utils";
+
+/** Severity bucket for a CLM action. Keeps the global Audit Trail page
+ *  coloured correctly without importing the adapter table. */
+const ACTION_SEVERITY: Record<CLMAuditAction, AuditSeverity> = {
+  case_created: "info",
+  case_assigned: "info",
+  case_reviewed: "info",
+  case_approved: "info",
+  case_rejected: "warning",
+  case_resubmission_requested: "warning",
+  case_escalated: "warning",
+  case_cancelled: "info",
+  case_comment_added: "info",
+  policy_updated: "info",
+  policy_published: "info",
+  agreement_published: "info",
+  workflow_changed: "info",
+  customer_level_changed: "info",
+  customer_frozen: "critical",
+  customer_unfrozen: "warning",
+};
+
+const ACTION_LABEL: Record<CLMAuditAction, string> = {
+  case_created: "Case Created",
+  case_assigned: "Case Assigned",
+  case_reviewed: "Case Reviewed",
+  case_approved: "Case Approved",
+  case_rejected: "Case Rejected",
+  case_resubmission_requested: "Resubmission Requested",
+  case_escalated: "Case Escalated",
+  case_cancelled: "Case Cancelled",
+  case_comment_added: "Comment Added",
+  policy_updated: "Policy Updated",
+  policy_published: "Policy Published",
+  agreement_published: "Agreement Published",
+  workflow_changed: "Workflow Changed",
+  customer_level_changed: "Customer Level Changed",
+  customer_frozen: "Account Frozen",
+  customer_unfrozen: "Account Unfrozen",
+};
 
 class CaseService implements ICaseService {
   private cases = [...mockCases];
-  private auditLogs: import("@/types/clm").CLMAuditLog[] = [];
   /** In-memory store for comments added at runtime, keyed by case id. */
   private extraComments = new Map<string, CaseComment[]>();
   /** Extra timeline events synthesised from runtime actions (e.g. each
@@ -319,18 +363,31 @@ class CaseService implements ICaseService {
   // Review actions
   async approve(id: string, reviewerId: string, notes?: string): Promise<void> {
     await delay(500);
+    const prev = this.snapshot(id);
     this.updateCaseStatus(id, "approved", reviewerId, notes);
+    this.emitAudit("case_approved", id, reviewerId, {
+      reason: notes,
+      prev,
+      next: this.snapshot(id),
+    });
   }
 
   async reject(id: string, reviewerId: string, reason: string): Promise<void> {
     await delay(500);
+    const prev = this.snapshot(id);
     this.updateCaseStatus(id, "rejected", reviewerId, reason);
+    this.emitAudit("case_rejected", id, reviewerId, {
+      reason,
+      prev,
+      next: this.snapshot(id),
+    });
   }
 
   async requestResubmission(id: string, reviewerId: string, reason: string): Promise<void> {
     await delay(500);
     const index = this.cases.findIndex((c) => c.id === id);
     if (index === -1) return;
+    const prev = this.snapshot(id);
     this.cases[index] = {
       ...this.cases[index],
       status: "resubmission",
@@ -338,12 +395,18 @@ class CaseService implements ICaseService {
       reviewedAt: new Date().toISOString(),
       reviewedBy: reviewerId,
     };
+    this.emitAudit("case_resubmission_requested", id, reviewerId, {
+      reason,
+      prev,
+      next: this.snapshot(id),
+    });
   }
 
   async escalate(id: string, reviewerId: string, reason: string): Promise<void> {
     await delay(500);
     const index = this.cases.findIndex((c) => c.id === id);
     if (index === -1) return;
+    const prev = this.snapshot(id);
     this.cases[index] = {
       ...this.cases[index],
       status: "escalated",
@@ -351,19 +414,31 @@ class CaseService implements ICaseService {
       reviewedAt: new Date().toISOString(),
       reviewedBy: reviewerId,
     };
+    this.emitAudit("case_escalated", id, reviewerId, {
+      reason,
+      prev,
+      next: this.snapshot(id),
+    });
   }
 
   async assign(id: string, assigneeId: string, assignedBy: string): Promise<void> {
     await delay(300);
     const index = this.cases.findIndex((c) => c.id === id);
     if (index === -1) return;
+    const prev = this.snapshot(id);
+    const reviewer = lookupReviewer(assigneeId);
     this.cases[index] = {
       ...this.cases[index],
       assigneeId,
-      assigneeName: assigneeId === "staff-001" ? "Admin A" : assigneeId === "staff-002" ? "Admin B" : "Senior Reviewer",
+      assigneeName: reviewer.name,
       status: this.cases[index].status === "pending" ? "reviewing" : this.cases[index].status,
       updatedAt: new Date().toISOString(),
     };
+    this.emitAudit("case_assigned", id, assignedBy, {
+      reason: `Assigned to ${reviewer.name}`,
+      prev,
+      next: this.snapshot(id),
+    });
   }
 
   // Comments — runtime store. Also mirrors each comment as a
@@ -390,13 +465,24 @@ class CaseService implements ICaseService {
       parentId: comment.parentId,
     });
     this.extraEvents.set(id, events);
+
+    this.emitAudit("case_comment_added", id, comment.authorId, {
+      reason: comment.content,
+      actorName: comment.authorName,
+      actorRole: comment.authorRole,
+    });
   }
 
   // Batch operations
   async batchApprove(ids: string[], reviewerId: string): Promise<void> {
     await delay(800);
     for (const id of ids) {
+      const prev = this.snapshot(id);
       this.updateCaseStatus(id, "approved", reviewerId);
+      this.emitAudit("case_approved", id, reviewerId, {
+        prev,
+        next: this.snapshot(id),
+      });
     }
   }
 
@@ -415,15 +501,88 @@ class CaseService implements ICaseService {
   ) {
     const index = this.cases.findIndex((c) => c.id === id);
     if (index === -1) return;
+    const now = new Date().toISOString();
+    const prev = this.cases[index];
     this.cases[index] = {
-      ...this.cases[index],
+      ...prev,
       status,
       reviewDecision: status as "approve" | "reject" | "resubmit" | "escalate",
-      reviewReason: reason,
-      reviewedAt: new Date().toISOString(),
+      // Preserve existing reviewReason if no new reason was supplied.
+      ...(reason !== undefined ? { reviewReason: reason } : {}),
+      reviewedAt: now,
       reviewedBy: reviewerId,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
     };
+  }
+
+  /** Minimal snapshot used as the previousValue/newValue diff in audit logs. */
+  private snapshot(id: string): Record<string, unknown> {
+    const c = this.cases.find((x) => x.id === id);
+    if (!c) return {};
+    return {
+      status: c.status,
+      assigneeId: c.assigneeId,
+      assigneeName: c.assigneeName,
+      reviewReason: c.reviewReason,
+      resubmissionReason: c.resubmissionReason,
+      reviewedBy: c.reviewedBy,
+      reviewedAt: c.reviewedAt,
+    };
+  }
+
+  /** Emit an audit entry to both the CLM-specific service and the unified
+   *  global pool. Best-effort; never throws. */
+  private emitAudit(
+    action: CLMAuditAction,
+    caseId: string,
+    actorId: string,
+    extra: {
+      reason?: string;
+      prev?: Record<string, unknown>;
+      next?: Record<string, unknown>;
+      actorName?: string;
+      actorRole?: string;
+    } = {}
+  ): void {
+    const caseItem = this.cases.find((c) => c.id === caseId);
+    const actor = lookupReviewer(actorId);
+    const actorName = extra.actorName ?? actor.name;
+    const actorRole = extra.actorRole ?? actor.role ?? "Reviewer";
+
+    // CLM-specific log (used by Case Detail history strip).
+    auditService.log({
+      actorId,
+      actorName,
+      actorRole,
+      action,
+      targetType: "case",
+      targetId: caseId,
+      targetName: caseItem?.caseNo,
+      reason: extra.reason,
+      previousValue: extra.prev,
+      newValue: extra.next,
+    }).catch((e) => console.warn("[audit] CLM emit failed:", e));
+
+    // Unified global pool (used by Audit Trail page, Client Logs tab).
+    const changes = (extra.prev || extra.next)
+      ? Object.keys({ ...(extra.prev ?? {}), ...(extra.next ?? {}) }).map((field) => ({
+          field,
+          oldValue: extra.prev?.[field],
+          newValue: extra.next?.[field],
+        }))
+      : [];
+    globalAuditService.log({
+      domain: "clm",
+      severity: ACTION_SEVERITY[action] ?? "info",
+      action,
+      actionLabel: ACTION_LABEL[action] ?? action,
+      actor: { id: actorId, name: actorName, role: actorRole },
+      target: { kind: "case", id: caseId, name: caseItem?.caseNo },
+      clientId: caseItem?.customerId,
+      reason: extra.reason,
+      description: extra.reason,
+      changes,
+    });
   }
 }
 

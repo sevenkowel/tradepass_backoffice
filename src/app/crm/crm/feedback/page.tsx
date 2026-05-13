@@ -319,7 +319,7 @@ export default function FeedbackPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "总反馈数", value: feedbacks.length, icon: <MessageCircle className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "待处理", value: newCount, icon: <Clock className="w-5 h-5" />, color: newCount > 0 ? "text-red-600" : "text-green-600", bg: newCount > 0 ? "bg-red-50" : "bg-green-50" },

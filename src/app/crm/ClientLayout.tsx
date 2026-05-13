@@ -5,6 +5,7 @@ import { Sidebar, TopBar } from "@/components/crm/layout";
 import { NavigationProgress } from "@/components/crm/layout/NavigationProgress";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { ToastContextProvider } from "@/components/ui";
+import { ToastBridge } from "@/components/crm/ToastBridge";
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 import { getBrandInitials } from "@/lib/utils";
@@ -24,6 +25,9 @@ function BackofficeContent({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider>
       <ToastContextProvider>
+        {/* Forwards `useToastStore` events (Zustand) to the rendered
+            shadcn toaster. Both APIs are in use across the codebase. */}
+        <ToastBridge />
         {/* Top progress bar — gives instant feedback on slow nav so
             menu clicks never feel "stuck", especially in dev where the
             destination route compiles on demand. Mounted once at the

@@ -51,7 +51,6 @@ export function FilterBar({
   defaultOpen = true,
 }: FilterBarProps) {
   const [localSearch, setLocalSearch] = useState(searchValue || "");
-  const [showFilters, setShowFilters] = useState(defaultOpen);
   const [filterValues, setFilterValues] = useState<Record<string, string>>(
     () =>
       filters.reduce((acc, f) => {
@@ -59,6 +58,12 @@ export function FilterBar({
         return acc;
       }, {} as Record<string, string>)
   );
+  // If the page boots with a pre-populated filter (e.g. deep-linked from
+  // Workspace KPI: `?assignee=me&slaStatus=near_timeout`), open the
+  // filter grid even when `defaultOpen={false}` — otherwise the chips
+  // are hidden and the user can't see why the table is narrowed.
+  const hasInitialFilter = Object.values(filterValues).some(Boolean);
+  const [showFilters, setShowFilters] = useState(defaultOpen || hasInitialFilter);
 
   const handleApply = () => {
     const values: Record<string, string> = { ...filterValues };
@@ -89,7 +94,7 @@ export function FilterBar({
     localSearch || Object.values(filterValues).some(Boolean);
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* Search and Filter Toggle */}
       <div className="flex flex-col sm:flex-row gap-3">
         {showSearch && (

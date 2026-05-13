@@ -24,6 +24,8 @@ import {
   FileSignature,
   Camera,
   Phone,
+  Video,
+  Lock,
 } from "lucide-react";
 import { Card, PageHeader, Button } from "@/components/crm/ui";
 import { Breadcrumb } from "@/components/crm/layout";
@@ -70,6 +72,7 @@ interface DraftFlow {
   proofOfAddress: KYCFlowSimpleModule;
   incomeProof: KYCFlowSimpleModule;
   questionnaire: KYCFlowQuestionnaireModule;
+  videoVerification: KYCFlowSimpleModule;
   agreement: KYCFlowAgreementModule;
 }
 
@@ -87,6 +90,7 @@ const EMPTY_DRAFT: DraftFlow = {
   proofOfAddress: { enabled: false },
   incomeProof: { enabled: false },
   questionnaire: { enabled: false },
+  videoVerification: { enabled: false },
   agreement: { enabled: true, agreementIds: [] },
 };
 
@@ -131,6 +135,7 @@ export default function KycFlowsPage() {
       proofOfAddress: { ...f.proofOfAddress },
       incomeProof: { ...f.incomeProof },
       questionnaire: { ...f.questionnaire },
+      videoVerification: { ...f.videoVerification },
       agreement: { ...f.agreement, agreementIds: [...f.agreement.agreementIds] },
     });
     setDrawerOpen(true);
@@ -173,12 +178,13 @@ export default function KycFlowsPage() {
         on: f.contact.enabled && (f.contact.requireMobileOtp || f.contact.requireEmailOtp),
         icon: Phone,
       },
-      { key: "identity", label: "Identity", on: true, icon: IdCard },
-      { key: "liveness", label: "Liveness", on: f.identity.liveness, icon: ScanFace },
-      { key: "poa", label: "POA", on: f.proofOfAddress.enabled, icon: MapPin },
-      { key: "income", label: "Income", on: f.incomeProof.enabled, icon: Wallet },
-      { key: "questionnaire", label: "Questionnaire", on: f.questionnaire.enabled, icon: ClipboardList },
-      { key: "agreement", label: `Agreements${f.agreement.enabled ? ` (${f.agreement.agreementIds.length})` : ""}`, on: f.agreement.enabled, icon: FileSignature },
+      { key: "identity",      label: "Identity",      on: true,                          icon: IdCard },
+      { key: "liveness",      label: "Liveness",      on: f.identity.liveness,           icon: ScanFace },
+      { key: "poa",           label: "POA",           on: f.proofOfAddress.enabled,      icon: MapPin },
+      { key: "income",        label: "Income",        on: f.incomeProof.enabled,         icon: Wallet },
+      { key: "questionnaire", label: "Questionnaire", on: f.questionnaire.enabled,       icon: ClipboardList },
+      { key: "video",         label: "Video",         on: f.videoVerification.enabled,   icon: Video },
+      { key: "agreement",     label: `Agreements${f.agreement.enabled ? ` (${f.agreement.agreementIds.length})` : ""}`, on: f.agreement.enabled, icon: FileSignature },
     ];
 
   return (
@@ -308,11 +314,17 @@ export default function KycFlowsPage() {
           />
         </Field>
 
-        {/* A. Contact (phone / email OTP) */}
-        <ModuleSection
-          icon={Phone}
-          title="Contact Verification"
-        >
+        <div className="pt-3 border-t border-slate-100">
+          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-2">
+            Flow Steps
+          </p>
+          <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+            Steps run in this fixed order. Identity and Agreement are always required; the middle four are togglable.
+          </p>
+        </div>
+
+        {/* Step 0 — Contact (implicit, runs before any main step) */}
+        <StepSection step={0} icon={Phone} title="Contact Verification" subtitle="Phone / Email OTP">
           <Toggle
             label="Enable contact verification"
             description="Configures which OTP channels are required at the start of onboarding. Runtime skips channels the user has already verified."
@@ -341,14 +353,16 @@ export default function KycFlowsPage() {
               />
             </>
           )}
-        </ModuleSection>
+        </StepSection>
 
-        {/* B. Identity */}
-        <ModuleSection
+        {/* Step 1 — Identity (locked, always required) */}
+        <StepSection
+          step={1}
           icon={IdCard}
           title="Identity Verification"
-          forced
-          forcedNote="Required by default — document verification can't be turned off."
+          subtitle="Document + Liveness"
+          locked
+          lockedNote="Required for every flow — document verification can't be turned off."
         >
           <Toggle
             label="Liveness check"
@@ -378,28 +392,28 @@ export default function KycFlowsPage() {
               indent
             />
           )}
-        </ModuleSection>
+        </StepSection>
 
-        {/* B. POA */}
-        <ModuleSection icon={MapPin} title="Proof of Address">
+        {/* Step 2 — Proof of Address */}
+        <StepSection step={2} icon={MapPin} title="Proof of Address">
           <Toggle
             label="Enable proof of address"
             checked={draft.proofOfAddress.enabled}
             onChange={(v) => setDraft({ ...draft, proofOfAddress: { enabled: v } })}
           />
-        </ModuleSection>
+        </StepSection>
 
-        {/* C. Income */}
-        <ModuleSection icon={Wallet} title="Income Proof">
+        {/* Step 3 — Income Proof */}
+        <StepSection step={3} icon={Wallet} title="Income Proof" subtitle="Source of wealth">
           <Toggle
             label="Require income / source-of-wealth proof"
             checked={draft.incomeProof.enabled}
             onChange={(v) => setDraft({ ...draft, incomeProof: { enabled: v } })}
           />
-        </ModuleSection>
+        </StepSection>
 
-        {/* D. Questionnaire */}
-        <ModuleSection icon={ClipboardList} title="Questionnaire">
+        {/* Step 4 — Questionnaire */}
+        <StepSection step={4} icon={ClipboardList} title="Questionnaire" subtitle="Suitability survey">
           <Toggle
             label="Require a suitability questionnaire"
             checked={draft.questionnaire.enabled}
@@ -410,10 +424,27 @@ export default function KycFlowsPage() {
               })
             }
           />
-        </ModuleSection>
+        </StepSection>
 
-        {/* E. Agreement Signing */}
-        <ModuleSection icon={FileSignature} title="Agreement Signing">
+        {/* Step 5 — Video Verification */}
+        <StepSection step={5} icon={Video} title="Video Verification" subtitle="Recorded face-to-camera">
+          <Toggle
+            label="Require a video verification step"
+            description="Customer records a short video reading a one-time prompt. Reviewed by a human against a checklist."
+            checked={draft.videoVerification.enabled}
+            onChange={(v) => setDraft({ ...draft, videoVerification: { enabled: v } })}
+          />
+        </StepSection>
+
+        {/* Step 6 — Agreement Signing (locked, always required) */}
+        <StepSection
+          step={6}
+          icon={FileSignature}
+          title="Agreement Signing"
+          subtitle="Bind agreements to this flow"
+          locked
+          lockedNote="Every flow ends with at least one agreement signature."
+        >
           <Toggle
             label="Require agreement signing"
             checked={draft.agreement.enabled}
@@ -469,7 +500,7 @@ export default function KycFlowsPage() {
               </div>
             </div>
           )}
-        </ModuleSection>
+        </StepSection>
       </ConfigDrawer>
     </div>
   );
@@ -479,36 +510,58 @@ export default function KycFlowsPage() {
 /* Drawer helpers                                                            */
 /* ------------------------------------------------------------------------- */
 
-function ModuleSection({
+function StepSection({
+  step,
   icon: Icon,
   title,
-  forced,
-  forcedNote,
+  subtitle,
+  locked,
+  lockedNote,
   children,
 }: {
+  step: number;
   icon: typeof IdCard;
   title: string;
-  forced?: boolean;
-  forcedNote?: string;
+  subtitle?: string;
+  locked?: boolean;
+  lockedNote?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="pt-3 border-t border-slate-100">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 inline-flex items-center justify-center">
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="flex items-center gap-2.5 mb-2">
+        {/* Step number badge */}
+        <span className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold font-mono tabular-nums ${
+          locked ? "bg-slate-900 text-white" : "bg-blue-100 text-blue-700"
+        }`}>
+          {step}
+        </span>
+        {/* Icon */}
+        <span className={`w-6 h-6 rounded-md inline-flex items-center justify-center flex-shrink-0 ${
+          locked ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-blue-700"
+        }`}>
           <Icon className="w-3.5 h-3.5" />
         </span>
-        <p className="text-xs font-semibold text-slate-900">{title}</p>
-        {forced && (
-          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] uppercase tracking-wider font-bold">
-            Required
-          </span>
-        )}
+        {/* Title + subtitle */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-xs font-semibold text-slate-900">{title}</p>
+            {locked && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] uppercase tracking-wider font-bold">
+                <Lock className="w-2.5 h-2.5" />
+                Required
+              </span>
+            )}
+          </div>
+          {subtitle && (
+            <p className="text-[10px] text-slate-400 mt-0.5">{subtitle}</p>
+          )}
+        </div>
       </div>
-      {forced && forcedNote && (
-        <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">{forcedNote}</p>
+      {locked && lockedNote && (
+        <p className="text-[11px] text-slate-500 mb-2 pl-9 leading-relaxed">{lockedNote}</p>
       )}
-      <div className="space-y-2">{children}</div>
+      <div className="space-y-2 pl-9">{children}</div>
     </div>
   );
 }

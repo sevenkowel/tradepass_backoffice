@@ -34,11 +34,13 @@ import {
   Layers,
   Route,
   ShieldQuestion,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useCrmSidebarStore } from "@/store/crmSidebarStore";
 import { useAuthStore } from "@/store/crm";
 import { useReviewQueueCount } from "@/hooks/useReviewQueueCount";
+import { useApprovalCount } from "@/hooks/useApprovalCount";
 import { LinkPending } from "./LinkPending";
 import type { PermissionModule } from "@/types/backoffice/role";
 
@@ -85,6 +87,14 @@ const menuGroups: MenuGroup[] = [
       { label: "Real-time Monitor", href: "/crm/monitor", icon: TrendingUp, permission: "dashboard" },
       { label: "Conversion Funnel", href: "/crm/funnel", icon: BarChart3, permission: "dashboard" },
       { label: "Client 360", href: "/crm/client-360", icon: Users, permission: "dashboard" },
+    ],
+  },
+  {
+    group: "Approvals",
+    icon: ClipboardCheck,
+    permission: "compliance",
+    items: [
+      { label: "Approval Inbox", href: "/crm/approvals", icon: ClipboardCheck, permission: "compliance" },
     ],
   },
   {
@@ -597,6 +607,9 @@ export function Sidebar({ brandInitials }: SidebarProps) {
   const { count: reviewQueueCount } = useReviewQueueCount({
     enabled: canSeeComplianceBadge,
   });
+  const { count: approvalCount, overdue: approvalOverdue } = useApprovalCount({
+    enabled: canSeeComplianceBadge,
+  });
 
   const initials = brandInitials || "TP";
 
@@ -607,6 +620,16 @@ export function Sidebar({ brandInitials }: SidebarProps) {
     // here (vs. inside menuGroups) keeps configuration declarative and
     // hooks out of the static array.
     const withBadges = menuGroups.map((g) => {
+      if (g.group === "Approvals") {
+        return {
+          ...g,
+          items: g.items.map((item) =>
+            item.href === "/crm/approvals"
+              ? { ...item, badge: approvalCount > 0 ? (approvalOverdue > 0 ? `${approvalCount} ·  ${approvalOverdue} overdue` : approvalCount) : null }
+              : item
+          ),
+        };
+      }
       if (g.group !== "CLM Center") return g;
       return {
         ...g,

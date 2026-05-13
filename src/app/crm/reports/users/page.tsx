@@ -123,7 +123,7 @@ export default function UserReportsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "总用户数", value: totalUsers.toLocaleString(), change: "14.2", up: true, icon: Users, bg: "bg-blue-100", color: "text-blue-600" },
           { label: "本月新增", value: current.newUsers.toLocaleString(), change: "28.9", up: true, icon: UserPlus, bg: "bg-emerald-100", color: "text-emerald-600" },

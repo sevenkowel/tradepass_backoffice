@@ -180,7 +180,7 @@ export default function IBCommissionSettingsPage() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {levels.map((level) => {
           const cfg = levelConfig[level];
           const levelTiers = tiers.filter((t) => t.level === level);

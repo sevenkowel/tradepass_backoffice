@@ -381,7 +381,7 @@ function TicketDetailDrawer({
           <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">
             对话记录（{ticket.messages.length} 条）
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {ticket.messages.map((msg) => (
               <div
                 key={msg.id}
@@ -548,7 +548,7 @@ export default function TicketsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "待处理", value: stats.open, color: "text-red-600", bg: "bg-red-100", icon: Circle },
           { label: "处理中", value: stats.pending, color: "text-amber-600", bg: "bg-amber-100", icon: Clock },

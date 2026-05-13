@@ -11,7 +11,7 @@
  *   5. Questionnaire
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   IdCard,
   ScanFace,
@@ -99,7 +99,7 @@ const QUESTION_FIELD_TYPES: { label: string; value: QuestionFieldType }[] = [
 ];
 
 const LIVENESS_PROVIDERS: { label: string; value: LivenessProvider }[] = [
-  { label: "TradePass（自研）", value: "tradepass" },
+  { label: "TradePass (Self-hosted)", value: "tradepass" },
   { label: "Onfido", value: "onfido" },
   { label: "Sumsub", value: "sumsub" },
 ];
@@ -114,9 +114,9 @@ const PROVIDER_SDK_LINKS: Record<Exclude<LivenessProvider, "tradepass">, string>
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function countryName(code: string): string {
-  if (code === "Global") return "Global（全球默认）";
+  if (code === "Global") return "Global (Default)";
   try {
-    return new Intl.DisplayNames(["zh"], { type: "region" }).of(code) ?? code;
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code;
   } catch {
     return code;
   }
@@ -126,7 +126,7 @@ function fmtList(items: string[], max = 3): string {
   if (items.length === 0) return "—";
   const shown = items.slice(0, max);
   const rest = items.length - max;
-  return rest > 0 ? `${shown.join("、")} +${rest}` : shown.join("、");
+  return rest > 0 ? `${shown.join(", ")} +${rest}` : shown.join(", ");
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -190,6 +190,13 @@ function DocTypeSettingsDrawer({
     setDraftExpiry(expiryRules.map((r) => ({ ...r })));
   }, [open, defaults, expiryRules]);
 
+  const dirty = useMemo(() => {
+    return (
+      JSON.stringify(draftDefaults) !== JSON.stringify(defaults) ||
+      JSON.stringify(draftExpiry) !== JSON.stringify(expiryRules)
+    );
+  }, [draftDefaults, draftExpiry, defaults, expiryRules]);
+
   const updateDefault = (kind: DocumentTypeKind, patch: Partial<DocumentTypeDefaults>) =>
     setDraftDefaults((prev) =>
       prev.map((d) => (d.kind === kind ? { ...d, ...patch } : d))
@@ -213,22 +220,23 @@ function DocTypeSettingsDrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="文档类型设置"
-      subtitle="配置各证件类型的正反面采集和有效期检查规则。"
+      title="Document Type Settings"
+      subtitle="Configure front/back capture and expiry-check rules per document type."
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
       width={520}
     >
       <div className="border border-slate-200 rounded-lg overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="text-left py-2 px-3 font-medium">证件类型</th>
-              <th className="text-center py-2 px-3 font-medium">背面采集</th>
-              <th className="text-center py-2 px-3 font-medium">背面必传</th>
-              <th className="text-center py-2 px-3 font-medium">过期检查</th>
-              <th className="text-center py-2 px-3 font-medium">拒绝期限(月)</th>
+              <th className="text-left py-2 px-3 font-medium">Document Type</th>
+              <th className="text-center py-2 px-3 font-medium">Back Side</th>
+              <th className="text-center py-2 px-3 font-medium">Back Required</th>
+              <th className="text-center py-2 px-3 font-medium">Expiry Check</th>
+              <th className="text-center py-2 px-3 font-medium">Reject Within (mo)</th>
             </tr>
           </thead>
           <tbody>
@@ -327,6 +335,11 @@ function UploadSettingsDrawer({
     setDraft({ ...config });
   }, [open, config]);
 
+  const dirty = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(config),
+    [draft, config]
+  );
+
   const toggleFmt = (f: "jpg" | "png" | "pdf") => {
     const next = draft.acceptedFormats.includes(f)
       ? draft.acceptedFormats.filter((x) => x !== f)
@@ -347,14 +360,15 @@ function UploadSettingsDrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="上传设置"
-      subtitle="配置证件文件的格式限制和重试策略。"
+      title="Upload Settings"
+      subtitle="File format limits and retry policy for document uploads."
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
     >
-      {/* 文件格式 */}
-      <Field label="允许的文件格式">
+      {/* File formats */}
+      <Field label="Accepted file formats">
         <div className="flex gap-4 mt-1">
           {(["jpg", "png", "pdf"] as const).map((f) => (
             <label key={f} className="flex items-center gap-1.5 cursor-pointer">
@@ -370,8 +384,8 @@ function UploadSettingsDrawer({
         </div>
       </Field>
 
-      {/* 最大文件大小 */}
-      <Field label="最大文件大小（MB）">
+      {/* Max file size */}
+      <Field label="Max file size (MB)">
         <TextInput
           type="number"
           min={1}
@@ -383,10 +397,10 @@ function UploadSettingsDrawer({
         />
       </Field>
 
-      {/* 单用户总次数 */}
+      {/* Per-user total */}
       <Field
-        label="单用户最大上传次数"
-        hint="单个用户累计上传失败超过此次数后，账户被锁定，需人工处理"
+        label="Max uploads per user"
+        hint="Cumulative cap. Once exceeded the account is locked pending manual review."
       >
         <TextInput
           type="number"
@@ -402,12 +416,12 @@ function UploadSettingsDrawer({
         />
       </Field>
 
-      {/* 时间窗口内限制 */}
+      {/* Sliding window limit */}
       <div className="border border-slate-200 rounded-lg p-3 space-y-3 bg-slate-50/40">
-        <p className="text-xs font-semibold text-slate-700">时间窗口限制</p>
+        <p className="text-xs font-semibold text-slate-700">Window-based limit</p>
         <Field
-          label="时间窗口（小时）"
-          hint="滚动时间窗口，默认 24 小时"
+          label="Window (hours)"
+          hint="Rolling window — defaults to 24 hours."
         >
           <TextInput
             type="number"
@@ -423,8 +437,8 @@ function UploadSettingsDrawer({
           />
         </Field>
         <Field
-          label={`${draft.retryWindowHours} 小时内最大次数`}
-          hint="在上方时间窗口内超过此次数将被暂时锁定"
+          label={`Max attempts within ${draft.retryWindowHours}h`}
+          hint="Exceeding this number inside the window temporarily locks the user."
         >
           <TextInput
             type="number"
@@ -441,8 +455,8 @@ function UploadSettingsDrawer({
         </Field>
       </div>
 
-      {/* 重复文件号检测 */}
-      <Field label="重复证件号检测" hint="检测到相同证件号已绑定其他账户时发出警告">
+      {/* Duplicate document number detection */}
+      <Field label="Duplicate document number check" hint="Warn when the same document number is already bound to another account.">
         <label className="flex items-center gap-2 cursor-pointer mt-1">
           <input
             type="checkbox"
@@ -455,7 +469,7 @@ function UploadSettingsDrawer({
             }
             className="rounded"
           />
-          <span className="text-sm text-slate-700">启用</span>
+          <span className="text-sm text-slate-700">Enabled</span>
         </label>
       </Field>
     </ConfigDrawer>
@@ -480,11 +494,44 @@ function policyToDraft(p: DocumentTypePolicy): PolicyDraft {
   };
 }
 
+const COUNTRY_OPTIONS: { code: string; name: string; flag: string }[] = [
+  { code: "Global", name: "Global (Fallback)", flag: "🌐" },
+  { code: "VN", name: "Vietnam",        flag: "🇻🇳" },
+  { code: "TH", name: "Thailand",       flag: "🇹🇭" },
+  { code: "ID", name: "Indonesia",      flag: "🇮🇩" },
+  { code: "MY", name: "Malaysia",       flag: "🇲🇾" },
+  { code: "PH", name: "Philippines",    flag: "🇵🇭" },
+  { code: "SG", name: "Singapore",      flag: "🇸🇬" },
+  { code: "JP", name: "Japan",          flag: "🇯🇵" },
+  { code: "KR", name: "South Korea",    flag: "🇰🇷" },
+  { code: "CN", name: "China",          flag: "🇨🇳" },
+  { code: "IN", name: "India",          flag: "🇮🇳" },
+  { code: "US", name: "United States",  flag: "🇺🇸" },
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "DE", name: "Germany",        flag: "🇩🇪" },
+  { code: "FR", name: "France",         flag: "🇫🇷" },
+  { code: "AU", name: "Australia",      flag: "🇦🇺" },
+  { code: "AE", name: "UAE",            flag: "🇦🇪" },
+];
+
+function countryMeta(code: string): { name: string; flag: string } {
+  const hit = COUNTRY_OPTIONS.find((c) => c.code === code.toUpperCase() || c.code === code);
+  if (hit) return { name: hit.name, flag: hit.flag };
+  if (code && code.length === 2 && /^[A-Z]{2}$/.test(code.toUpperCase())) {
+    const flag = code.toUpperCase().split("").map((c) =>
+      String.fromCodePoint(127397 + c.charCodeAt(0))
+    ).join("");
+    return { name: code.toUpperCase(), flag };
+  }
+  return { name: code || "—", flag: "🏳" };
+}
+
 function CountryPolicyDrawer({
   open,
   draft,
   isNew,
   docTypeDefaults,
+  existingCountries,
   onSave,
   onDelete,
   onClose,
@@ -493,6 +540,7 @@ function CountryPolicyDrawer({
   draft: PolicyDraft | null;
   isNew: boolean;
   docTypeDefaults: DocumentTypeDefaults[];
+  existingCountries: string[];
   onSave: (d: PolicyDraft) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -507,6 +555,11 @@ function CountryPolicyDrawer({
     if (draft) setLocal(draft);
   }, [draft]);
 
+  const dirty = useMemo(
+    () => (draft ? JSON.stringify(local) !== JSON.stringify(draft) : false),
+    [local, draft]
+  );
+
   const toggleType = (t: DocumentTypeKind) => {
     setLocal((prev) => ({
       ...prev,
@@ -516,93 +569,183 @@ function CountryPolicyDrawer({
     }));
   };
 
-  const valid = local.country.trim().length > 0 && local.allowedTypes.length > 0;
   const isGlobal = local.country === "Global";
+  const valid =
+    local.country.trim().length > 0 &&
+    local.allowedTypes.length > 0 &&
+    /^(Global|[A-Z]{2})$/.test(local.country.trim());
+
+  const taken = new Set(existingCountries.filter((c) => c !== draft?.country));
+  const isDuplicate = taken.has(local.country);
+  const meta = countryMeta(local.country);
 
   return (
     <ConfigDrawer
       open={open}
-      title={isNew ? "新增国家政策" : "编辑国家政策"}
+      title={isNew ? "Add Country Policy" : "Edit Country Policy"}
       subtitle={
         isGlobal
-          ? "全球默认配置——无匹配国家时自动生效。"
-          : "指定该居住国用户允许提交的证件类型。"
+          ? "Default policy — applied when no other country rule matches."
+          : "Restrict which ID documents are accepted from residents of this country."
       }
       onClose={onClose}
       onSave={() => onSave(local)}
-      saveDisabled={!valid}
+      saveDisabled={!valid || isDuplicate}
+      dirty={dirty}
       destructive={
         !isNew && !isGlobal
-          ? { label: "删除此政策", onClick: onDelete }
+          ? { label: "Delete policy", onClick: onDelete }
           : undefined
       }
     >
-      <Field label="国家代码（ISO）或 'Global'" required>
-        <TextInput
-          value={local.country}
-          onChange={(e) =>
-            setLocal((p) => ({ ...p, country: e.target.value.toUpperCase() }))
-          }
-          placeholder="例如：CN、GB、Global"
-          maxLength={6}
-          disabled={!isNew && isGlobal}
-        />
-        {isGlobal && (
-          <p className="text-[11px] text-amber-600 mt-1">
-            全球默认配置不可更改国家代码。
+      {/* Header preview card */}
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200">
+        <span className="text-3xl leading-none" aria-hidden>{meta.flag}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-slate-900 truncate">{meta.name}</p>
+          <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+            {local.country || "—"}
+            {isGlobal && <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[9px] font-bold uppercase tracking-wider">Default</span>}
+          </p>
+        </div>
+      </div>
+
+      {/* Country selector */}
+      <Field label="Country" required hint="ISO 3166-1 alpha-2 code, or `Global` for the fallback policy.">
+        {isGlobal && !isNew ? (
+          <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+            Global default — country code cannot be changed.
+          </div>
+        ) : (
+          <>
+            <select
+              value={COUNTRY_OPTIONS.some((c) => c.code === local.country) ? local.country : "__custom__"}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__custom__") return;
+                setLocal((p) => ({ ...p, country: v }));
+              }}
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            >
+              <option value="">— Select country —</option>
+              {COUNTRY_OPTIONS.filter((c) => isNew ? !taken.has(c.code) : true).map((c) => (
+                <option key={c.code} value={c.code}>{c.flag} {c.name} {c.code !== "Global" && `(${c.code})`}</option>
+              ))}
+              <option value="__custom__">+ Custom ISO code…</option>
+            </select>
+            {!COUNTRY_OPTIONS.some((c) => c.code === local.country) && local.country !== "" && (
+              <input
+                value={local.country}
+                onChange={(e) =>
+                  setLocal((p) => ({ ...p, country: e.target.value.toUpperCase() }))
+                }
+                placeholder="e.g. BR, SE, NG"
+                maxLength={6}
+                className="mt-2 w-full h-9 px-3 rounded-lg border border-slate-200 bg-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              />
+            )}
+            {isDuplicate && (
+              <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
+                <span className="text-base leading-none">⚠</span>
+                A policy for this country already exists.
+              </p>
+            )}
+          </>
+        )}
+      </Field>
+
+      {/* Allowed document types */}
+      <Field label="Accepted Documents" required hint="Tick the document types residents may use to verify their identity.">
+        <div className="grid grid-cols-1 gap-2">
+          {DOC_TYPE_ORDER.map((t) => {
+            const checked = local.allowedTypes.includes(t);
+            const def = docTypeDefaults.find((d) => d.kind === t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleType(t)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                  checked
+                    ? "border-blue-300 bg-blue-50/60"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+              >
+                <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                  checked ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
+                }`}>
+                  {checked && (
+                    <svg viewBox="0 0 12 12" className="w-3 h-3 text-white"><path d="M2 6l3 3 5-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${checked ? "text-slate-900" : "text-slate-700"}`}>
+                    {DOC_TYPE_LABELS[t]}
+                  </p>
+                  {def && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {def.backSideEnabled
+                        ? `Back side: ${def.backSideRequired ? "required" : "optional"} (global default)`
+                        : "No back side"}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {local.allowedTypes.length === 0 && (
+          <p className="text-[11px] text-red-600 mt-1.5 flex items-center gap-1">
+            <span className="text-base leading-none">⚠</span>
+            Select at least one document type.
           </p>
         )}
       </Field>
 
-      <Field label="允许的证件类型" required>
-        <div className="space-y-2 mt-1">
-          {DOC_TYPE_ORDER.map((t) => (
-            <label key={t} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={local.allowedTypes.includes(t)}
-                onChange={() => toggleType(t)}
-                className="rounded"
-              />
-              <span className="text-sm text-slate-700">{DOC_TYPE_LABELS[t]}</span>
-            </label>
-          ))}
-        </div>
-      </Field>
-
-      {/* 背面覆盖，仅对全局默认启用背面的类型显示 */}
+      {/* Back-side overrides — only relevant for types where back side is enabled globally */}
       {local.allowedTypes.some((t) =>
         docTypeDefaults.find((d) => d.kind === t)?.backSideEnabled
       ) && (
         <Field
-          label="背面要求覆盖"
-          hint="覆盖全局文档类型设置中的背面规则（省略则继承全局默认）"
+          label="Back-side Overrides"
+          hint="Override the global back-side rule for this country. Omit to inherit the default."
         >
-          <div className="space-y-2 mt-1">
+          <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/40 p-2">
             {local.allowedTypes
               .filter((t) => docTypeDefaults.find((d) => d.kind === t)?.backSideEnabled)
               .map((t) => {
                 const ov = local.backSideOverrides[t];
+                const value = ov === undefined ? "inherit" : ov ? "required" : "optional";
                 return (
-                  <div key={t} className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-600">{DOC_TYPE_LABELS[t]}</span>
-                    <select
-                      value={ov === undefined ? "inherit" : ov ? "required" : "optional"}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setLocal((p) => {
-                          const ovs = { ...p.backSideOverrides };
-                          if (v === "inherit") delete ovs[t];
-                          else ovs[t] = v === "required";
-                          return { ...p, backSideOverrides: ovs };
-                        });
-                      }}
-                      className="h-7 text-xs px-2 rounded border border-slate-200 bg-white"
-                    >
-                      <option value="inherit">继承全局默认</option>
-                      <option value="required">背面必传</option>
-                      <option value="optional">背面可选</option>
-                    </select>
+                  <div key={t} className="flex items-center justify-between gap-3 px-2 py-1.5 bg-white rounded-md border border-slate-100">
+                    <span className="text-xs font-medium text-slate-700">{DOC_TYPE_LABELS[t]}</span>
+                    <div className="inline-flex items-center bg-slate-100 rounded-md p-0.5">
+                      {(["inherit", "required", "optional"] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setLocal((p) => {
+                              const ovs = { ...p.backSideOverrides };
+                              if (opt === "inherit") delete ovs[t];
+                              else ovs[t] = opt === "required";
+                              return { ...p, backSideOverrides: ovs };
+                            });
+                          }}
+                          className={`px-2 py-0.5 text-[10px] font-semibold uppercase rounded transition-colors ${
+                            value === opt
+                              ? opt === "required"
+                                ? "bg-red-600 text-white"
+                                : opt === "optional"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-white text-slate-700 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -637,6 +780,11 @@ function POADrawer({
 
   const cur = { ...config, ...draft } as POAModuleConfig;
 
+  const dirty = useMemo(
+    () => (config ? JSON.stringify(cur) !== JSON.stringify(config) : false),
+    [cur, config]
+  );
+
   const handleSave = async () => {
     setSaving(true);
     try { await onSave(draft); onClose(); } finally { setSaving(false); }
@@ -645,28 +793,29 @@ function POADrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="住址证明（POA）"
-      subtitle="配置接受的文件类型和上传约束。"
+      title="Proof of Address (POA)"
+      subtitle="Configure accepted document types and upload limits."
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
       saveDisabled={!cur.acceptedDocuments?.length}
     >
-      <Field label="接受的文件类型" required>
+      <Field label="Accepted document types" required>
         <CheckboxGroup
           options={ALL_POA_DOCS.map((d) => ({ label: POA_DOC_LABELS[d], value: d }))}
           value={cur.acceptedDocuments ?? []}
           onChange={(v) => setDraft((p) => ({ ...p, acceptedDocuments: v }))}
         />
       </Field>
-      <Field label="文件有效期（月）" hint="文件出具日期不得早于此月数前">
+      <Field label="Max document age (months)" hint="Document issue date must be within this many months.">
         <TextInput
           type="number" min={1} max={24}
           value={cur.maxAgeMonths ?? 3}
           onChange={(e) => setDraft((p) => ({ ...p, maxAgeMonths: Number(e.target.value) || 1 }))}
         />
       </Field>
-      <Field label="允许的文件格式">
+      <Field label="Accepted file formats">
         <div className="flex gap-4 mt-1">
           {(["jpg", "png", "pdf"] as const).map((f) => (
             <label key={f} className="flex items-center gap-1.5 cursor-pointer">
@@ -686,7 +835,7 @@ function POADrawer({
           ))}
         </div>
       </Field>
-      <Field label="最大文件大小（MB）">
+      <Field label="Max file size (MB)">
         <TextInput
           type="number" min={1} max={50}
           value={cur.maxFileSizeMb ?? 10}
@@ -721,6 +870,11 @@ function IncomeProofDrawer({
 
   const cur = { ...config, ...draft } as IncomeProofModuleConfig;
 
+  const dirty = useMemo(
+    () => (config ? JSON.stringify(cur) !== JSON.stringify(config) : false),
+    [cur, config]
+  );
+
   const handleSave = async () => {
     setSaving(true);
     try { await onSave(draft); onClose(); } finally { setSaving(false); }
@@ -729,28 +883,29 @@ function IncomeProofDrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="收入证明"
-      subtitle="配置接受的文件类型和覆盖期限。"
+      title="Income Proof"
+      subtitle="Configure accepted document types and coverage period."
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
       saveDisabled={!cur.acceptedDocuments?.length}
     >
-      <Field label="接受的文件类型" required>
+      <Field label="Accepted document types" required>
         <CheckboxGroup
           options={ALL_INCOME_DOCS.map((d) => ({ label: INCOME_DOC_LABELS[d], value: d }))}
           value={cur.acceptedDocuments ?? []}
           onChange={(v) => setDraft((p) => ({ ...p, acceptedDocuments: v }))}
         />
       </Field>
-      <Field label="收入历史覆盖期限（月）" hint="文件须覆盖最近连续 N 个月">
+      <Field label="Income coverage (months)" hint="Documents must cover the most recent N consecutive months.">
         <TextInput
           type="number" min={1} max={24}
           value={cur.periodCoverageMonths ?? 3}
           onChange={(e) => setDraft((p) => ({ ...p, periodCoverageMonths: Number(e.target.value) || 1 }))}
         />
       </Field>
-      <Field label="允许的文件格式">
+      <Field label="Accepted file formats">
         <div className="flex gap-4 mt-1">
           {(["jpg", "png", "pdf"] as const).map((f) => (
             <label key={f} className="flex items-center gap-1.5 cursor-pointer">
@@ -770,7 +925,7 @@ function IncomeProofDrawer({
           ))}
         </div>
       </Field>
-      <Field label="最大文件大小（MB）">
+      <Field label="Max file size (MB)">
         <TextInput
           type="number" min={1} max={50}
           value={cur.maxFileSizeMb ?? 10}
@@ -807,6 +962,11 @@ function LivenessDrawer({
   const provider = cur.provider ?? "tradepass";
   const pc = cur.providerConfig ?? {};
 
+  const dirty = useMemo(
+    () => (config ? JSON.stringify(cur) !== JSON.stringify(config) : false),
+    [cur, config]
+  );
+
   const setProvider = (p: LivenessProvider) =>
     setDraft((prev) => ({ ...prev, provider: p, providerConfig: {} }));
 
@@ -824,14 +984,15 @@ function LivenessDrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="活体认证"
-      subtitle="选择供应商并配置识别阈值。"
+      title="Liveness Check"
+      subtitle="Pick a provider and set detection thresholds."
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
     >
-      {/* 供应商选择 */}
-      <Field label="供应商" required>
+      {/* Provider */}
+      <Field label="Provider" required>
         <Select
           value={provider}
           onChange={(e) => setProvider(e.target.value as LivenessProvider)}
@@ -839,14 +1000,14 @@ function LivenessDrawer({
         />
       </Field>
 
-      {/* TradePass 自研说明 */}
+      {/* TradePass note */}
       {provider === "tradepass" && (
         <div className="rounded-md bg-blue-50 border border-blue-100 px-3 py-2.5 text-xs text-blue-700">
-          使用 TradePass 自研活体检测引擎，无需额外配置。
+          Uses the TradePass in-house liveness engine — no additional configuration required.
         </div>
       )}
 
-      {/* Onfido 配置 */}
+      {/* Onfido config */}
       {provider === "onfido" && (
         <>
           <Field label="API Key" required>
@@ -857,7 +1018,7 @@ function LivenessDrawer({
               type="password"
             />
           </Field>
-          <Field label="Webhook Secret" hint="用于验证 Onfido 回调签名">
+          <Field label="Webhook Secret" hint="Used to verify Onfido webhook signatures.">
             <TextInput
               value={pc.webhookSecret ?? ""}
               onChange={(e) => setPc({ webhookSecret: e.target.value })}
@@ -869,7 +1030,7 @@ function LivenessDrawer({
         </>
       )}
 
-      {/* Sumsub 配置 */}
+      {/* Sumsub config */}
       {provider === "sumsub" && (
         <>
           <Field label="App Token" required>
@@ -880,7 +1041,7 @@ function LivenessDrawer({
               type="password"
             />
           </Field>
-          <Field label="Secret Key" required hint="用于 HMAC 请求签名">
+          <Field label="Secret Key" required hint="Used to sign HMAC requests.">
             <TextInput
               value={pc.secretKey ?? ""}
               onChange={(e) => setPc({ secretKey: e.target.value })}
@@ -891,9 +1052,9 @@ function LivenessDrawer({
         </>
       )}
 
-      {/* 通用配置 */}
+      {/* Common config */}
       <hr className="border-slate-100" />
-      <Field label="最小通过置信度（0–100）" hint="低于此分数将自动判定为失败">
+      <Field label="Minimum pass confidence (0–100)" hint="Anything below this score is auto-failed.">
         <TextInput
           type="number" min={0} max={100}
           value={cur.confidenceThreshold ?? 80}
@@ -905,7 +1066,7 @@ function LivenessDrawer({
           }
         />
       </Field>
-      <Field label="最大尝试次数" hint="超过此次数将自动判定为失败，创建人工审核 Case">
+      <Field label="Max attempts" hint="Exceeding this count auto-fails the user and opens a manual-review case.">
         <TextInput
           type="number" min={1} max={10}
           value={cur.maxAttempts ?? 3}
@@ -923,8 +1084,8 @@ function LivenessDrawer({
 
 function SdkGuideLink({ provider }: { provider: Exclude<LivenessProvider, "tradepass"> }) {
   const labels: Record<typeof provider, string> = {
-    onfido: "查看 Onfido SDK 接入文档",
-    sumsub: "查看 Sumsub SDK 接入文档",
+    onfido: "Open Onfido SDK integration docs",
+    sumsub: "Open Sumsub SDK integration docs",
   };
   return (
     <a
@@ -961,6 +1122,12 @@ function QuestionnaireDrawer({
     if (config) setFields([...config.fields].sort((a, b) => a.order - b.order));
   }, [config, open]);
 
+  const dirty = useMemo(() => {
+    if (!config) return false;
+    const sortedConfig = [...config.fields].sort((a, b) => a.order - b.order);
+    return JSON.stringify(fields) !== JSON.stringify(sortedConfig);
+  }, [fields, config]);
+
   const addField = () => {
     const maxOrder = fields.reduce((m, f) => Math.max(m, f.order), 0);
     setFields((prev) => [
@@ -977,11 +1144,12 @@ function QuestionnaireDrawer({
   return (
     <ConfigDrawer
       open={open}
-      title="KYC 问卷"
-      subtitle={`${fields.length} 个问题字段`}
+      title="KYC Questionnaire"
+      subtitle={`${fields.length} question${fields.length === 1 ? "" : "s"}`}
       onClose={onClose}
       onSave={handleSave}
       saving={saving}
+      dirty={dirty}
       width={560}
     >
       <div className="space-y-3">
@@ -989,7 +1157,7 @@ function QuestionnaireDrawer({
           <div key={f.id} className="border border-slate-200 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-                字段 {idx + 1}
+                Field {idx + 1}
               </span>
               <button
                 onClick={() => setFields((p) => p.filter((x) => x.id !== f.id))}
@@ -1000,17 +1168,17 @@ function QuestionnaireDrawer({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2">
-                <Field label="问题标签" required>
+                <Field label="Question label" required>
                   <TextInput
                     value={f.label}
                     onChange={(e) =>
                       setFields((p) => p.map((x) => x.id === f.id ? { ...x, label: e.target.value } : x))
                     }
-                    placeholder="例如：就业状态"
+                    placeholder="e.g. Employment status"
                   />
                 </Field>
               </div>
-              <Field label="类型">
+              <Field label="Type">
                 <Select
                   value={f.type}
                   onChange={(e) =>
@@ -1019,23 +1187,23 @@ function QuestionnaireDrawer({
                   options={QUESTION_FIELD_TYPES}
                 />
               </Field>
-              <Field label="是否必填">
+              <Field label="Required">
                 <Select
                   value={f.required ? "yes" : "no"}
                   onChange={(e) =>
                     setFields((p) => p.map((x) => x.id === f.id ? { ...x, required: e.target.value === "yes" } : x))
                   }
-                  options={[{ label: "必填", value: "yes" }, { label: "选填", value: "no" }]}
+                  options={[{ label: "Required", value: "yes" }, { label: "Optional", value: "no" }]}
                 />
               </Field>
               <div className="col-span-2">
-                <Field label="提示文本">
+                <Field label="Helper text">
                   <TextInput
                     value={f.hint ?? ""}
                     onChange={(e) =>
                       setFields((p) => p.map((x) => x.id === f.id ? { ...x, hint: e.target.value } : x))
                     }
-                    placeholder="向申请人展示的说明（可选）"
+                    placeholder="Hint shown to the applicant (optional)"
                   />
                 </Field>
               </div>
@@ -1044,7 +1212,7 @@ function QuestionnaireDrawer({
         ))}
         <Button variant="secondary" size="sm" onClick={addField} className="w-full">
           <Plus className="w-3.5 h-3.5" />
-          添加字段
+          Add field
         </Button>
       </div>
     </ConfigDrawer>
@@ -1117,16 +1285,16 @@ export default function SystemModulesPage() {
       actor
     );
     await loadIdentity();
-    addToast({ title: "文档类型设置已保存", type: "success" });
+    addToast({ title: "Document settings saved", type: "success" });
   };
 
   const saveUploadConfig = async (c: DocumentUploadConfig) => {
     await clmFlowService.identityModule.update({ uploadConfig: c }, actor);
     await loadIdentity();
-    addToast({ title: "上传设置已保存", type: "success" });
+    addToast({ title: "Upload settings saved", type: "success" });
   };
 
-  /* ── 国家政策 helpers ── */
+  /* ── Country policy helpers ── */
   const openNewPolicy = () => {
     setPolicyDraft({ country: "", allowedTypes: ["passport"], backSideOverrides: {} });
     setEditingPolicyIdx(null);
@@ -1158,7 +1326,7 @@ export default function SystemModulesPage() {
     await clmFlowService.identityModule.update({ policies: updated }, actor);
     await loadIdentity();
     setActiveDrawer(null);
-    addToast({ title: "国家政策已保存", type: "success" });
+    addToast({ title: "Country policy saved", type: "success" });
   };
 
   const deletePolicy = async () => {
@@ -1167,35 +1335,35 @@ export default function SystemModulesPage() {
     await clmFlowService.identityModule.update({ policies: updated }, actor);
     await loadIdentity();
     setActiveDrawer(null);
-    addToast({ title: "国家政策已删除", type: "success" });
+    addToast({ title: "Country policy deleted", type: "success" });
   };
 
-  /* ── 其他模块保存 ── */
+  /* ── Other module saves ── */
   const savePoa = async (patch: Partial<POAModuleConfig>) => {
     const updated = await clmFlowService.poaModule.update(patch, actor);
     setPoaConfig(updated);
-    addToast({ title: "住址证明配置已保存", type: "success" });
+    addToast({ title: "Proof of Address settings saved", type: "success" });
   };
 
   const saveIncome = async (patch: Partial<IncomeProofModuleConfig>) => {
     const updated = await clmFlowService.incomeProofModule.update(patch, actor);
     setIncomeConfig(updated);
-    addToast({ title: "收入证明配置已保存", type: "success" });
+    addToast({ title: "Income Proof settings saved", type: "success" });
   };
 
   const saveLiveness = async (patch: Partial<LivenessModuleConfig>) => {
     const updated = await clmFlowService.livenessModule.update(patch, actor);
     setLivenessConfig(updated);
-    addToast({ title: "活体认证配置已保存", type: "success" });
+    addToast({ title: "Liveness settings saved", type: "success" });
   };
 
   const saveQuestionnaire = async (patch: Partial<QuestionnaireModuleConfig>) => {
     const updated = await clmFlowService.questionnaireModule.update(patch, actor);
     setQuestionnaireConfig(updated);
-    addToast({ title: "问卷配置已保存", type: "success" });
+    addToast({ title: "Questionnaire settings saved", type: "success" });
   };
 
-  /* ── 全局兜底检查 ── */
+  /* ── Global default check ── */
   const hasGlobalPolicy =
     identityConfig?.policies.some((p) => p.country === "Global") ?? true;
 
@@ -1220,12 +1388,12 @@ export default function SystemModulesPage() {
           </span>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Identity Verification</h3>
-            <p className="text-[11px] text-slate-500">证件采集规则、国家政策与上传约束。</p>
+            <p className="text-[11px] text-slate-500">Document capture rules, country policies and upload limits.</p>
           </div>
         </div>
 
         {loadingIdentity ? (
-          <p className="text-sm text-slate-400 text-center py-8">加载中…</p>
+          <p className="text-sm text-slate-400 text-center py-8">Loading…</p>
         ) : (
           <div className="space-y-3">
             {/* 全球兜底警告 */}
@@ -1233,29 +1401,29 @@ export default function SystemModulesPage() {
               <div className="flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs text-amber-700">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 <span>
-                  未配置全球默认政策（Global）——无匹配国家的用户将被拒绝。
-                  建议立即添加一条 <strong>country = Global</strong> 的兜底政策。
+                  No global default policy is configured — users from non-matching countries will be rejected.
+                  Add a fallback policy with <strong>country = Global</strong>.
                 </span>
               </div>
             )}
 
             {/* 文档类型设置摘要行 */}
             <SummaryRow
-              label="文档类型设置"
+              label="Document Settings"
               summary={
                 identityConfig
-                  ? `${identityConfig.documentTypeDefaults.filter((d) => d.backSideEnabled).length} 种证件启用背面 · ${identityConfig.expiryRules.filter((r) => r.checkEnabled).length} 种证件启用过期检查`
+                  ? `${identityConfig.documentTypeDefaults.filter((d) => d.backSideEnabled).length} type(s) with back side · ${identityConfig.expiryRules.filter((r) => r.checkEnabled).length} with expiry check`
                   : "—"
               }
               onEdit={() => setActiveDrawer("doc-type")}
             />
 
-            {/* 上传设置摘要行 */}
+            {/* Upload settings summary row */}
             <SummaryRow
-              label="上传设置"
+              label="Upload Settings"
               summary={
                 identityConfig
-                  ? `${identityConfig.uploadConfig.acceptedFormats.join(" / ").toUpperCase()} · 最大 ${identityConfig.uploadConfig.maxFileSizeMb}MB · 单用户 ${identityConfig.uploadConfig.maxRetryAttemptsPerUser} 次 · ${identityConfig.uploadConfig.retryWindowHours}h 内 ${identityConfig.uploadConfig.maxRetryAttemptsPerWindow} 次`
+                  ? `${identityConfig.uploadConfig.acceptedFormats.join(" / ").toUpperCase()} · max ${identityConfig.uploadConfig.maxFileSizeMb}MB · ${identityConfig.uploadConfig.maxRetryAttemptsPerUser} per user · ${identityConfig.uploadConfig.maxRetryAttemptsPerWindow}/${identityConfig.uploadConfig.retryWindowHours}h`
                   : "—"
               }
               onEdit={() => setActiveDrawer("upload")}
@@ -1264,17 +1432,17 @@ export default function SystemModulesPage() {
             {/* 国家政策列表 */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-700">国家政策</p>
+                <p className="text-xs font-semibold text-slate-700">Country Policies</p>
                 <Button variant="secondary" size="sm" onClick={openNewPolicy}>
                   <Plus className="w-3 h-3" />
-                  添加国家
+                  Add country
                 </Button>
               </div>
 
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 {!identityConfig?.policies.length ? (
                   <p className="py-6 text-center text-xs text-slate-400">
-                    暂无国家政策，点击"添加国家"进行配置。
+                    No country policies yet — click "Add country" to configure.
                   </p>
                 ) : (
                   <ul>
@@ -1309,13 +1477,13 @@ export default function SystemModulesPage() {
                           </div>
                           {p.country === "Global" && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded font-medium shrink-0">
-                              默认
+                              Default
                             </span>
                           )}
                           <button
                             onClick={() => openEditPolicy(idx)}
                             className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 shrink-0"
-                            aria-label="编辑"
+                            aria-label="Edit"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -1338,8 +1506,8 @@ export default function SystemModulesPage() {
           title="Proof of Address"
           summary={
             poaConfig
-              ? `${fmtList(poaConfig.acceptedDocuments.map((d) => POA_DOC_LABELS[d]))} · 有效期 ${poaConfig.maxAgeMonths} 个月`
-              : "加载中…"
+              ? `${fmtList(poaConfig.acceptedDocuments.map((d) => POA_DOC_LABELS[d]))} · valid for ${poaConfig.maxAgeMonths} mo`
+              : "Loading…"
           }
           onConfigure={() => setActiveDrawer("poa")}
         />
@@ -1349,8 +1517,8 @@ export default function SystemModulesPage() {
           title="Income Proof"
           summary={
             incomeConfig
-              ? `${fmtList(incomeConfig.acceptedDocuments.map((d) => INCOME_DOC_LABELS[d]))} · 覆盖 ${incomeConfig.periodCoverageMonths} 个月`
-              : "加载中…"
+              ? `${fmtList(incomeConfig.acceptedDocuments.map((d) => INCOME_DOC_LABELS[d]))} · covers ${incomeConfig.periodCoverageMonths} mo`
+              : "Loading…"
           }
           onConfigure={() => setActiveDrawer("income")}
         />
@@ -1360,8 +1528,8 @@ export default function SystemModulesPage() {
           title="Liveness Check"
           summary={
             livenessConfig
-              ? `${LIVENESS_PROVIDERS.find((p) => p.value === livenessConfig.provider)?.label ?? livenessConfig.provider} · 置信度 ${livenessConfig.confidenceThreshold}% · 最多 ${livenessConfig.maxAttempts} 次`
-              : "加载中…"
+              ? `${LIVENESS_PROVIDERS.find((p) => p.value === livenessConfig.provider)?.label ?? livenessConfig.provider} · ${livenessConfig.confidenceThreshold}% confidence · max ${livenessConfig.maxAttempts} attempts`
+              : "Loading…"
           }
           onConfigure={() => setActiveDrawer("liveness")}
         />
@@ -1371,8 +1539,8 @@ export default function SystemModulesPage() {
           title="Questionnaire"
           summary={
             questionnaireConfig
-              ? `${questionnaireConfig.fields.length} 个字段`
-              : "加载中…"
+              ? `${questionnaireConfig.fields.length} field${questionnaireConfig.fields.length === 1 ? "" : "s"}`
+              : "Loading…"
           }
           onConfigure={() => setActiveDrawer("questionnaire")}
         />
@@ -1406,6 +1574,7 @@ export default function SystemModulesPage() {
         draft={policyDraft}
         isNew={editingPolicyIdx === null}
         docTypeDefaults={identityConfig?.documentTypeDefaults ?? []}
+        existingCountries={identityConfig?.policies.map((p) => p.country) ?? []}
         onSave={savePolicyDraft}
         onDelete={deletePolicy}
         onClose={() => setActiveDrawer(null)}
@@ -1493,7 +1662,7 @@ function ModuleCard({
           className="shrink-0 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-2 py-1 hover:bg-slate-50"
         >
           <Settings2 className="w-3 h-3" />
-          配置
+          Configure
         </button>
       </div>
     </Card>

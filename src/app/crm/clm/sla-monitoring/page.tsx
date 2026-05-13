@@ -59,7 +59,7 @@ export default function SLAMonitoringPage() {
       { name: "AML", types: ["manual_review", "edd"] },
       { name: "Video", types: ["video_verification", "liveness"] },
       { name: "Agreement", types: ["agreement_signing"] },
-      { name: "Risk", types: ["risk_recheck", "source_of_wealth"] },
+      { name: "SoW", types: ["source_of_wealth"] },
       { name: "Re-Verify", types: ["re_verification"] },
     ];
 
@@ -99,7 +99,7 @@ export default function SLAMonitoringPage() {
     return (
       <div className="space-y-6">
         <PageHeader title="SLA & Monitoring" description="Loading..." />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} className="!p-4 h-24 animate-pulse bg-gray-100" />
           ))}
@@ -117,7 +117,7 @@ export default function SLAMonitoringPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MetricCard icon={<Inbox className="w-5 h-5 text-blue-600" />} label="Pending Cases" value={stats.pending} />
         <MetricCard icon={<Clock className="w-5 h-5 text-red-600" />} label="Timeout Cases" value={stats.timeout} alert />
         <MetricCard icon={<Timer className="w-5 h-5 text-amber-600" />} label="Near Timeout" value={stats.nearTimeout} />

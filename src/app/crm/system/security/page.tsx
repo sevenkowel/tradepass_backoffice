@@ -124,7 +124,7 @@ export default function SecurityPage() {
 
       {/* Security Stats */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <Card className="!p-4">
             <p className="text-sm text-slate-500">今日登录</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{stats.totalLoginsToday}</p>
@@ -314,7 +314,7 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between py-2 border-b border-slate-100">
               <span className="text-slate-700">最小长度</span>
               <span className="font-medium">{localSettings.passwordMinLength} 位</span>
@@ -377,7 +377,7 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
               <ShieldAlert className="w-5 h-5 text-red-600" />
               <div className="flex-1">

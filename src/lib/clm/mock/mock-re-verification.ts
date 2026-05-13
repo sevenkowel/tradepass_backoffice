@@ -118,15 +118,17 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_identity",
       restriction: {
-        level: "important",
+        level: "restrict",
         scopes: ["withdrawal"],
         effective: { kind: "immediate" },
         validityHours: 24 * 7,
-        expirationEscalation: { toLevel: "blocking", addScopes: ["trading"] },
+        expirationEscalation: { toLevel: "suspend", addScopes: ["trading"] },
       },
       notification: {
         channels: ["email", "inbox", "login_popup"],
-        popupSeverity: "important",
+        popupSeverity: "notice",
+        noticeFrequency: "every_login",
+        mustAcknowledge: true,
         templateId: "rvt-001",
         ctaUrl: "/account/verification?type=identity",
       },
@@ -151,7 +153,7 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_video",
       restriction: {
-        level: "blocking",
+        level: "restrict",
         scopes: ["withdrawal"],
         effective: { kind: "immediate" },
         validityHours: 24 * 3,
@@ -181,14 +183,14 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_liveness",
       restriction: {
-        level: "important",
+        level: "restrict",
         scopes: ["login", "withdrawal"],
         effective: { kind: "immediate" },
         validityHours: 24,
       },
       notification: {
         channels: ["email", "login_popup"],
-        popupSeverity: "blocking",
+        popupSeverity: "restrict",
       },
     },
     triggerKind: "event",
@@ -210,11 +212,11 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_agreement",
       restriction: {
-        level: "soft_reminder",
+        level: "notice",
         scopes: [],
         effective: { kind: "delayed_hours", hours: 24 },
         validityHours: 24 * 14,
-        expirationEscalation: { toLevel: "blocking", addScopes: ["deposit", "withdrawal"] },
+        expirationEscalation: { toLevel: "suspend", addScopes: ["deposit", "withdrawal"] },
       },
       notification: {
         channels: ["email", "inbox"],
@@ -240,14 +242,14 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_income",
       restriction: {
-        level: "blocking",
+        level: "restrict",
         scopes: ["withdrawal", "deposit"],
         effective: { kind: "immediate" },
         validityHours: 24 * 7,
       },
       notification: {
         channels: ["email", "inbox", "login_popup"],
-        popupSeverity: "blocking",
+        popupSeverity: "restrict",
         templateId: "rvt-005",
       },
     },
@@ -273,11 +275,11 @@ export const mockReVerificationRules: ReVerificationRule[] = [
     action: {
       verificationType: "re_identity",
       restriction: {
-        level: "soft_reminder",
+        level: "notice",
         scopes: [],
         effective: { kind: "immediate" },
         validityHours: 24 * 30,
-        expirationEscalation: { toLevel: "important", addScopes: ["deposit", "withdrawal"] },
+        expirationEscalation: { toLevel: "restrict", addScopes: ["deposit", "withdrawal"] },
       },
       notification: {
         channels: ["email", "inbox"],
@@ -316,15 +318,15 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "document_expired",
     reasonText: "ID expires in 5 days. Auto-issued by Rule \"ID Expiring Within 7 Days\".",
     restriction: {
-      level: "important",
+      level: "restrict",
       scopes: ["withdrawal"],
       effective: { kind: "immediate" },
       validityHours: 24 * 7,
-      expirationEscalation: { toLevel: "blocking", addScopes: ["trading"] },
+      expirationEscalation: { toLevel: "suspend", addScopes: ["trading"] },
     },
     notification: {
       channels: ["email", "inbox", "login_popup"],
-      popupSeverity: "important",
+      popupSeverity: "notice",
       templateId: "rvt-001",
       ctaUrl: "/account/verification?type=identity",
     },
@@ -350,7 +352,7 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "large_withdrawal",
     reasonText: "Pending withdrawal of $18,000. Video confirmation required before release.",
     restriction: {
-      level: "blocking",
+      level: "restrict",
       scopes: ["withdrawal"],
       effective: { kind: "immediate" },
       validityHours: 24 * 3,
@@ -383,14 +385,14 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "aml_hit",
     reasonText: "AML watchlist match (OFAC SDN). Source-of-wealth required before any further activity.",
     restriction: {
-      level: "blocking",
+      level: "restrict",
       scopes: ["withdrawal", "deposit"],
       effective: { kind: "immediate" },
       validityHours: 24 * 7,
     },
     notification: {
       channels: ["email", "inbox", "login_popup"],
-      popupSeverity: "blocking",
+      popupSeverity: "restrict",
       templateId: "rvt-005",
     },
     status: "notified",
@@ -415,14 +417,14 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "vpn_country_switch",
     reasonText: "Login from VPN egress (KR → NL). Re-liveness required.",
     restriction: {
-      level: "important",
+      level: "restrict",
       scopes: ["login", "withdrawal"],
       effective: { kind: "immediate" },
       validityHours: 24,
     },
     notification: {
       channels: ["email", "login_popup"],
-      popupSeverity: "blocking",
+      popupSeverity: "restrict",
     },
     status: "notified",
     deadlineAt: future(20),
@@ -446,7 +448,7 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "long_inactivity",
     reasonText: "Account dormant for 14 months. Address refresh requested before re-activation.",
     restriction: {
-      level: "soft_reminder",
+      level: "notice",
       scopes: [],
       effective: { kind: "immediate" },
       validityHours: 24 * 14,
@@ -477,14 +479,14 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "fraud_investigation",
     reasonText: "Open fraud investigation. Video verification rejected — face mismatch.",
     restriction: {
-      level: "blocking",
+      level: "restrict",
       scopes: ["withdrawal", "trading"],
       effective: { kind: "immediate" },
       validityHours: 24 * 3,
     },
     notification: {
       channels: ["email", "inbox", "login_popup"],
-      popupSeverity: "blocking",
+      popupSeverity: "restrict",
     },
     status: "rejected",
     caseId: "case-rv-006",
@@ -509,7 +511,7 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "policy_update",
     reasonText: "Suitability assessment outdated (last updated 18 months ago).",
     restriction: {
-      level: "soft_reminder",
+      level: "notice",
       scopes: [],
       effective: { kind: "immediate" },
       validityHours: 24 * 14,
@@ -538,7 +540,7 @@ export const mockReVerificationRequests: ReVerificationRequest[] = [
     triggerReason: "agreement_update",
     reasonText: "Cancelled — user already re-signed via the bulk Tier 3 pre-flight notice.",
     restriction: {
-      level: "soft_reminder",
+      level: "notice",
       scopes: [],
       effective: { kind: "immediate" },
       validityHours: 24 * 14,

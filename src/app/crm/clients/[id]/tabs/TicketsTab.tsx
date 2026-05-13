@@ -14,7 +14,7 @@ export default function TicketsTab({ data }: BaseTabProps) {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-slate-900">客服工单</h3>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* 工单列表 */}
         <div className="lg:col-span-1 space-y-2">
           {tickets.map((t) => (

@@ -233,7 +233,7 @@ function MessageDetailDrawer({ msg, onClose }: { msg: MessageCampaign; onClose: 
         </div>
 
         {/* Target */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs text-[var(--tp-fg-muted)] mb-1">目标用户群</p>
             <p className="text-sm text-[var(--tp-fg)] font-medium">{msg.targetSegment}</p>
@@ -340,7 +340,7 @@ export default function MessagesPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "消息总数", value: messages.length, icon: <MessageSquare className="w-5 h-5" />, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "已发送", value: fmt(totalSent), icon: <Send className="w-5 h-5" />, color: "text-green-600", bg: "bg-green-50" },

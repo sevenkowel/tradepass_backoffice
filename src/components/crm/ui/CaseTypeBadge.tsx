@@ -17,7 +17,6 @@ const config: Record<CLMCaseType, { tone: BadgeTone; label: string }> = {
   edd:                 { tone: "error",   label: "EDD" },
   source_of_wealth:    { tone: "warning", label: "SoW" },
   agreement_signing:   { tone: "neutral", label: "Agreement" },
-  risk_recheck:        { tone: "rose",    label: "Risk" },
   manual_review:       { tone: "neutral", label: "Manual" },
   re_verification:     { tone: "indigo",  label: "Re-Verify" },
 };

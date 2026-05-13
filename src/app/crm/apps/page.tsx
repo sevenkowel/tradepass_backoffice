@@ -132,7 +132,7 @@ export default function AppsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-surface border border-border">
           <p className="text-sm text-muted-foreground">已解锁模块</p>
           <p className="text-2xl font-bold text-foreground mt-1">

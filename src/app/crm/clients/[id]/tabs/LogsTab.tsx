@@ -71,7 +71,7 @@ export default function LogsTab({ data }: BaseTabProps) {
   }, [logs]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-end justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">操作历史</h3>

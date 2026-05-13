@@ -94,7 +94,7 @@ export function ProfileEditForm({ profile, onSave, isSaving }: ProfileEditFormPr
         )}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">

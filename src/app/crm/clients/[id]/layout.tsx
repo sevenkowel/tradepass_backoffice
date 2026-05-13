@@ -59,14 +59,14 @@ function ClientProfileShell({ children }: { children: React.ReactNode }) {
   const { user, valueMetrics, lifecycleStages, riskFactors } = detail;
 
   return (
-    <div className="flex gap-6 h-[calc(100vh-80px)]">
+    <div className="flex gap-3 h-[calc(100vh-80px)]">
       {/* Left Sidebar */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         className="w-80 flex-shrink-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Avatar & Name */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex flex-col items-center">

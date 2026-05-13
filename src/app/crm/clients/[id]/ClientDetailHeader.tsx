@@ -23,7 +23,7 @@ interface Props {
 
 export default function ClientDetailHeader({ user }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
       {/* 基础信息 */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
         <InfoItem icon={Mail} label="邮箱" value={user.email} />

@@ -26,7 +26,7 @@ export function PasswordStep({ onNext }: PasswordStepProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <div className="text-center mb-6">
         <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
           <Lock className="w-6 h-6 text-primary" />

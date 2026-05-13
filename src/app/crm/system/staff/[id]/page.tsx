@@ -403,7 +403,7 @@ export default function StaffDetailPage() {
       </Card>
 
       {/* Login History */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
           <Clock className="w-5 h-5 text-slate-500" />
           登录历史

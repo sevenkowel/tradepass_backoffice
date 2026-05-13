@@ -266,7 +266,7 @@ export default function MarginAlertsPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="!p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -386,7 +386,7 @@ export default function MarginAlertsPage() {
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-3">
               <div className="text-center p-6 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl text-white">
                 <p className="text-sm opacity-80">保证金水平</p>
                 <p className="text-5xl font-bold mt-1">{selectedAlert.marginLevel}%</p>

@@ -52,6 +52,8 @@ export interface IWorkspaceService {
 export interface IAuditService {
   list(params?: AuditListParams): Promise<PaginatedResult<CLMAuditLog>>;
   getByCaseId(caseId: string): Promise<CLMAuditLog[]>;
+  /** Push a new audit log entry. ID / auditId / createdAt are generated. */
+  log(entry: Omit<CLMAuditLog, "id" | "auditId" | "createdAt">): Promise<void>;
 }
 
 /** Re-export for convenience so consumers only import from one place. */

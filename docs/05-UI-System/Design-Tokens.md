@@ -158,13 +158,15 @@ do not invent values.
 
 | Tier | Tailwind | Where it applies |
 |------|----------|------------------|
-| Page sections | `space-y-4` (16px) | Top-level `<main>` rhythm — between Documents / Liveness / Review Details / etc. The aside columns also use this tier. |
-| Intra-card stack | `space-y-3` (12px) | Inside a card, between groups (e.g. an `InfoRow` list, header → body, body → footer). |
-| Inline groups | `space-y-2` (8px) | Tight clusters: list of comments, list of conditions, label → input. |
+| Card gap | `gap-3` / `space-y-3` (12px) | **All** card-to-card spacing: three-column layout (`gap-3`), left/center/right column stacks (`space-y-3`), collapsible section lists. Unified across the entire CRM. |
+| Intra-card stack | `space-y-3` (12px) | Inside a card, between content groups (e.g. header → body, `InfoRow` list, body → footer). |
+| Inline groups | `space-y-2` (8px) | Tight clusters: comment thread items, condition rows, label → input pairs. |
 
-The previous default (`space-y-3` everywhere) was 4 px too tight for a workspace
-density. Bumping the page tier to 16 px without changing card padding keeps the
-density inside cards but lets the page breathe.
+> **Rule: card gap = 12px everywhere.**  
+> The three-column body layout, all sidebar card stacks, and collapsible
+> section lists all use `gap-3` / `space-y-3`. Do not use `gap-4` or
+> `space-y-4` between sibling cards — that was the pre-unification default
+> and is now incorrect.
 
 ---
 

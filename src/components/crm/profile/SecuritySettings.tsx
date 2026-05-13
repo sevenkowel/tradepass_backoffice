@@ -24,7 +24,7 @@ export function SecuritySettings({
         安全设置
       </h3>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Password */}
         <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-slate-700">
           <div className="flex items-center gap-3">

@@ -172,7 +172,7 @@ export function AdminForm({ admin, open, onOpenChange, onSuccess }: AdminFormPro
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-3 mt-4">
           {/* Username */}
           <div className="space-y-2">
             <Label htmlFor="username" required>
@@ -209,7 +209,7 @@ export function AdminForm({ admin, open, onOpenChange, onSuccess }: AdminFormPro
           </div>
 
           {/* Real Name & Phone */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="realName">真实姓名</Label>
               <Input

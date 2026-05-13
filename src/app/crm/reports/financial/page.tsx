@@ -129,7 +129,7 @@ export default function FinancialReportsPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: "本月入金", value: fmt(current.deposits), change: depPct, icon: TrendingUp, iconColor: "text-emerald-600", iconBg: "bg-emerald-100" },
           { label: "本月出金", value: fmt(current.withdrawals), change: { ...wdPct, up: !wdPct.up }, icon: TrendingDown, iconColor: "text-red-600", iconBg: "bg-red-100" },

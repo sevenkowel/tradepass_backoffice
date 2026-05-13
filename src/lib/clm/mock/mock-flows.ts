@@ -41,6 +41,7 @@ export const mockKycFlows: KYCFlow[] = [
     proofOfAddress: { enabled: false },
     incomeProof: { enabled: false },
     questionnaire: { enabled: true },
+    videoVerification: { enabled: false },
     agreement: {
       enabled: true,
       agreementIds: ["agr-001", "agr-002"],
@@ -65,6 +66,7 @@ export const mockKycFlows: KYCFlow[] = [
     proofOfAddress: { enabled: true },
     incomeProof: { enabled: false },
     questionnaire: { enabled: true },
+    videoVerification: { enabled: false },
     agreement: {
       enabled: true,
       agreementIds: ["agr-001", "agr-002"],
@@ -89,6 +91,7 @@ export const mockKycFlows: KYCFlow[] = [
     proofOfAddress: { enabled: true },
     incomeProof: { enabled: true },
     questionnaire: { enabled: true },
+    videoVerification: { enabled: true },
     agreement: {
       enabled: true,
       agreementIds: ["agr-001", "agr-002", "agr-003"],
@@ -113,6 +116,7 @@ export const mockKycFlows: KYCFlow[] = [
     proofOfAddress: { enabled: false },
     incomeProof: { enabled: false },
     questionnaire: { enabled: false },
+    videoVerification: { enabled: false },
     agreement: {
       enabled: true,
       agreementIds: ["agr-001"],

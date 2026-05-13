@@ -36,11 +36,11 @@ export default function ReviewQueuePage() {
   const selected = selectedId ? records.find(r => r.id === selectedId) : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Breadcrumb items={[{ label: "KYC Center" }, { label: "Review Queue" }]} />
       <PageHeader title="KYC Review Queue" description="Review and approve KYC submissions" />
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         <Card className="!p-4"><p className="text-sm text-slate-500">Total</p><p className="text-2xl font-bold mt-1">{stats.total}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Pending</p><p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending}</p></Card>
         <Card className="!p-4"><p className="text-sm text-slate-500">Approved</p><p className="text-2xl font-bold text-emerald-600 mt-1">{stats.approved}</p></Card>
@@ -123,7 +123,7 @@ function ReviewDetail({ record, onBack, onAction }: { record: UserKYC; onBack: (
 
   return (
     <div className="flex gap-4">
-      <div className="w-72 flex-shrink-0 space-y-4">
+      <div className="w-72 flex-shrink-0 space-y-3">
         <button onClick={onBack} className="flex items-center gap-1 text-sm text-blue-600 mb-2"><ChevronLeft size={16} /> Back</button>
         <Card className="!p-4">
           <h3 className="font-medium text-slate-900 text-sm mb-3">Client Info</h3>
@@ -147,7 +147,7 @@ function ReviewDetail({ record, onBack, onAction }: { record: UserKYC; onBack: (
           </div>
         </Card>
       </div>
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 space-y-3">
         <Card className="!p-4">
           <h3 className="font-medium text-slate-900 text-sm mb-3">OCR Result</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -164,7 +164,7 @@ function ReviewDetail({ record, onBack, onAction }: { record: UserKYC; onBack: (
             ))}
           </div>
         </Card>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <Card className="!p-4">
             <h3 className="font-medium text-sm mb-2 text-slate-700">Liveness</h3>
             <p className={`text-sm font-medium ${record.livenessPassed ? "text-emerald-600" : "text-red-600"}`}>

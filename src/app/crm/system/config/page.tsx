@@ -132,7 +132,7 @@ function RegionCard({
 
       {/* Expanded Content */}
       {isExpanded && config.enabled && (
-        <div className="border-t border-gray-100 p-4 space-y-4">
+        <div className="border-t border-gray-100 p-4 space-y-3">
           {/* KYC Level */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">KYC Level</span>
@@ -692,7 +692,7 @@ export default function AccountConfigPage() {
       </Card>
 
       {/* Global Switches */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Account Opening Toggle */}
         <Card>
           <div className="flex items-center justify-between">
@@ -757,7 +757,7 @@ export default function AccountConfigPage() {
       {/* Two-column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Region Configurations */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="w-5 h-5 text-gray-400" />
             <h2 className="text-lg font-semibold text-gray-900">Region Configurations</h2>
@@ -787,7 +787,7 @@ export default function AccountConfigPage() {
         </div>
 
         {/* Right Sidebar: Steps + Defaults */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* KYC Steps */}
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-5 h-5 text-gray-400" />

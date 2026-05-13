@@ -133,11 +133,22 @@ function AuditTrailInner() {
       {
         key: "auditId",
         title: "ID",
-        width: "110px",
+        width: "140px",
         sortable: true,
-        render: (row) => (
-          <span className="font-mono text-xs text-slate-500">{row.auditId ?? row.id}</span>
-        ),
+        render: (row) => {
+          // Prefer the human-readable `auditId` (e.g. AUD-260512-000A).
+          // Fall back to a short prefix of the raw UUID so the column
+          // doesn't blow out its width when a producer omits auditId.
+          const display = row.auditId ?? (row.id.length > 12 ? `${row.id.slice(0, 8)}…` : row.id);
+          return (
+            <span
+              className="font-mono text-xs text-slate-500 truncate inline-block max-w-full"
+              title={row.auditId ?? row.id}
+            >
+              {display}
+            </span>
+          );
+        },
       },
       {
         key: "severity",

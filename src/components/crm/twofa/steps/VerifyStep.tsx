@@ -66,7 +66,7 @@ export function VerifyStep({ onBack, onNext }: VerifyStepProps) {
   const isComplete = code.every((c) => c !== "");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="text-center mb-6">
         <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
           <Shield className="w-6 h-6 text-primary" />

@@ -143,7 +143,7 @@ export default function AuthConfigPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -184,7 +184,7 @@ export default function AuthConfigPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -225,7 +225,7 @@ export default function AuthConfigPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -279,7 +279,7 @@ export default function AuthConfigPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"

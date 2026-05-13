@@ -92,7 +92,7 @@ export default function MonitorPage() {
       </div>
 
       {/* Live Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {metrics.map((m) => (
           <Card key={m.label} className="!p-4">
             <div className="flex items-start justify-between">

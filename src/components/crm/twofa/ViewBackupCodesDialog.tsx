@@ -77,7 +77,7 @@ export function ViewBackupCodesDialog({ open, onOpenChange }: ViewBackupCodesDia
         </DialogHeader>
 
         {!showCodes ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="text-center mb-4">
               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Lock className="w-6 h-6 text-primary" />
@@ -123,7 +123,7 @@ export function ViewBackupCodesDialog({ open, onOpenChange }: ViewBackupCodesDia
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <p className="text-sm text-muted-foreground text-center">
               您的备份码（每个只能使用一次）
             </p>

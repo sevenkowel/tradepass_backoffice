@@ -591,7 +591,7 @@ export default function KYCReviewPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           {[
             { label: "总申请", value: stats.total, icon: BarChart3, color: "text-slate-600", bg: "bg-slate-100", filter: null as FilterStatus | null },
             { label: "待审核", value: stats.submitted, icon: CircleDashed, color: "text-amber-600", bg: "bg-amber-100", filter: "submitted" as FilterStatus },

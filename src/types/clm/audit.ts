@@ -12,6 +12,7 @@ export type CLMAuditAction =
   | "case_resubmission_requested"
   | "case_escalated"
   | "case_cancelled"
+  | "case_comment_added"
   | "policy_updated"
   | "policy_published"
   | "agreement_published"

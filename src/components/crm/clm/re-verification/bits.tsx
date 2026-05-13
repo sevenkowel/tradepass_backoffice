@@ -166,27 +166,24 @@ export const RESTRICTION_LEVEL_META: Record<
   RestrictionLevel,
   { label: string; description: string; tone: string }
 > = {
-  soft_reminder: {
-    label: "Soft Reminder",
-    description: "Notification only — no functional limit.",
+  notice: {
+    label: "Notice",
+    description: "Notify only — no functional limit. App stays fully usable.",
     tone: "bg-slate-100 text-slate-700",
   },
-  important: {
-    label: "Important",
-    description: "Login popup; limited scopes optional.",
-    tone: "bg-amber-100 text-amber-700",
-  },
-  blocking: {
-    label: "Blocking",
-    description: "Restrict the chosen scopes (deposit / withdrawal / …).",
+  restrict: {
+    label: "Restrict",
+    description: "Locks the chosen scopes (deposit / withdrawal / …) until verified.",
     tone: "bg-orange-100 text-orange-700",
   },
-  full_restriction: {
-    label: "Full Restriction",
-    description: "Lock the whole account until verified.",
+  suspend: {
+    label: "Suspend",
+    description: "Locks the entire account until verified.",
     tone: "bg-red-100 text-red-700",
   },
 };
+
+export const RESTRICTION_LEVEL_ORDER: RestrictionLevel[] = ["notice", "restrict", "suspend"];
 
 export const RESTRICTION_SCOPE_LABELS: Record<RestrictionScope, string> = {
   login: "Login",
