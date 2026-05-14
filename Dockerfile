@@ -13,8 +13,8 @@ RUN npm ci --no-audit --no-fund
 COPY . ./
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# 生成 Prisma client（提供类型信息，TS 类型检查必须）
-RUN npx prisma generate
+# 只生成 TS 类型，不下载数据库引擎二进制（运行时用 MOCK_DB=true，无需真实 DB）
+RUN npx prisma generate --no-engine
 RUN npm run build
 
 # ---------- Production Stage ----------
@@ -27,6 +27,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# 使用内存 mock 数据，无需数据库
+ENV MOCK_DB=true
 
 # 创建非 root 用户运行
 RUN addgroup --system --gid 1001 nodejs \
