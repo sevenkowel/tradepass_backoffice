@@ -15,6 +15,11 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 # 只生成 TS 类型，不下载数据库引擎二进制（运行时用 MOCK_DB=true，无需真实 DB）
 RUN npx prisma generate --no-engine
+# npm ci 的 postinstall 可能下载了 Prisma engine 二进制；
+# 在 build 之前删掉，防止 standalone tracer 将其打包进去。
+# MOCK_DB=true 运行时永远不需要 native engine。
+RUN find /app/node_modules/.prisma/client -name "*.node" -delete 2>/dev/null || true && \
+    find /app/node_modules/@prisma/engines -maxdepth 4 -name "*.node" -delete 2>/dev/null || true
 RUN npm run build
 
 # ---------- Production Stage ----------

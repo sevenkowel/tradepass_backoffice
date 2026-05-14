@@ -1,20 +1,21 @@
-import { PrismaClient } from "@prisma/client";
 import { mockPrismaProxy } from "@/lib/mock/prisma-proxy";
 
-// When MOCK_DB=true, use the in-memory mock — no SQLite required.
-if (process.env.MOCK_DB === "true") {
-  (global as unknown as Record<string, unknown>).__mockDb = true;
-}
+// Use a type-only import so the @prisma/client module (and its native engine
+// binary) is never loaded when MOCK_DB=true.  The real `require()` below only
+// runs in non-mock mode, which prevents the OpenSSL/libssl load error on
+// Alpine-based containers that don't have OpenSSL 1.1.x installed.
+type PrismaClientType = import("@prisma/client").PrismaClient;
+const globalForPrisma = global as unknown as { prisma: PrismaClientType };
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-function createClient(): PrismaClient {
+function createClient(): PrismaClientType {
   if (process.env.MOCK_DB === "true") {
-    return mockPrismaProxy as unknown as PrismaClient;
+    return mockPrismaProxy as unknown as PrismaClientType;
   }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PrismaClient } = require("@prisma/client") as typeof import("@prisma/client");
   return new PrismaClient();
 }
 
-export const prisma = globalForPrisma.prisma || createClient();
+export const prisma: PrismaClientType = globalForPrisma.prisma ?? createClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
