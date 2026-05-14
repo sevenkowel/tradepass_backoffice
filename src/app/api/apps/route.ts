@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     where: { id: { in: Array.from(subscribedProductIds) } },
   });
   const subscribedCodes = new Set(
-    subscribedProducts.map((p) => p.code as ProductCode)
+    subscribedProducts.map((p: { code: string }) => p.code as ProductCode)
   );
 
   // 3. Business base layer is always considered "subscribed" for the tenant

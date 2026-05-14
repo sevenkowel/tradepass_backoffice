@@ -13,6 +13,8 @@ RUN npm ci --no-audit --no-fund
 COPY . ./
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# 生成 Prisma client（提供类型信息，TS 类型检查必须）
+RUN npx prisma generate
 RUN npm run build
 
 # ---------- Production Stage ----------

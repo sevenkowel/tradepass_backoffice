@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Save, RotateCcw, Loader2, Shield, Mail, Smartphone, Lock, FileText } from "lucide-react";
 import { PageHeader, Card, Button } from "@/components/crm/ui";
@@ -15,6 +15,14 @@ function getCookie(name: string) {
 }
 
 export default function AuthConfigPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthConfigPageInner />
+    </Suspense>
+  );
+}
+
+function AuthConfigPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
