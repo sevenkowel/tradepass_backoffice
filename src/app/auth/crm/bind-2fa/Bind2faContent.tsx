@@ -43,6 +43,7 @@ export function Bind2faContent() {
       return;
     }
 
+    document.cookie = "mock_user_role=admin; path=/; max-age=86400";
     setSuccess(true);
     setTimeout(() => {
       router.push("/crm");
@@ -50,6 +51,7 @@ export function Bind2faContent() {
   };
 
   const handleSkip = () => {
+    document.cookie = "mock_user_role=admin; path=/; max-age=86400";
     router.push("/crm");
   };
 
