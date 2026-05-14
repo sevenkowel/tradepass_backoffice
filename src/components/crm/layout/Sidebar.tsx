@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/Logo";
 import {
   LayoutDashboard,
   Users,
@@ -721,12 +722,7 @@ export function Sidebar({ brandInitials }: SidebarProps) {
         {/* Logo + Collapse Button */}
         <div className="h-[64px] flex items-center border-b border-slate-100/80 relative px-3">
           <Link href="/crm" className="flex items-center gap-2.5 flex-1 min-w-0">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md flex-shrink-0"
-              style={{ backgroundColor: BRAND_COLOR }}
-            >
-              <span className="text-white font-bold text-sm">{initials}</span>
-            </div>
+            <Logo size={38} />
             {!sidebarCollapsed && (
               <span className="text-sm font-bold text-slate-800 tracking-tight truncate">
                 {BRAND_NAME}

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { login } from "@/lib/auth/mock-auth";
+import { Logo } from "@/components/ui/Logo";
 
 export function CrmLoginForm() {
   const router = useRouter();
@@ -54,8 +55,8 @@ export function CrmLoginForm() {
       <Card className="w-full max-w-md shadow-lg">
         <CardContent className="p-8 space-y-6">
           <div className="text-center">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-xl">CRM</span>
+            <div className="flex justify-center mb-4">
+              <Logo size={56} />
             </div>
             <h1 className="text-xl font-bold text-slate-900">CRM 管理后台</h1>
             <p className="text-sm text-slate-500 mt-1">仅支持已授权的员工账户登录</p>
