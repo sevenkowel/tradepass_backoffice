@@ -1,0 +1,32 @@
+stages:
+  - deploy
+
+deploy_frontend_to_coolify:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      echo "🚀 Triggering Coolify deployment..."
+      RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -H "Authorization: Bearer $COOLIFY_API_TOKEN" \
+        "https://coolify.tradepass.info/api/v1/deploy?uuid=c3ria2ekt3snoessqzpjbjvk&force=false")
+      
+      HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+      BODY=$(echo "$RESPONSE" | sed '$d')
+      
+      echo "Response Body: $BODY"
+      echo "HTTP Status: $HTTP_CODE"
+      
+      if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+        echo "✅ Deployment triggered successfully"
+      else
+        echo "❌ Failed to trigger deployment (HTTP $HTTP_CODE)"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "feat/v1.0"'
+      changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
