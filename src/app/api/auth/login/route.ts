@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Mock 模式检测
 function isMockMode(req: NextRequest): boolean {
-  return req.cookies.get('mock_mode')?.value === 'true' || 
+  return process.env.MOCK_DB === 'true' ||
+         req.cookies.get('mock_mode')?.value === 'true' ||
          req.headers.get('x-mock-mode') === 'true';
 }
 

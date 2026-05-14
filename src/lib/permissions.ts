@@ -52,12 +52,24 @@ export function requireRole(
     // Production should check against a dedicated user_roles table.
     const userRole = (user as unknown as Record<string, unknown>).role as string | undefined;
 
+    // In mock mode, map mock roles (platform_admin / tenant_admin / tenant_owner)
+    // to the canonical "admin" AppRole so protected routes work during demo/testing.
+    function resolveMockRole(role: string): AppRole {
+      if (["platform_admin", "tenant_admin", "tenant_owner"].includes(role)) return "admin";
+      return role as AppRole;
+    }
+
+    const effectiveRole =
+      process.env.MOCK_DB === "true" && userRole !== undefined
+        ? resolveMockRole(userRole)
+        : (userRole as AppRole | undefined);
+
     // Fallback: if no explicit role field, allow all authenticated users
     // for backward-compat during migration.  In production this must be
     // tightened to strict role checks.
     const hasRole =
-      userRole !== undefined
-        ? allowedRoles.includes(userRole as AppRole)
+      effectiveRole !== undefined
+        ? allowedRoles.includes(effectiveRole)
         : true; // TODO: remove fallback after role migration
 
     if (!hasRole) {
