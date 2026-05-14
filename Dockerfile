@@ -50,8 +50,10 @@ RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1
+# 使用 ${PORT:-3000}：Coolify 会把容器内 PORT 设成 80，
+# 本地 docker run 默认是 3000，两种场景都能正确探测。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null 2>&1 || exit 1
 
 EXPOSE 3000
 
