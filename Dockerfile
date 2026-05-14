@@ -1,47 +1,35 @@
-# ─── TradePass Broker SaaS — Production Dockerfile ─────────────────────────────
+# syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS base
+# -----test auto build -----
+# ---------- Build Stage ----------
+    FROM node:20-alpine AS builder
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build the application
-RUN npm run build
-
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV HOSTNAME="0.0.0.0"
-CMD ["node", "server.js"]
+    WORKDIR /app
+    
+    # 1) 仅拷贝清单，最大化利用层缓存
+    COPY package.json package-lock.json ./
+    RUN npm ci --no-audit --no-fund
+    
+    # 2) 拷源码并构建
+    COPY . ./
+    # 生产构建关闭 sourcemap（vite.config.ts 也会按 NODE_ENV 处理，这里是兜底）
+    ENV NODE_ENV=production
+    RUN npm run build
+    
+    # ---------- Production Stage ----------
+    FROM nginx:alpine AS runner
+    
+    # 去掉默认配置，避免和我们自己的 default.conf 冲突
+    RUN rm -f /etc/nginx/conf.d/default.conf
+    
+    COPY --from=builder /app/dist /usr/share/nginx/html
+    COPY nginx.conf /etc/nginx/conf.d/default.conf
+    
+    # 健康检查（Kubernetes / docker-compose 都能用）
+    HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+      CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
+    
+    EXPOSE 80
+    
+    CMD ["nginx", "-g", "daemon off;"]
+    
