@@ -45,7 +45,10 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error"] } : false,
   },
 
-  // 模块打包优化
+  // Next.js 16 默认使用 Turbopack，声明空配置以消除 "webpack config but no turbopack config" 错误
+  turbopack: {},
+
+  // 模块打包优化（仅 dev 模式下生效，生产构建由 Turbopack 处理）
   webpack: (config, { dev, isServer }) => {
     // 开发环境优化
     if (dev) {
