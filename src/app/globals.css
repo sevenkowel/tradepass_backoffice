@@ -52,6 +52,11 @@
    - dark mode support via [data-theme="dark"]
    ============================================ */
 :root {
+  /* Logo colors — light mode */
+  --logo-bg: #fff;
+  --logo-peak: #0b1437;
+  --logo-accent: #4f46e5;
+
   /* tp-* legacy aliases (kept for backward compatibility) */
   --tp-bg: #F8FAFC;
   --tp-fg: #0F172A;
@@ -128,6 +133,11 @@
 }
 
 [data-theme="dark"] {
+  /* Logo colors — dark mode */
+  --logo-bg: #0b1437;
+  --logo-peak: #fff;
+  --logo-accent: #6366f1;
+
   --tp-bg: #0F172A;
   --tp-fg: #F1F5F9;
   --tp-surface: #1E293B;
