@@ -27,6 +27,3 @@ deploy_frontend_to_coolify:
       fi
   rules:
     - if: '$CI_COMMIT_BRANCH == "feat/v1.0"'
-      changes:
-        - frontend/**/*
-        - .gitlab-ci.yml
