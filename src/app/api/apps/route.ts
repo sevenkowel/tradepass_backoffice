@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     },
     select: { productId: true, status: true },
   });
-  const subscribedProductIds = new Set(subscriptions.map((s) => s.productId));
+  const subscribedProductIds = new Set(subscriptions.map((s: { productId: string; status: string }) => s.productId));
 
   // 2. Get product details for subscribed products
   const subscribedProducts = await prisma.product.findMany({
