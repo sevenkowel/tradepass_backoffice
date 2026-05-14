@@ -71,6 +71,9 @@ export function VerifyOtpContent() {
       return;
     }
 
+    // Mock mode: set auth cookie before entering CRM
+    document.cookie = "mock_user_role=admin; path=/; max-age=86400";
+
     if (result.requires2faCode) {
       router.push("/crm");
       return;
