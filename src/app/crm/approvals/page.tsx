@@ -486,7 +486,7 @@ function ApprovalsPageInner() {
     <div className="space-y-3">
       <PageHeader
         title="Approval Inbox"
-        subtitle={
+        description={
           totalPending > 0
             ? `${totalPending} pending${totalOverdue > 0 ? ` · ${totalOverdue} overdue` : ""}`
             : "All caught up"
