@@ -16,8 +16,9 @@ export default defineConfig({
     { name: "firefox", use: { ...devices["Desktop Firefox"] } },
   ],
   webServer: {
-    command: "npm run build && npm start",
+    command: "PORT=3001 npm run dev",
     url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
   },
 });

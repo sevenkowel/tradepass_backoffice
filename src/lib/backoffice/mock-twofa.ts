@@ -93,8 +93,7 @@ export async function initEnableTwoFactor(
 
   // 生成 Secret 和二维码
   const secret = generateSecret();
-  const qrCodeUrl = await generateQRCode(secret, user.username);
-
+  const qrCodeUrl = await generateQRCode(secret, user.email);
   // 临时存储（等待验证）
   const tempKey = `temp_${user.id}`;
   twoFAStore.set(tempKey, {
@@ -455,7 +454,7 @@ export async function reconfigureTwoFactor(
 
   // 生成新的 Secret 和二维码
   const secret = generateSecret();
-  const qrCodeUrl = await generateQRCode(secret, user.username);
+  const qrCodeUrl = await generateQRCode(secret, user.email);
 
   // 临时存储新配置
   const tempKey = `temp_${user.id}`;

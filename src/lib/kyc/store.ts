@@ -1,14 +1,18 @@
 /**
- * KYC 状态管理 (Zustand)
+ * KYC 状态管理 (Zustand) — 4 步流程
+ * document → liveness → personal-info → agreement
  */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getRegionConfig } from "./region-config";
+import { getCurrentStepName } from "./guard";
 import type {
   UserKYC,
   KYCStatus,
   OCRResult,
   PersonalInfo,
+  ExperienceInfo,
   AgreementSignature,
   DocumentType,
   RegionCode,
@@ -17,17 +21,25 @@ import type {
 interface KYCState {
   // 当前 KYC 记录
   kycData: Partial<UserKYC> | null;
-  
-  // 当前步骤 (1-4)
+
+  // 当前步骤
   currentStep: number;
-  
+  // 当前步骤名
+  currentStepName: string;
+
   // 地区配置
   regionCode: RegionCode | null;
-  
+
+  // 总步骤数
+  totalSteps: number;
+
   // 加载状态
   isLoading: boolean;
   error: string | null;
-  
+
+  // Hydration 状态
+  hasHydrated: boolean;
+
   // Actions
   setRegion: (region: RegionCode) => void;
   setKYCData: (data: Partial<UserKYC>) => void;
@@ -36,139 +48,157 @@ interface KYCState {
   setDocumentImages: (frontUrl: string, backUrl?: string) => void;
   setOCRResult: (result: OCRResult) => void;
   setLivenessResult: (passed: boolean, videoUrl?: string) => void;
+  setAddressProof: (url: string, type: string) => void;
   setPersonalInfo: (info: PersonalInfo) => void;
-  setAgreementSignatures: (signatures: AgreementSignature[]) => void;
+  setExperienceInfo: (info: ExperienceInfo) => void;
+  setAgreementSignatures: (signatures: AgreementSignature[], signatureType?: "handwritten" | "text") => void;
   setStatus: (status: KYCStatus) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
   updateKYCData: (data: Partial<UserKYC>) => void;
   resetKYC: () => void;
-  
+  setHasHydrated: (hasHydrated: boolean) => void;
+
   // 流程控制
-  canProceedToStep: (step: number) => boolean;
+  getEnabledSteps: () => string[];
+  getNextStep: () => string | null;
+  canProceedToStep: (stepName: string) => boolean;
   getProgress: () => number;
 }
 
 const initialState = {
   kycData: null,
   currentStep: 1,
+  currentStepName: "region",
   regionCode: null,
+  totalSteps: 5,
   isLoading: false,
   error: null,
+  hasHydrated: false,
 };
 
 export const useKYCStore = create<KYCState>()(
   persist(
     (set, get) => ({
       ...initialState,
-      
-      setRegion: (region) => set({ regionCode: region }),
-      
+
+      setRegion: (region) => {
+        set({ regionCode: region, totalSteps: 5 });
+      },
+
       setKYCData: (data) => set((state) => ({
         kycData: { ...state.kycData, ...data },
       })),
-      
+
       setCurrentStep: (step) => set({ currentStep: step }),
-      
+
       setDocumentType: (type) => set((state) => ({
         kycData: { ...state.kycData, documentType: type },
       })),
-      
+
       setDocumentImages: (frontUrl, backUrl) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           documentFrontUrl: frontUrl,
           documentBackUrl: backUrl,
         },
       })),
-      
+
       setOCRResult: (result) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           ocrData: result,
           ocrConfidence: result.confidence ?? 0.85,
           status: "ocr_completed" as const,
         },
       })),
-      
-      updateKYCData: (data) => set((state) => ({
-        kycData: state.kycData ? { ...state.kycData, ...data } : data as UserKYC,
-      })),
-      
-      resetKYC: () => set(initialState),
-      
+
       setLivenessResult: (passed, videoUrl) => set((state) => ({
-        kycData: { 
-          ...state.kycData, 
+        kycData: {
+          ...state.kycData,
           livenessPassed: passed,
           livenessVideoUrl: videoUrl,
         },
       })),
-      
+
+      // 保留但不再使用（4 步流程不需要 address-proof）
+      setAddressProof: (_url, _type) => {
+        // no-op
+      },
+
       setPersonalInfo: (info) => set((state) => ({
         kycData: { ...state.kycData, personalInfo: info },
       })),
-      
-      setAgreementSignatures: (signatures) => set((state) => ({
-        kycData: { ...state.kycData, agreementsSigned: signatures },
+
+      // 保留但不再使用（4 步流程没有独立的 experience 步骤）
+      setExperienceInfo: (_info) => {
+        // no-op
+      },
+
+      setAgreementSignatures: (signatures, signatureType) => set((state) => ({
+        kycData: {
+          ...state.kycData,
+          agreementsSigned: signatures,
+          signatureType: signatureType || (state.kycData?.signatureType as "handwritten" | "text"),
+        },
       })),
-      
+
       setStatus: (status) => set((state) => ({
         kycData: { ...state.kycData, status },
       })),
-      
+
+      updateKYCData: (data) => set((state) => ({
+        kycData: state.kycData ? { ...state.kycData, ...data } : data as UserKYC,
+      })),
+
+      resetKYC: () => set(initialState),
+
       setLoading: (loading) => set({ isLoading: loading }),
-      
       setError: (error) => set({ error }),
-      
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       reset: () => set(initialState),
-      
-      canProceedToStep: (step) => {
-        const { kycData, regionCode } = get();
-        if (!regionCode) return false;
-        
-        // Step 1: Document - always can start
-        if (step === 1) return true;
-        
-        // Step 2: Liveness - need document uploaded
-        if (step === 2) {
-          return !!kycData?.documentFrontUrl && !!kycData?.ocrData;
-        }
-        
-        // Step 3: Personal Info - need liveness passed (if required)
-        if (step === 3) {
-          // TODO: Check region config if liveness is required
-          return !!kycData?.livenessPassed || step === 3;
-        }
-        
-        // Step 4: Agreement - need personal info
-        if (step === 4) {
-          return !!kycData?.personalInfo;
-        }
-        
-        return false;
+
+      // ===== 流程控制 =====
+
+      getEnabledSteps: () => {
+        return ["region", "document", "liveness", "personal-info", "agreement"];
       },
-      
+
+      getNextStep: () => {
+        const state = get();
+        return getCurrentStepName(state.regionCode, state.kycData);
+      },
+
+      canProceedToStep: (stepName) => {
+        const { kycData, regionCode } = get();
+        if (!regionCode && stepName !== "region") return false;
+        if (!kycData && stepName !== "region") return false;
+
+        switch (stepName) {
+          case "region":         return true;
+          case "document":       return !!regionCode;
+          case "liveness":       return !!kycData?.ocrData;
+          case "personal-info":  return !!kycData?.livenessPassed;
+          case "agreement":      return !!kycData?.personalInfo;
+          default:               return false;
+        }
+      },
+
       getProgress: () => {
         const { kycData } = get();
-        let progress = 0;
-        
-        // Document: 25%
-        if (kycData?.documentFrontUrl) progress += 25;
-        
-        // Liveness: 25%
-        if (kycData?.livenessPassed) progress += 25;
-        
-        // Personal Info: 25%
-        if (kycData?.personalInfo) progress += 25;
-        
-        // Agreement: 25%
-        if (kycData?.agreementsSigned && kycData.agreementsSigned.length > 0) {
-          progress += 25;
-        }
-        
-        return progress;
+        const steps = get().getEnabledSteps();
+        const completed = steps.filter((s) => {
+          switch (s) {
+            case "region":         return true;
+            case "document":       return !!kycData?.ocrData;
+            case "liveness":       return !!kycData?.livenessPassed;
+            case "personal-info":  return !!kycData?.personalInfo;
+            case "agreement":      return !!(kycData?.agreementsSigned?.length ?? 0 > 0);
+            default:               return false;
+          }
+        }).length;
+        return Math.round((completed / steps.length) * 100);
       },
     }),
     {
@@ -176,8 +206,15 @@ export const useKYCStore = create<KYCState>()(
       partialize: (state) => ({
         kycData: state.kycData,
         currentStep: state.currentStep,
+        currentStepName: state.currentStepName,
         regionCode: state.regionCode,
+        totalSteps: state.totalSteps,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setHasHydrated(true);
+        }
+      },
     }
   )
 );

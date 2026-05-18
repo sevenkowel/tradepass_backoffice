@@ -1,191 +1,242 @@
 # Design Tokens
 
-> TradePass 设计变量规范
+> The CRM's atom layer. These values live in [`src/app/globals.css`](../../src/app/globals.css)
+> and are exposed to Tailwind v4 via `@theme`. Do not duplicate them in
+> component files; reference them by token.
 
-## 颜色系统
+---
 
-### 品牌色 Brand Colors
+## 1. Color system
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--color-primary` | `#1E40AF` | 主按钮、链接、重点强调 |
-| `--color-primary-light` | `#3B82F6` | Hover 状态、次要强调 |
-| `--color-primary-dark` | `#1E3A8A` | Active 状态、深色背景 |
+### 1.1 Brand
 
-### 语义色 Semantic Colors
+Brand is a single hue family (blue-600). Hover / active states are a single
+step lighter / darker — do not invent intermediate shades.
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--color-success` | `#10B981` | 成功状态、正向数据 |
-| `--color-success-light` | `#34D399` | 成功 Hover |
-| `--color-error` | `#EF4444` | 错误状态、删除操作 |
-| `--color-error-light` | `#F87171` | 错误 Hover |
-| `--color-warning` | `#F59E0B` | 警告状态、需注意 |
-| `--color-warning-light` | `#FBBF24` | 警告 Hover |
-| `--color-info` | `#3B82F6` | 信息提示、中性强调 |
-| `--color-info-light` | `#60A5FA` | 信息 Hover |
+| Token | Value | Tailwind | Usage |
+|-------|-------|----------|-------|
+| `--color-primary` | `#2563EB` | `blue-600` | Primary action, key links, focus ring, selected state |
+| `--color-primary-light` | `#3B82F6` | `blue-500` | Hover lift, secondary brand accents |
+| `--color-primary-dark` | `#1D4ED8` | `blue-700` | Active / pressed state |
+| `--color-primary-foreground` | `#FFFFFF` | — | Text on a primary surface |
 
-### 中性色 Neutral Colors
+**Utilities:** `bg-primary`, `text-primary`, `border-primary`, `ring-primary`,
+`bg-primary/90` (hover with 90% opacity).
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--color-gray-25` | `#FAFAFA` | 最浅背景 |
-| `--color-gray-50` | `#F5F7FA` | 页面背景 |
-| `--color-gray-100` | `#F3F4F6` | 卡片背景、分隔线 |
-| `--color-gray-200` | `#E5E7EB` | 边框、分割线 |
-| `--color-gray-300` | `#D1D5DB` | 禁用状态边框 |
-| `--color-gray-400` | `#9CA3AF` | 占位符文字 |
-| `--color-gray-500` | `#6B7280` | 次要文字 |
-| `--color-gray-600` | `#4B5563` | 辅助文字 |
-| `--color-gray-700` | `#374151` | 正文文字 |
-| `--color-gray-800` | `#1F2937` | 标题文字 |
-| `--color-gray-900` | `#111827` | 最深文字 |
+### 1.2 Neutral — `slate-*` only
 
-### shadcn/ui 兼容变量
+The CRM uses `slate-*` exclusively for grey surfaces, borders, and text.
+`gray-*` and `zinc-*` are forbidden in new code.
 
-```css
---background: #F5F7FA;        /* 页面背景 */
---foreground: #1F2937;        /* 主要文字 */
---card: #FFFFFF;              /* 卡片背景 */
---card-foreground: #1F2937;   /* 卡片文字 */
---popover: #FFFFFF;           /* 弹出层背景 */
---popover-foreground: #1F2937;
---primary: #1E40AF;           /* 主色 */
---primary-foreground: #FFFFFF;
---secondary: #F3F4F6;         /* 次要背景 */
---secondary-foreground: #1F2937;
---muted: #F3F4F6;             /* 静音背景 */
---muted-foreground: #6B7280;  /* 静音文字 */
---accent: #EFF6FF;            /* 强调背景 */
---accent-foreground: #1E40AF;
---destructive: #EF4444;       /* 危险色 */
---destructive-foreground: #FFFFFF;
---border: #E5E7EB;            /* 边框 */
---input: #E5E7EB;             /* 输入框边框 */
---ring: #1E40AF;              /* 焦点环 */
---radius: 0.5rem;             /* 默认圆角 */
-```
+| Tailwind | Hex | Typical role |
+|----------|-----|--------------|
+| `slate-50`  | `#F8FAFC` | Page background, muted row hover |
+| `slate-100` | `#F1F5F9` | Subtle backgrounds, separators, skeletons |
+| `slate-200` | `#E2E8F0` | Default border |
+| `slate-300` | `#CBD5E1` | Disabled border, scrollbar track |
+| `slate-400` | `#94A3B8` | Placeholder text, disabled text, muted icon |
+| `slate-500` | `#64748B` | Secondary text, helper copy |
+| `slate-600` | `#475569` | Tertiary text, ghost button text |
+| `slate-700` | `#334155` | Body text on white surface |
+| `slate-800` | `#1E293B` | Heading on white surface (rare; prefer `slate-900`) |
+| `slate-900` | `#0F172A` | Primary text, headings |
 
-## 间距系统 Spacing
+### 1.3 Surface tokens (theme-aware)
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--space-xs` | `4px` | 图标内边距、紧凑间距 |
-| `--space-sm` | `8px` | 小组件间距、行内间距 |
-| `--space-md` | `16px` | 标准间距、卡片内边距 |
-| `--space-lg` | `24px` | 大组件间距、Section 间距 |
-| `--space-xl` | `32px` | 页面级间距 |
-| `--space-2xl` | `48px` | 大区块间距 |
-| `--space-3xl` | `64px` | 页面 Section 间距 |
-| `--space-4xl` | `96px` | Hero 区域间距 |
-| `--space-5xl` | `128px` | 超大间距 |
+These adapt to dark mode via `[data-theme="dark"]`. Use them instead of
+literal slate values whenever the surface needs to follow the theme.
 
-## 圆角系统 Radius
+| Token | Light value | Dark value | Tailwind utility |
+|-------|-------------|------------|------------------|
+| `--color-background` | `#F8FAFC` | `#0F172A` | `bg-background` |
+| `--color-foreground` | `#0F172A` | `#F1F5F9` | `text-foreground` |
+| `--color-card` | `#FFFFFF` | `#1E293B` | `bg-card` |
+| `--color-card-foreground` | `#0F172A` | `#F1F5F9` | `text-card-foreground` |
+| `--color-muted` | `#F1F5F9` | `#334155` | `bg-muted` |
+| `--color-muted-foreground` | `#64748B` | `#94A3B8` | `text-muted-foreground` |
+| `--color-border` | `#E2E8F0` | `#334155` | `border-border` |
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--radius-sm` | `8px` | 小按钮、标签 |
-| `--radius-md` | `10px` | 标准按钮、输入框 |
-| `--radius-lg` | `12px` | 卡片、弹窗 |
-| `--radius-xl` | `16px` | 大卡片、Modal |
-| `--radius-full` | `9999px` | 圆形、Pill 形状 |
+### 1.4 Semantic / status colors
 
-## 阴影系统 Shadows
+Status palettes are intentionally fixed (independent of theme) so that
+"red = error" stays "red = error" in dark mode. Each palette uses three
+slots — soft / solid / strong — and nothing else.
 
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | 轻微提升 |
-| `--shadow-card` | `0 1px 3px rgba(0,0,0,0.08)` | 卡片默认 |
-| `--shadow-card-hover` | `0 4px 12px rgba(0,0,0,0.1)` | 卡片 Hover |
-| `--shadow-dropdown` | `0 4px 6px -1px rgba(0,0,0,0.1)` | 下拉菜单 |
-| `--shadow-modal` | `0 10px 25px -5px rgba(0,0,0,0.1)` | 弹窗 |
-| `--shadow-lg` | `0 20px 25px -5px rgba(0,0,0,0.1)` | 大阴影 |
+| Status | Soft (bg) | Solid (dot / icon) | Strong (text) |
+|--------|-----------|--------------------|----------------|
+| Success | `emerald-100` | `emerald-500` | `emerald-700` |
+| Warning | `amber-100` | `amber-500` | `amber-700` |
+| Error | `red-100` | `red-500` | `red-700` |
+| Info | `blue-100` | `blue-500` | `blue-700` |
 
-## 字体系统 Typography
+**Extended palette** (used only by `BadgeBase` for case-type categorization
+where `success / warning / error / info` are not enough):
+`purple`, `orange`, `teal`, `indigo`, `rose` — same `100 / 500 / 700` rule.
 
-### 字体族
+> **Hard rule:** never use `*-50`, `*-200`, `*-400`, `*-600`, `*-800`, `*-900`
+> from a status palette. Only `100 / 500 / 700`.
+
+---
+
+## 2. Typography
+
+### 2.1 Family
 
 ```css
---font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
---font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
---font-mono: 'SF Mono', 'JetBrains Mono', monospace;
+--font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+--font-heading: same as --font-sans;
+--font-mono:    'SF Mono', 'JetBrains Mono', 'Roboto Mono', monospace;
 ```
 
-### 字体大小
-
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--text-xs` | `12px` | 标签、辅助文字 |
-| `--text-sm` | `14px` | 正文、按钮 |
-| `--text-base` | `16px` | 标准正文 |
-| `--text-lg` | `18px` | 大正文 |
-| `--text-xl` | `20px` | 小标题 |
-| `--text-2xl` | `24px` | 标题 H4 |
-| `--text-3xl` | `30px` | 标题 H3 |
-| `--text-4xl` | `36px` | 标题 H2 |
-| `--text-5xl` | `48px` | 标题 H1 |
-
-### 字重
-
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--font-normal` | `400` | 正文 |
-| `--font-medium` | `500` | 按钮、标签 |
-| `--font-semibold` | `600` | 标题、强调 |
-| `--font-bold` | `700` | 大标题、数字 |
-
-### 行高
-
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--leading-tight` | `1.25` | 标题 |
-| `--leading-snug` | `1.375` | 紧凑正文 |
-| `--leading-normal` | `1.5` | 标准正文 |
-| `--leading-relaxed` | `1.625` | 宽松正文 |
-
-## 过渡动画 Transitions
-
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `--transition-fast` | `150ms ease-in-out` | 快速反馈 |
-| `--transition-base` | `200ms ease-in-out` | 标准过渡 |
-| `--transition-slow` | `300ms ease-in-out` | 慢速过渡 |
-
-## 响应式断点
-
-| Token | 值 | 用途 |
-|-------|-----|------|
-| `sm` | `640px` | 小屏手机 |
-| `md` | `768px` | 平板 |
-| `lg` | `1024px` | 小桌面 |
-| `xl` | `1280px` | 标准桌面 |
-| `2xl` | `1536px` | 大桌面 |
-
-## 使用示例
+`font-mono` is used for: account numbers, currency amounts, IDs, timestamps.
+Always pair it with `tabular-nums`:
 
 ```tsx
-// Tailwind 类名使用
-<div className="bg-primary text-white px-md py-sm rounded-lg shadow-card">
-  按钮内容
-</div>
-
-// CSS 变量使用（自定义样式）
-<div style={{ 
-  backgroundColor: 'var(--color-primary)',
-  padding: 'var(--space-md)',
-  borderRadius: 'var(--radius-lg)'
-}}>
-  自定义组件
-</div>
+<span className="font-mono tabular-nums">$12,345.67</span>
 ```
 
-## 暗色模式
+### 2.2 Size scale (CRM-tuned, no marketing-grade sizes)
 
-暗色模式通过 `[data-theme="dark"]` 属性切换，所有颜色变量会自动适配。
+| Token | px | Usage |
+|-------|----|-------|
+| `text-xs` | 12 | Badge text, table footer, helper labels |
+| `text-sm` | 14 | Body text default, button label, table cell |
+| `text-base` | 15 | Slightly bigger body (forms with dense fields) |
+| `text-lg` | 16 | Subheadings, drawer titles |
+| `text-xl` | 18 | Card titles |
+| `text-2xl` | 20 | Page H1 (`PageHeader` default) |
+| `text-3xl` | 24 | Hero stat numbers (workspace KPI cards) |
 
-```tsx
-// 组件中使用
-<div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-  自适应内容
-</div>
-```
+Do **not** use `text-4xl / 5xl / 6xl` in CRM. They belong to marketing pages.
+
+### 2.3 Weight
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `font-normal` | 400 | Body text |
+| `font-medium` | 500 | Buttons, badge text, table headers |
+| `font-semibold` | 600 | Headings, card titles, strong emphasis |
+
+Do **not** use `font-bold` in body text. Reserve it for stat numbers in
+KPI cards if needed.
+
+### 2.4 Line height
+
+- Body / cells / labels: `leading-normal` (1.5) — Tailwind default
+- Headings: `leading-tight` (1.25)
+- Multi-line buttons: never; buttons are single-line
+
+### 2.5 Letter spacing
+
+- Headings: `tracking-tight` (-0.015em) — already applied globally to `h1..h6`
+- Uppercase tags / labels: `tracking-wide`
+- Body: default
+
+---
+
+## 3. Spacing
+
+CRM-tuned scale, 7 stops. No marketing-style hero spacing.
+
+| Token | px | Tailwind | Usage |
+|-------|----|----------|-------|
+| `--space-xs` | 4 | `gap-1`, `p-1` | Icon padding, dot offsets |
+| `--space-sm` | 8 | `gap-2`, `p-2` | Compact inline gap |
+| `--space-md` | 12 | `gap-3`, `p-3` | Default control padding |
+| `--space-lg` | 16 | `gap-4`, `p-4` | Card body, list spacing |
+| `--space-xl` | 24 | `gap-6`, `p-6` | Section spacing, page gutter |
+| `--space-2xl` | 32 | `gap-8`, `p-8` | Card-to-card vertical rhythm |
+| `--space-3xl` | 48 | `gap-12`, `p-12` | Empty state hero gap (used sparingly) |
+
+Anything bigger should not exist in a CRM page.
+
+### 3a. Vertical rhythm — three tiers
+
+Card-density is the most common bug we ship: lists feel cramped because nested
+`space-y-*` collapse into each other. **Always use one of these three tiers**;
+do not invent values.
+
+| Tier | Tailwind | Where it applies |
+|------|----------|------------------|
+| Card gap | `gap-3` / `space-y-3` (12px) | **All** card-to-card spacing: three-column layout (`gap-3`), left/center/right column stacks (`space-y-3`), collapsible section lists. Unified across the entire CRM. |
+| Intra-card stack | `space-y-3` (12px) | Inside a card, between content groups (e.g. header → body, `InfoRow` list, body → footer). |
+| Inline groups | `space-y-2` (8px) | Tight clusters: comment thread items, condition rows, label → input pairs. |
+
+> **Rule: card gap = 12px everywhere.**  
+> The three-column body layout, all sidebar card stacks, and collapsible
+> section lists all use `gap-3` / `space-y-3`. Do not use `gap-4` or
+> `space-y-4` between sibling cards — that was the pre-unification default
+> and is now incorrect.
+
+---
+
+## 4. Radius
+
+| Token | px | When |
+|-------|----|------|
+| `--radius-sm` | 6 | Inline tags, dot capsules |
+| `--radius-md` | 8 | Inputs, small controls, dropdown items |
+| `--radius-lg` | 12 | Buttons, small cards, dropdown surfaces |
+| `--radius-xl` | 16 | Large cards, dialogs, drawers |
+| `--radius-full` | 9999 | Avatars, status dots, badges (`rounded-full`) |
+
+> **Hard rule:** badges are always `rounded-full`. Buttons are always `rounded-xl`.
+> Cards default to `rounded-2xl` (16px). Do not deviate per-page.
+
+---
+
+## 5. Shadow
+
+| Token | Value | When |
+|-------|-------|------|
+| `--shadow-sm` | `0 1px 2px rgba(15,23,42,0.04)` | Cards (default), buttons |
+| `--shadow-md` | `0 4px 6px -1px rgba(15,23,42,0.08), 0 2px 4px -2px rgba(15,23,42,0.06)` | Card hover, dropdown menu |
+| `--shadow-lg` | `0 10px 15px -3px rgba(15,23,42,0.10), 0 4px 6px -4px rgba(15,23,42,0.08)` | Dialog, drawer, popover |
+
+Tailwind utilities: `shadow-sm`, `shadow-md`, `shadow-lg`. Do not write
+custom `shadow-[…]` arbitrary values.
+
+---
+
+## 6. Motion
+
+| Token | Value | When |
+|-------|-------|------|
+| `--transition-fast` | `150ms ease-in-out` | Hover color shifts, focus rings |
+| `--transition-base` | `200ms ease-in-out` | Default for color / border / opacity / transform |
+| `--transition-slow` | `300ms ease-in-out` | Dialog enter/leave, drawer slide |
+
+Tailwind: `transition-colors`, `duration-150`, `duration-200`, `duration-300`.
+
+---
+
+## 7. Breakpoints
+
+Tailwind defaults — do not customize.
+
+| Tailwind | Min width | When |
+|----------|-----------|------|
+| `sm` | 640 | Mobile landscape |
+| `md` | 768 | Tablet |
+| `lg` | 1024 | Small desktop / sidebar collapse threshold |
+| `xl` | 1280 | Standard desktop |
+| `2xl` | 1536 | Large desktop |
+
+The CRM is designed-from `lg`. Smaller breakpoints exist for graceful
+degradation only.
+
+---
+
+## 8. Dark mode
+
+Triggered by `[data-theme="dark"]` on `<html>` (managed by `ThemeProvider`).
+
+- Surface tokens (`bg-background`, `bg-card`, `text-foreground`,
+  `text-muted-foreground`, `border-border`) automatically swap.
+- Status palettes (emerald / amber / red / blue / etc.) **stay the same**.
+- Brand `--color-primary` slightly lifts to `#3B82F6` in dark mode for
+  better contrast against `#0F172A`.
+
+> **Hard rule:** never write `dark:bg-…` in pages. Dark mode is a token-
+> level concern. If a component needs special dark behavior, it goes
+> behind a token, not a page-level conditional class.

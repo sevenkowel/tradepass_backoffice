@@ -22,16 +22,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const license = await prisma.license.findFirst({
-    where: {
-      tenantId,
-      productCode: "broker_os",
-      status: "active",
-    },
-  });
+    const license = await prisma.license.findFirst({
+      where: {
+        tenantId,
+        status: "active",
+        productCode: "trade_pass_business",
+      },
+    });
 
   if (!license) {
-    return NextResponse.json({ error: "No active Broker OS license" }, { status: 403 });
+    return NextResponse.json({ error: "No active license" }, { status: 403 });
   }
 
   return NextResponse.json({

@@ -1,47 +1,61 @@
-# ─── TradePass Broker SaaS — Production Dockerfile ─────────────────────────────
+# syntax=docker/dockerfile:1.7
 
-FROM node:20-alpine AS base
+# ---------- Build Stage ----------
+FROM node:20-alpine AS builder
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+# 1) 仅拷贝清单，最大化利用层缓存
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build the application
+# 2) 拷贝源码并构建
+COPY . ./
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+# 只生成 TS 类型，不下载数据库引擎二进制（运行时用 MOCK_DB=true，无需真实 DB）
+RUN npx prisma generate --no-engine
+# npm ci 的 postinstall 可能下载了 Prisma engine 二进制；
+# 在 build 之前删掉，防止 standalone tracer 将其打包进去。
+# MOCK_DB=true 运行时永远不需要 native engine。
+RUN find /app/node_modules/.prisma/client -name "*.node" -delete 2>/dev/null || true && \
+    find /app/node_modules/@prisma/engines -maxdepth 4 -name "*.node" -delete 2>/dev/null || true
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# ---------- Production Stage ----------
+# Next.js standalone 模式输出一个自包含的 Node.js 服务器
+FROM node:20-alpine AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+# 使用内存 mock 数据，无需数据库
+ENV MOCK_DB=true
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# 创建非 root 用户运行
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
 
-# Copy built application
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# standalone 输出包含所有依赖，无需 node_modules
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# 修正文件所有权
+RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
+# 健康检查
+# 使用 ${PORT:-3000}：Coolify 会把容器内 PORT 设成 80，
+# 本地 docker run 默认是 3000，两种场景都能正确探测。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/api/health" >/dev/null 2>&1 || exit 1
+
 EXPOSE 3000
 
-ENV HOSTNAME="0.0.0.0"
+# standalone 模式的入口
 CMD ["node", "server.js"]

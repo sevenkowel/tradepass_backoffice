@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { MockProvider } from "@/components/providers/MockProvider";
 
 export const metadata: Metadata = {
   title: "TradePass - The Operating System for Modern Brokers",
@@ -24,7 +25,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
-          {children}
+          <MockProvider>
+            {children}
+          </MockProvider>
         </ThemeProvider>
       </body>
     </html>

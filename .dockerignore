@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Next.js
+.next
+coverage
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+.git
+.gitignore
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Testing
+tests
+test-results
+playwright-report
+
+# Prisma (keep schema, ignore migrations if using db push)
+prisma/migrations
+
+# Misc
+scripts
+.trash
+__tests__

@@ -1,559 +1,290 @@
-# Component API 规范
+# Component API
 
-> 所有 UI 组件的统一 API 设计规范
-
-## 通用 Props 约定
-
-### 基础 Props
-
-每个组件都应支持以下基础 Props：
-
-```ts
-interface BaseProps {
-  className?: string;      // 自定义类名
-  style?: CSSProperties;   // 自定义样式
-  children?: ReactNode;    // 子元素
-}
-```
-
-### 变体 Props
-
-```ts
-interface VariantProps {
-  variant?: 'default' | 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline';
-  size?: 'sm' | 'md' | 'lg';
-}
-```
-
-### 状态 Props
-
-```ts
-interface StateProps {
-  disabled?: boolean;      // 禁用状态
-  loading?: boolean;       // 加载状态
-  error?: boolean;         // 错误状态
-}
-```
+Public API for every shared component in the CRM. **One source per concept.**
+If a piece of UI looks like it could be a primitive, check this doc before
+writing it from scratch.
 
 ---
 
-## 基础组件
+## Layer 1 — `@/components/ui` (canonical primitives)
 
-### Button 按钮
+These wrap Radix primitives + tokens. They are the **only** source for
+their respective concepts.
+
+### Button
 
 ```tsx
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui/Button";
+// or via the CRM barrel:
+import { Button } from "@/components/crm/ui";
 
-<Button
-  variant="primary"      // 变体: default | primary | secondary | destructive | ghost | outline | link
-  size="md"              // 尺寸: sm | md | lg | icon
-  disabled={false}       // 禁用
-  loading={false}        // 加载状态
-  onClick={handleClick}  // 点击事件
->
-  按钮文字
-</Button>
+<Button>Save</Button>
+<Button variant="outline" size="sm">Cancel</Button>
+<Button variant="destructive" loading>Delete</Button>
 ```
+
+**Variants** (with backward-compat aliases):
+
+| Canonical | Alias | Visual |
+|-----------|-------|--------|
+| `default` | `primary` | `bg-primary` filled, white text, soft shadow |
+| `outline` | — | Transparent fill, slate-200 border |
+| `secondary` | — | White fill, slate-200 thick border |
+| `ghost` | — | Transparent, hover slate-100 |
+| `link` | — | Primary-colored underlined text |
+| `destructive` | `danger` | `bg-red-600` filled |
+
+**Sizes** (with aliases):
+
+| Token | Height | Notes |
+|-------|--------|-------|
+| `sm` | 32 | Use in tight spots: table row actions, drawer footers |
+| `default` / `md` | 40 | Default for forms, page-level actions |
+| `lg` | 48 | Hero CTAs only |
+| `icon` | 40×40 | Icon-only buttons |
 
 **Props:**
 
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| variant | `ButtonVariant` | `'default'` | 按钮样式变体 |
-| size | `ButtonSize` | `'md'` | 按钮尺寸 |
-| asChild | `boolean` | `false` | 是否使用子元素作为按钮 |
-| disabled | `boolean` | `false` | 禁用状态 |
-| loading | `boolean` | `false` | 加载状态（显示 spinner） |
+- `loading?: boolean` — shows a 16px spinner before children, disables click
+- `disabled?: boolean` — applies `opacity-50` and `cursor-not-allowed`
+- All standard `ButtonHTMLAttributes`
 
----
+> **Rule:** never use raw `<button>` for interactive elements. Always go
+> through this component (or a wrapper that delegates to it).
 
-### Card 卡片
+### Card (canonical, granular)
 
 ```tsx
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui";
+import {
+  Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter,
+} from "@/components/ui/card";
 
 <Card>
   <CardHeader>
-    <CardTitle>卡片标题</CardTitle>
-    <CardDescription>卡片描述文字</CardDescription>
+    <CardTitle>Account 8821</CardTitle>
+    <CardDescription>Standard account · $12,300</CardDescription>
   </CardHeader>
-  <CardContent>内容区域</CardContent>
-  <CardFooter>底部操作区</CardFooter>
+  <CardContent>...</CardContent>
+  <CardFooter>...</CardFooter>
 </Card>
 ```
 
-**Props:**
+Use this when you want explicit composition. For legacy single-prop usage
+see the compat wrapper below.
 
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| variant | `'default' \| 'outline' \| 'ghost'` | `'default'` | 卡片样式 |
-| padding | `'none' \| 'sm' \| 'md' \| 'lg'` | `'md'` | 内边距大小 |
-
----
-
-### Input 输入框
+### Card (compat — `padding` prop)
 
 ```tsx
-import { Input } from "@/components/ui";
+import { Card } from "@/components/crm/ui";
 
-<Input
-  type="text"            // 类型: text | email | password | number | tel | url
-  placeholder="提示文字"
-  value={value}
-  onChange={handleChange}
-  error={errorMessage}   // 错误提示
-  disabled={false}
-  size="md"              // sm | md | lg
+<Card padding="md">...</Card>          // 20px padding (default)
+<Card padding="none">...</Card>        // No padding (you control inner spacing)
+<Card padding="sm">...</Card>          // 16px
+<Card padding="lg">...</Card>          // 24px
+```
+
+`Card` from `@/components/crm/ui` is a thin wrapper that preserves the
+historical single-prop API. Visually identical to the canonical Card
+(white surface, slate-200 border, 16px radius, soft shadow).
+
+### EmptyState
+
+```tsx
+import { EmptyState } from "@/components/crm/ui";  // re-exported
+import { Inbox } from "lucide-react";
+
+<EmptyState
+  icon={<Inbox className="w-5 h-5" />}
+  title="No cases yet"
+  description="When a customer submits KYC, it will appear here."
+  action={<Button size="sm">Open review queue</Button>}
 />
 ```
 
-**Props:**
+Props: `icon` (optional, defaults to `<Inbox/>`), `title`, `description`,
+`action`, `className`.
 
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| type | `InputType` | `'text'` | 输入类型 |
-| size | `'sm' \| 'md' \| 'lg'` | `'md'` | 尺寸 |
-| error | `string \| boolean` | - | 错误状态/消息 |
-| startIcon | `ReactNode` | - | 左侧图标 |
-| endIcon | `ReactNode` | - | 右侧图标 |
+### Other primitives in `@/components/ui`
 
----
+| Component | Purpose |
+|-----------|---------|
+| `Dialog`, `DialogTrigger`, `DialogContent`, ... | Modal dialogs (Radix) |
+| `Select`, `SelectTrigger`, `SelectContent`, ... | Form select (Radix) |
+| `DropdownMenu`, ... | Action menus (Radix) |
+| `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab UI (Radix) |
+| `Tooltip`, `TooltipTrigger`, `TooltipContent` | Hover tooltips (Radix) |
+| `Toast`, `useToast` | Toast notifications |
+| `Input`, `Textarea`, `Label`, `Checkbox`, `Switch`, `RadioGroup` | Forms |
+| `Avatar`, `AvatarImage`, `AvatarFallback` | User avatars |
+| `Badge` | **Generic** badge (rounded-full) — for non-domain use |
+| `Breadcrumb`, `BreadcrumbList`, ... | Page breadcrumbs |
+| `Pagination`, ... | List pagination (when `EnhancedDataTable` is overkill) |
+| `Progress` | Progress bar |
+| `Skeleton` | Loading skeleton |
+| `Alert`, `AlertTitle`, `AlertDescription` | Inline alerts |
 
-### Label 标签
-
-```tsx
-import { Label } from "@/components/ui";
-
-<Label htmlFor="email" required>邮箱地址</Label>
-```
-
-**Props:**
-
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| required | `boolean` | `false` | 是否必填（显示红星） |
-| disabled | `boolean` | `false` | 禁用样式 |
+> If you find yourself writing `<table>`, `<dialog>`, or `<select>` directly,
+> stop — use one of the above.
 
 ---
 
-### Select 选择器
+## Layer 2 — `@/components/crm/ui` (CRM-flavored compositions)
+
+### PageHeader
 
 ```tsx
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui";
-
-<Select value={value} onValueChange={setValue}>
-  <SelectTrigger>
-    <SelectValue placeholder="请选择" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="option1">选项 1</SelectItem>
-    <SelectItem value="option2">选项 2</SelectItem>
-  </SelectContent>
-</Select>
-```
-
----
-
-### Dialog 对话框
-
-```tsx
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui";
-
-<Dialog open={open} onOpenChange={setOpen}>
-  <DialogTrigger asChild>
-    <Button>打开对话框</Button>
-  </DialogTrigger>
-  <DialogContent size="md">  {/* sm | md | lg | full */}
-    <DialogHeader>
-      <DialogTitle>对话框标题</DialogTitle>
-      <DialogDescription>对话框描述</DialogDescription>
-    </DialogHeader>
-    <div>内容区域</div>
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setOpen(false)}>取消</Button>
-      <Button onClick={handleConfirm}>确认</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-```
-
-**Props:**
-
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| size | `'sm' \| 'md' \| 'lg' \| 'full'` | `'md'` | 对话框尺寸 |
-| showClose | `boolean` | `true` | 显示关闭按钮 |
-| overlay | `boolean` | `true` | 显示遮罩层 |
-
----
-
-### Toast 轻提示
-
-```tsx
-import { toast } from "@/components/ui";
-
-// 使用 toast 函数
-toast({
-  title: "操作成功",
-  description: "数据已保存",
-  variant: "success",    // success | error | warning | info
-  duration: 3000,        // 显示时长（毫秒）
-});
-
-// 快捷方法
-toast.success("保存成功");
-toast.error("操作失败");
-toast.warning("请注意");
-toast.info("提示信息");
-```
-
----
-
-### Badge 徽章
-
-```tsx
-import { Badge } from "@/components/ui";
-
-<Badge variant="default">默认</Badge>
-<Badge variant="primary">主要</Badge>
-<Badge variant="success">成功</Badge>
-<Badge variant="warning">警告</Badge>
-<Badge variant="error">错误</Badge>
-<Badge variant="outline">描边</Badge>
-```
-
-**Props:**
-
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| variant | `BadgeVariant` | `'default'` | 徽章样式 |
-| size | `'sm' \| 'md'` | `'md'` | 尺寸 |
-| dot | `boolean` | `false` | 显示状态点 |
-
----
-
-### Avatar 头像
-
-```tsx
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui";
-
-<Avatar size="md">  {/* xs | sm | md | lg | xl */}
-  <AvatarImage src="/avatar.jpg" alt="用户名" />
-  <AvatarFallback>UN</AvatarFallback>
-</Avatar>
-```
-
-**Props:**
-
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| size | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | 尺寸 |
-| shape | `'circle' \| 'square'` | `'circle'` | 形状 |
-
----
-
-### Tooltip 文字提示
-
-```tsx
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui";
-
-<Tooltip>
-  <TooltipTrigger>
-    <Button>悬停查看</Button>
-  </TooltipTrigger>
-  <TooltipContent side="top" align="center">
-    提示内容
-  </TooltipContent>
-</Tooltip>
-```
-
-**Props:**
-
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| side | `'top' \| 'right' \| 'bottom' \| 'left'` | `'top'` | 显示位置 |
-| align | `'start' \| 'center' \| 'end'` | `'center'` | 对齐方式 |
-| delay | `number` | `200` | 延迟显示（毫秒） |
-
----
-
-### Tabs 标签页
-
-```tsx
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui";
-
-<Tabs defaultValue="tab1" onValueChange={setTab}>
-  <TabsList>
-    <TabsTrigger value="tab1">标签 1</TabsTrigger>
-    <TabsTrigger value="tab2">标签 2</TabsTrigger>
-  </TabsList>
-  <TabsContent value="tab1">内容 1</TabsContent>
-  <TabsContent value="tab2">内容 2</TabsContent>
-</Tabs>
-```
-
----
-
-### Checkbox 复选框
-
-```tsx
-import { Checkbox } from "@/components/ui";
-
-<Checkbox
-  checked={checked}
-  onCheckedChange={setChecked}
-  disabled={false}
-  indeterminate={false}  // 半选状态
-/>
-```
-
----
-
-### Switch 开关
-
-```tsx
-import { Switch } from "@/components/ui";
-
-<Switch
-  checked={checked}
-  onCheckedChange={setChecked}
-  disabled={false}
-  size="md"  // sm | md
-/>
-```
-
----
-
-### Textarea 多行文本
-
-```tsx
-import { Textarea } from "@/components/ui";
-
-<Textarea
-  placeholder="请输入内容"
-  rows={4}
-  maxLength={500}
-  showCount={true}  // 显示字数统计
-  resize="vertical" // none | vertical | horizontal | both
-/>
-```
-
----
-
-### Radio Group 单选组
-
-```tsx
-import { RadioGroup, RadioGroupItem } from "@/components/ui";
-
-<RadioGroup value={value} onValueChange={setValue}>
-  <RadioGroupItem value="option1">选项 1</RadioGroupItem>
-  <RadioGroupItem value="option2">选项 2</RadioGroupItem>
-</RadioGroup>
-```
-
----
-
-## 数据展示组件
-
-### DataTable 数据表格
-
-```tsx
-import { DataTable } from "@/components/backoffice/ui";
-
-<DataTable
-  columns={columns}
-  data={data}
-  pagination={{
-    page: 1,
-    pageSize: 10,
-    total: 100,
-    onChange: (page, pageSize) => {}
-  }}
-  sorting={{
-    sortField: 'name',
-    sortOrder: 'asc',
-    onChange: (field, order) => {}
-  }}
-  loading={false}
-  emptyText="暂无数据"
-  onRowClick={(record) => {}}
-  rowSelection={{
-    selectedRowKeys,
-    onChange: setSelectedRowKeys
-  }}
-/>
-```
-
----
-
-### StatusBadge 状态徽章
-
-```tsx
-import { StatusBadge } from "@/components/backoffice/ui";
-
-<StatusBadge status="success">已通过</StatusBadge>
-<StatusBadge status="pending">待审核</StatusBadge>
-<StatusBadge status="error">已拒绝</StatusBadge>
-<StatusBadge status="warning">警告</StatusBadge>
-```
-
----
-
-## 反馈组件
-
-### Alert 警告提示
-
-```tsx
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui";
-
-<Alert variant="info">  // info | success | warning | error
-  <AlertTitle>提示</AlertTitle>
-  <AlertDescription>这是一条提示信息</AlertDescription>
-</Alert>
-```
-
----
-
-### Skeleton 骨架屏
-
-```tsx
-import { Skeleton } from "@/components/ui";
-
-<Skeleton className="h-4 w-[250px]" />  {/* 自定义尺寸 */}
-<Skeleton circle className="h-12 w-12" />  {/* 圆形 */}
-
-// 组合使用
-<div className="space-y-2">
-  <Skeleton className="h-4 w-[250px]" />
-  <Skeleton className="h-4 w-[200px]" />
-</div>
-```
-
----
-
-### Progress 进度条
-
-```tsx
-import { Progress } from "@/components/ui";
-
-<Progress value={60} max={100} size="md" showValue />
-```
-
----
-
-## 导航组件
-
-### Breadcrumb 面包屑
-
-```tsx
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from "@/components/ui";
-
-<Breadcrumb>
-  <BreadcrumbItem>
-    <BreadcrumbLink href="/">首页</BreadcrumbLink>
-  </BreadcrumbItem>
-  <BreadcrumbSeparator />
-  <BreadcrumbItem>
-    <BreadcrumbLink href="/users">用户管理</BreadcrumbLink>
-  </BreadcrumbItem>
-  <BreadcrumbSeparator />
-  <BreadcrumbItem isCurrentPage>用户详情</BreadcrumbItem>
-</Breadcrumb>
-```
-
----
-
-### Pagination 分页
-
-```tsx
-import { Pagination } from "@/components/ui";
-
-<Pagination
-  current={1}
-  pageSize={10}
-  total={100}
-  onChange={(page, pageSize) => {}}
-  showSizeChanger={true}
-  showQuickJumper={true}
-  showTotal={(total) => `共 ${total} 条`}
-/>
-```
-
----
-
-## 布局组件
-
-### PageHeader 页面头部
-
-```tsx
-import { PageHeader } from "@/components/backoffice/ui";
+import { PageHeader, Button } from "@/components/crm/ui";
 
 <PageHeader
-  title="页面标题"
-  description="页面描述文字"
-  breadcrumb={breadcrumbItems}
-  actions={[
-    <Button key="1">操作 1</Button>,
-    <Button key="2" variant="primary">主要操作</Button>
-  ]}
+  title="Clients"
+  description="Manage all customers across all stages."
+  actions={<Button>New client</Button>}
 />
 ```
 
----
+Visual contract: `text-2xl font-semibold tracking-tight` title,
+`text-sm text-slate-500` description, 24px bottom margin, actions right-
+aligned on `sm+` and stacked on mobile.
 
-### FilterBar 筛选栏
+### BadgeBase
+
+The single primitive for every domain badge in the CRM. Every domain
+badge (`StatusBadge`, `RiskBadge`, `KYCStatusBadge`, ...) is implemented
+on top of it, so they share rhythm.
 
 ```tsx
-import { FilterBar } from "@/components/backoffice/ui";
+import { BadgeBase } from "@/components/crm/ui";
+
+<BadgeBase tone="success">Verified</BadgeBase>
+<BadgeBase tone="warning" dot>Pending</BadgeBase>
+<BadgeBase tone="neutral" dot={false}>Manual</BadgeBase>
+<BadgeBase tone="primary" size="sm">KYC</BadgeBase>
+```
+
+**Tones:**
+- Semantic: `neutral`, `primary`, `success`, `warning`, `error`, `info`
+- Categorical: `purple`, `orange`, `teal`, `indigo`, `rose`
+
+**Visual contract** (do not override):
+- `rounded-full`
+- Tone-mapped `bg-{tone}-100 text-{tone}-700`
+- Optional 1.5px dot in `bg-{tone}-500`, leading 6px gap
+- Sizes: `sm` (10px text, 1px dot) / `md` (12px text, 1.5px dot, default)
+
+> **Rule:** if you're building a new "thing has a status" badge, build it
+> on `BadgeBase`. Never inline `bg-emerald-100 text-emerald-700 rounded-full`.
+
+### Domain badges (all built on `BadgeBase`)
+
+```tsx
+<StatusBadge status="active" />              // generic — looks up known statuses
+<KYCStatusBadge status="verified" />
+<RiskBadge level="high" score={72} />
+<AMLStatusBadge status="pass" />
+<CaseTypeBadge type="kyc" />                 // dot-less, categorical color
+<SLABadge status="near_timeout" remainingMinutes={15} />
+<LevelBadge level="vip" />                   // dot-less, uppercase
+<TypeBadge type="buy" />                     // dot-less, uppercase, success/error
+```
+
+### EnhancedDataTable
+
+The single canonical way to render a list of rows.
+
+```tsx
+import { EnhancedDataTable, type Column, type RowAction } from "@/components/crm/ui";
+
+const columns: Column<Client>[] = [
+  { key: "uid", title: "UID", width: "120px" },
+  { key: "name", title: "Name", sortable: true },
+  { key: "country", title: "Country" },
+  { key: "kycStatus", title: "KYC", render: (row) => <KYCStatusBadge status={row.kycStatus} /> },
+];
+
+const actions: RowAction<Client>[] = [
+  { label: "View", onClick: (row) => router.push(`/crm/clients/${row.id}`) },
+  { label: "Freeze", variant: "danger", onClick: (row) => freeze(row.id) },
+];
+
+<EnhancedDataTable
+  columns={columns}
+  data={clients}
+  keyExtractor={(c) => c.id}
+  searchable searchKeys={["uid", "name", "email"]}
+  selectable selectedKeys={selected} onSelectionChange={setSelected}
+  rowActions={actions}
+  pagination pageSize={20}
+/>
+```
+
+Built-in: deferred search, sortable headers, pagination, row selection
+checkbox, kebab-menu row actions, empty state, loading skeleton.
+
+> **Rule:** never write `<table>` directly in a page. If `EnhancedDataTable`
+> doesn't fit, file an issue to extend it — don't fork it.
+
+### FilterBar
+
+Canonical filter chrome above a list. Pass an array of `FilterField`
+descriptors; it renders inputs and propagates state via `onFilterChange`.
+
+```tsx
+import { FilterBar } from "@/components/crm/ui";
 
 <FilterBar
-  filters={[
-    { type: 'input', name: 'keyword', placeholder: '搜索关键词' },
-    { type: 'select', name: 'status', options: statusOptions },
-    { type: 'date-range', name: 'date', label: '日期范围' },
+  fields={[
+    { key: "status", label: "Status", type: "select", options: STATUS_OPTIONS },
+    { key: "country", label: "Country", type: "select", options: COUNTRY_OPTIONS },
+    { key: "search", label: "Search", type: "text", placeholder: "UID / email / name" },
   ]}
-  onSearch={(values) => {}}
-  onReset={() => {}}
+  onFilterChange={setFilters}
+/>
+```
+
+### Drawer / DrawerFooter
+
+Right-side slide-over for detail or form panels.
+
+```tsx
+<Drawer open={open} onClose={() => setOpen(false)} title="Edit client">
+  <div className="space-y-4">…</div>
+  <DrawerFooter>
+    <Button variant="outline" onClick={cancel}>Cancel</Button>
+    <Button onClick={save}>Save</Button>
+  </DrawerFooter>
+</Drawer>
+```
+
+### LoadingState
+
+Page-level skeleton. For inline use, prefer `Skeleton` from `@/components/ui`.
+
+```tsx
+{loading ? <LoadingState /> : <Content/>}
+```
+
+### PlaceholderPage
+
+For roadmap pages that exist as routes but have no implementation.
+
+```tsx
+<PlaceholderPage
+  title="Workflows"
+  description="Configure case routing rules. Coming Q3."
 />
 ```
 
 ---
 
-## 命名规范
+## Anti-patterns
 
-### 文件命名
-
-- 组件文件：kebab-case（如 `data-table.tsx`）
-- 类型文件：`.types.ts` 后缀
-- 测试文件：`.test.tsx` 后缀
-- 样式文件：`.styles.ts`（如需单独样式）
-
-### 组件命名
-
-- React 组件：PascalCase
-- 类型/接口：PascalCase + 后缀（如 `ButtonProps`）
-- Hook：camelCase + `use` 前缀（如 `useToast`）
-
-### Props 命名
-
-- 布尔值：使用肯定语气（如 `disabled` 而非 `isDisabled`）
-- 事件处理：`on` + 动词（如 `onClick`, `onChange`）
-- 回调函数：`handle` + 动作（如 `handleSubmit`）
-
----
-
-## 类型定义
-
-```ts
-// 组件 Props 统一导出
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'primary' | 'secondary' | 'destructive' | 'ghost' | 'outline' | 'link';
-  size?: 'sm' | 'md' | 'lg' | 'icon';
-  asChild?: boolean;
-  loading?: boolean;
-}
-
-// 变体类型
-export type ButtonVariant = NonNullable<ButtonProps['variant']>;
-export type ButtonSize = NonNullable<ButtonProps['size']>;
-```
+| Anti-pattern | Use this instead |
+|--------------|------------------|
+| `<button className="bg-blue-600 ...">` | `<Button>...</Button>` |
+| `<div className="bg-white border border-slate-200 rounded-2xl ...">` | `<Card>...</Card>` |
+| `<span className="bg-emerald-100 text-emerald-700 rounded-full ...">Active</span>` | `<BadgeBase tone="success">Active</BadgeBase>` |
+| `<table>...</table>` | `<EnhancedDataTable />` |
+| `dark:bg-slate-800 dark:text-white` on a page | `bg-card text-foreground` |
+| `bg-[#2563EB]` / `text-[var(--primary)]` | `bg-primary` / `text-primary` |
+| Inline `style={{ padding: 12 }}` | Tailwind `p-3` |
+| `rounded-[10px]` arbitrary | One of `rounded-md / lg / xl / full` |

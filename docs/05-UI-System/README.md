@@ -1,41 +1,67 @@
-# TradePass UI 组件规范
+# TradePass CRM Design System
 
-> 统一 Portal 和 Backoffice 两端的 UI 设计系统
+**Single source of truth** for the visual layer of the CRM. All page-level
+styling decisions must conform to the rules in this folder. Anything that
+deviates either updates these docs first or is treated as a bug.
 
-## 设计原则
+> Last revision: 2026-05-09. Replaces the previous portal-flavored doc; the
+> portal is no longer in scope for this CRM.
 
-1. **一致性** - 相同功能使用相同组件，相同交互保持一致
-2. **清晰性** - 视觉层次分明，信息传达明确
-3. **效率性** - 减少用户操作步骤，提供快捷方式
-4. **可访问性** - 符合 WCAG 2.1 AA 标准
+## Files
 
-## 文档结构
+| File | What it covers |
+|------|----------------|
+| [`Design-Tokens.md`](./Design-Tokens.md) | Colors, typography, spacing, radius, shadow, transitions. The atom layer. |
+| [`Component-API.md`](./Component-API.md) | Public APIs of `@/components/ui` and `@/components/crm/ui`. The molecule layer. |
+| [`Usage-Guidelines.md`](./Usage-Guidelines.md) | Hard rules: do this, never do that. The "what to avoid" cheatsheet. |
+| [`Review-Detail-Layout.md`](./Review-Detail-Layout.md) | The 3-column + sticky-bottom-bar layout used by **every** approval / review detail page (CLM cases, Approval Center, future flows). |
 
-- [Design Tokens](./Design-Tokens.md) - 颜色、间距、字体、圆角等设计变量
-- [Component API](./Component-API.md) - 所有组件的 API 规范
-- [Usage Guidelines](./Usage-Guidelines.md) - 组件使用场景和最佳实践
-- [Migration Guide](./Migration-Guide.md) - 存量代码迁移指南
-
-## 快速开始
+## Quick start
 
 ```tsx
-// 基础组件
-import { Button, Card, Input, Dialog } from "@/components/ui";
-
-// Backoffice 业务组件
-import { DataTable, PageHeader, StatusBadge } from "@/components/backoffice/ui";
-
-// Portal 业务组件
-import { AccountCard, TradePanel } from "@/components/portal/ui";
+import { Button, Card, EmptyState } from "@/components/crm/ui";
+import { PageHeader, StatusBadge, RiskBadge } from "@/components/crm/ui";
+import { EnhancedDataTable } from "@/components/crm/ui";
 ```
 
-## 技术栈
+If you can't find something in `crm/ui`, look in `@/components/ui` (Radix-
+flavored primitives: `Dialog`, `Select`, `Tooltip`, `Tabs`, ...).
 
-- **Tailwind CSS v4** - 原子化样式
-- **Radix UI** - Headless 组件基础
-- **Lucide React** - 图标库
-- **Framer Motion** - 动画（可选）
+## Three rules you must internalize
 
----
+1. **Brand color = `#2563EB` (blue-600)**. Never write a literal `#1E40AF`,
+   `bg-blue-700`, or any other shade as "the brand color". Use `bg-primary`,
+   `text-primary`, or the `primary` variant of components.
+2. **Neutral = `slate-*` only.** Do not use `gray-*` or `zinc-*` for new code.
+   `gray-*` shows up in legacy files and is being migrated out.
+3. **Status colors = `emerald / amber / red / blue` × `100 / 500 / 700`** only.
+   Other shades (slate-50, blue-600 for backgrounds, etc.) are off-limits
+   for status — use `BadgeBase` with a `tone`.
 
-*版本: v1.0.0 | 最后更新: 2026-04-03*
+Anything else must be justified in a PR description.
+
+## Stack
+
+- **Tailwind CSS v4** — atomic styling, `@theme` token contract
+- **Radix UI** — headless primitives behind `@/components/ui/*`
+- **Lucide React** — single icon library (no Heroicons, no FontAwesome)
+- **Semi UI v2.96** — used only for a few legacy widgets; do **not** introduce in new code
+
+## Where things live
+
+```
+src/components/
+├── ui/                          ← Radix primitives + tokens (canonical)
+│   ├── Button.tsx, card.tsx, badge.tsx, EmptyState.tsx
+│   ├── dialog.tsx, dropdown-menu.tsx, tooltip.tsx, select.tsx, ...
+│   └── index.ts                 ← barrel
+└── crm/
+    ├── ui/                      ← CRM-flavored compositions
+    │   ├── BadgeBase.tsx        ← THE base for every domain badge
+    │   ├── StatusBadge.tsx, RiskBadge.tsx, KYCStatusBadge.tsx, ...
+    │   ├── PageHeader.tsx, FilterBar.tsx, EnhancedDataTable.tsx
+    │   ├── Drawer.tsx, LoadingState.tsx, PlaceholderPage.tsx
+    │   └── index.ts             ← barrel (also re-exports Button/Card/EmptyState)
+    ├── clients/                 ← module-specific components
+    └── clm/                     ← module-specific components
+```

@@ -58,14 +58,19 @@ const mockAccounts: Record<string, TradingAccount[]> = {
 };
 
 // 开发者配置状态
+export type RegisterMode = "A" | "B" | "C" | "D" | "E";
+
 interface DevConfigState {
   currentPerspective: UserPerspective;
   toolboxOpen: boolean;
   toolboxPosition: { x: number; y: number };
   skipOtpVerification: boolean;
+  forceContactOtp: boolean;
   preVerifiedPhone: string;
   preVerifiedEmail: string;
   accountCount: "single" | "multiple";
+  registerMode: RegisterMode;
+  captchaEnabled: boolean;
 }
 
 // Context 类型
@@ -82,11 +87,16 @@ interface DevConfigContextType extends DevConfigState {
 
   // OTP 验证控制
   setSkipOtpVerification: (skip: boolean) => void;
+  setForceContactOtp: (force: boolean) => void;
   setPreVerifiedPhone: (phone: string) => void;
   setPreVerifiedEmail: (email: string) => void;
 
   // 账户数量切换
   setAccountCount: (count: "single" | "multiple") => void;
+
+  // 注册流程控制
+  setRegisterMode: (mode: RegisterMode) => void;
+  setCaptchaEnabled: (enabled: boolean) => void;
 }
 
 // 默认位置（右下角：right/bottom 偏移，正值表示距边缘的距离）
@@ -101,9 +111,12 @@ const DEFAULT_STATE: DevConfigState = {
   toolboxOpen: false,
   toolboxPosition: DEFAULT_POSITION,
   skipOtpVerification: false,
+  forceContactOtp: false,
   preVerifiedPhone: "",
   preVerifiedEmail: "",
   accountCount: "single",
+  registerMode: "A",
+  captchaEnabled: false,
 };
 
 // Provider 组件
@@ -134,9 +147,12 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
         toolboxOpen: parsed.toolboxOpen ?? false,
         toolboxPosition: parsedPosition,
         skipOtpVerification: parsed.skipOtpVerification ?? false,
+        forceContactOtp: parsed.forceContactOtp ?? false,
         preVerifiedPhone: parsed.preVerifiedPhone ?? "",
         preVerifiedEmail: parsed.preVerifiedEmail ?? "",
         accountCount,
+        registerMode: parsed.registerMode ?? "A",
+        captchaEnabled: parsed.captchaEnabled ?? false,
       });
     } catch {
       // 读取失败时保持默认值
@@ -151,6 +167,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
       currentPerspectiveId: state.currentPerspective.id,
       toolboxOpen: state.toolboxOpen,
       skipOtpVerification: state.skipOtpVerification,
+      forceContactOtp: state.forceContactOtp,
       preVerifiedPhone: state.preVerifiedPhone,
       preVerifiedEmail: state.preVerifiedEmail,
       accountCount: state.accountCount,
@@ -169,7 +186,7 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem("kyc_preverified_email");
     }
-  }, [state.currentPerspective.id, state.toolboxOpen, state.toolboxPosition, state.skipOtpVerification, state.preVerifiedPhone, state.preVerifiedEmail, state.accountCount]);
+  }, [state.currentPerspective.id, state.toolboxOpen, state.toolboxPosition, state.skipOtpVerification, state.forceContactOtp, state.preVerifiedPhone, state.preVerifiedEmail, state.accountCount]);
 
   // 设置视角
   const setPerspective = useCallback((id: string) => {
@@ -208,6 +225,10 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, skipOtpVerification: skip }));
   }, []);
 
+  const setForceContactOtp = useCallback((force: boolean) => {
+    setState(prev => ({ ...prev, forceContactOtp: force }));
+  }, []);
+
   const setPreVerifiedPhone = useCallback((phone: string) => {
     setState(prev => ({ ...prev, preVerifiedPhone: phone }));
   }, []);
@@ -228,6 +249,16 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  // 设置注册流程模式
+  const setRegisterMode = useCallback((mode: RegisterMode) => {
+    setState(prev => ({ ...prev, registerMode: mode }));
+  }, []);
+
+  // 设置人机验证开关
+  const setCaptchaEnabled = useCallback((enabled: boolean) => {
+    setState(prev => ({ ...prev, captchaEnabled: enabled }));
+  }, []);
+
   const value: DevConfigContextType = {
     ...state,
     setPerspective,
@@ -237,9 +268,12 @@ export function DevConfigProvider({ children }: { children: React.ReactNode }) {
     setToolboxPosition,
     resetToolboxPosition,
     setSkipOtpVerification,
+    setForceContactOtp,
     setPreVerifiedPhone,
     setPreVerifiedEmail,
     setAccountCount,
+    setRegisterMode,
+    setCaptchaEnabled,
   };
 
   return (

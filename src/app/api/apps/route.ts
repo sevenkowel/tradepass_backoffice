@@ -1,29 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenant } from "@/lib/api/tenant";
-
-// Seed official apps if not exists
-const OFFICIAL_APPS = [
-  { appId: "copy_trading", name: "Copy Trading", description: "Social copy trading system with profit sharing", icon: "Copy", category: "trading" },
-  { appId: "ai_signals", name: "AI Signals", description: "AI-powered trading signals and market analysis", icon: "Brain", category: "analytics" },
-  { appId: "ib_referral", name: "IB & Referral", description: "Introducing broker rebate and referral system", icon: "Network", category: "marketing" },
-  { appId: "advanced_reports", name: "Advanced Reports", description: "Advanced reporting and data analytics", icon: "BarChart3", category: "analytics" },
-  { appId: "risk_enhanced", name: "Risk Enhanced", description: "Enhanced risk control rules and alerts", icon: "Shield", category: "risk" },
-  { appId: "multi_terminal", name: "Multi Terminal", description: "Multi-account trading terminal", icon: "Monitor", category: "trading" },
-];
-
-async function seedApps() {
-  const count = await prisma.appCatalog.count();
-  if (count === 0) {
-    for (const app of OFFICIAL_APPS) {
-      await prisma.appCatalog.upsert({
-        where: { appId: app.appId },
-        update: {},
-        create: app,
-      });
-    }
-  }
-}
+import {
+  PRODUCT_CODES,
+  PRODUCT_CONFIG,
+  BASE_LAYER_CODE,
+  type ProductCode,
+} from "@/lib/products";
 
 export async function GET(req: NextRequest) {
   const tenant = await getCurrentTenant(req);
@@ -31,23 +14,70 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await seedApps();
+  // 1. Get tenant's active subscriptions (for extension products)
+  const subscriptions = await prisma.subscription.findMany({
+    where: {
+      tenantId: tenant.id,
+      status: { in: ["active", "trialing"] },
+    },
+    select: { productId: true, status: true },
+  });
+  const subscribedProductIds = new Set(subscriptions.map((s: { productId: string; status: string }) => s.productId));
 
-  const apps = await prisma.appCatalog.findMany({
-    orderBy: { createdAt: "asc" },
+  // 2. Get product details for subscribed products
+  const subscribedProducts = await prisma.product.findMany({
+    where: { id: { in: Array.from(subscribedProductIds) } },
+  });
+  const subscribedCodes = new Set(
+    subscribedProducts.map((p: { code: string }) => p.code as ProductCode)
+  );
+
+  // 3. Business base layer is always considered "subscribed" for the tenant
+  subscribedCodes.add(BASE_LAYER_CODE);
+
+  // 4. Build module groups from PRODUCT_CONFIG
+  const groups = PRODUCT_CODES.map((code) => {
+    const config = PRODUCT_CONFIG[code];
+    const isSubscribed = subscribedCodes.has(code);
+
+    return {
+      productCode: code,
+      productName: config.name,
+      shortName: config.shortName,
+      isBaseLayer: config.isBaseLayer,
+      isSubscribed,
+      basePrice: config.basePrice,
+      currency: config.currency,
+      modules: config.modules.map((m) => ({
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        icon: m.icon,
+        route: m.route,
+        isAvailable: isSubscribed, // available if the parent product is subscribed
+        isAddOn: m.isAddOn ?? false,
+        addOnPrice: m.addOnPrice,
+      })),
+    };
   });
 
-  const installed = await prisma.tenantApp.findMany({
-    where: { tenantId: tenant.id, status: "installed" },
+  // 5. Stats
+  const installedCount = groups.reduce(
+    (sum, g) => sum + g.modules.filter((m) => m.isAvailable).length,
+    0
+  );
+  const totalModuleCount = groups.reduce(
+    (sum, g) => sum + g.modules.length,
+    0
+  );
+
+  return NextResponse.json({
+    groups,
+    stats: {
+      installedModules: installedCount,
+      totalModules: totalModuleCount,
+      subscribedProducts: subscribedCodes.size,
+      totalProducts: PRODUCT_CODES.length,
+    },
   });
-
-  const installedIds = new Set(installed.map((a) => a.appId));
-
-  const result = apps.map((app) => ({
-    ...app,
-    isInstalled: installedIds.has(app.appId),
-    installedAt: installed.find((i) => i.appId === app.appId)?.installedAt || null,
-  }));
-
-  return NextResponse.json({ apps: result });
 }

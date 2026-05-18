@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relationship Graph Preview — 多重关联客户</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      padding: 24px;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { font-size: 20px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+
+    /* Header bar */
+    .header-bar {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .header-bar label { font-size: 13px; color: #64748b; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    }
+    .chip-blue { background: #eff6ff; color: #1d4ed8; }
+
+    /* Controls */
+    .controls {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .search-box {
+      position: relative; flex: 1; min-width: 220px;
+    }
+    .search-box input {
+      width: 100%; padding: 8px 12px 8px 36px; border: 1px solid #e2e8f0;
+      border-radius: 10px; font-size: 13px; outline: none;
+    }
+    .search-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.08); }
+    .search-box svg {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      width: 16px; height: 16px; color: #94a3b8;
+    }
+    .filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500;
+      border: none; cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn.active-amber { background: #fef3c7; color: #b45309; }
+    .filter-btn.active-emerald { background: #d1fae5; color: #047857; }
+    .filter-btn.active-red { background: #fee2e2; color: #b91c1c; }
+    .filter-btn.inactive { background: #f1f5f9; color: #94a3b8; }
+
+    /* Legend */
+    .legend-bar {
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+      font-size: 12px; color: #64748b; margin-bottom: 12px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .stats { margin-left: auto; display: flex; gap: 12px; font-weight: 500; color: #334155; }
+
+    /* Canvas container */
+    .canvas-wrap {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px;
+      overflow: hidden; position: relative; height: 700px;
+    }
+    canvas { display: block; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute; top: 16px; right: 16px;
+      max-width: 280px; background: #fff; border: 1px solid #e2e8f0;
+      border-radius: 12px; padding: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+    }
+    .tooltip.show { opacity: 1; }
+    .tooltip-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .tooltip-row:last-child { margin-bottom: 0; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;
+    }
+
+    /* Detail panel */
+    .detail-panel {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+      padding: 16px; margin-top: 12px; display: none;
+    }
+    .detail-panel.show { display: block; }
+    .detail-header { display: flex; justify-content: space-between; align-items: start; }
+
+    /* Info section below canvas */
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px; margin-top: 16px;
+    }
+    .info-card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 14px;
+    }
+    .info-card h3 { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .relation-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .relation-row:last-child { border-bottom: none; }
+    .risk-score { font-size: 24px; font-weight: 700; color: #dc2626; }
+    .risk-label { font-size: 12px; color: #dc2626; font-weight: 500; }
+
+    .kyc-verified { color: #059669; }
+    .kyc-pending { color: #d97706; }
+    .kyc-rejected { color: #dc2626; }
+    .risk-low { background: #d1fae5; color: #047857; }
+    .risk-medium { background: #fef3c7; color: #b45309; }
+    .risk-high { background: #ffedd5; color: #c2410c; }
+    .risk-critical { background: #fee2e2; color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Relationship Graph</h1>
+    <p class="subtitle">多重关联客户预览 — 同时存在 shared_ip / shared_device / same_id / shared_payment / ib_invited</p>
+
+    <div class="header-bar">
+      <label>Center:</label>
+      <span class="chip chip-blue">刘洋 (U10007)</span>
+      <span style="font-size:12px;color:#64748b;">高风险 · 5 种关联类型 · 8 个关联客户</span>
+    </div>
+
+    <div class="controls">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search by name, UID, email..." id="searchInput">
+      </div>
+      <div class="filter-group">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        <button class="filter-btn active-amber" data-kind="shared_ip">Shared IP (4)</button>
+        <button class="filter-btn active-emerald" data-kind="shared_device">Shared Device (3)</button>
+        <button class="filter-btn active-red" data-kind="same_id">Same ID (3)</button>
+      </div>
+    </div>
+
+    <div class="legend-bar">
+      <span class="legend-item"><span class="dot" style="background:#3b82f6"></span>Center</span>
+      <span class="legend-item"><span class="dot" style="background:#f59e0b"></span>Shared IP</span>
+      <span class="legend-item"><span class="dot" style="background:#10b981"></span>Shared Device</span>
+      <span class="legend-item"><span class="dot" style="background:#ef4444"></span>Same ID</span>
+      <span class="legend-item"><span class="dot" style="background:#8b5cf6"></span>Shared Payment</span>
+      <span class="legend-item"><span class="dot" style="background:#0ea5e9"></span>IB Invited</span>
+      <span class="legend-item"><span class="dot" style="background:#a855f7"></span>Mixed</span>
+      <span class="stats"><span>9 nodes</span> | <span>14 links</span></span>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="graphCanvas"></canvas>
+      <div class="tooltip" id="tooltip">
+        <div class="tooltip-row" style="font-weight:600;font-size:13px;color:#0f172a;">
+          <span class="dot" id="ttDot" style="width:10px;height:10px;"></span>
+          <span id="ttName"></span>
+          <span style="font-size:10px;color:#94a3b8;font-weight:400;" id="ttUid"></span>
+        </div>
+        <div class="tooltip-row" style="color:#475569;" id="ttEmail"></div>
+        <div class="tooltip-row">
+          <span class="badge" id="ttKyc"></span>
+          <span class="badge" id="ttRisk"></span>
+          <span class="badge" style="background:#f1f5f9;color:#475569;" id="ttCountry"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-header">
+        <div id="detailContent"></div>
+        <button onclick="closeDetail()" style="font-size:12px;color:#64748b;background:none;border:none;cursor:pointer;">Close</button>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <h3>关联统计</h3>
+        <div class="relation-row"><span>Shared IP</span><span style="color:#b45309;font-weight:500;">4</span></div>
+        <div class="relation-row"><span>Shared Device</span><span style="color:#047857;font-weight:500;">3</span></div>
+        <div class="relation-row"><span>Same ID</span><span style="color:#b91c1c;font-weight:500;">3</span></div>
+        <div class="relation-row"><span>Shared Payment</span><span style="color:#7c3aed;font-weight:500;">2</span></div>
+        <div class="relation-row"><span>IB Invited</span><span style="color:#0284c7;font-weight:500;">2</span></div>
+      </div>
+      <div class="info-card">
+        <h3>图谱风险评分</h3>
+        <div class="risk-score">92</div>
+        <div class="risk-label">Critical — 多重身份关联 + 共享支付方式</div>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">same_id ×3 (capped 60) + shared_payment ×2 (capped 40) = 92</p>
+      </div>
+      <div class="info-card">
+        <h3>重点关注客户</h3>
+        <div class="relation-row">
+          <span>赵敏 (U10006)</span>
+          <span class="badge risk-critical">critical</span>
+        </div>
+        <div class="relation-row">
+          <span>王芳 (U10003)</span>
+          <span class="badge risk-high">high</span>
+        </div>
+        <div class="relation-row">
+          <span>陈强 (U10004)</span>
+          <span class="badge risk-medium">medium</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ====== 数据：一个同时具有所有关联类型的中心客户 ======
+const CENTER = {
+  id: 'user-007', uid: 'U10007', name: '刘洋', email: 'liuyang@example.com',
+  phone: '+86 13800138007', country: 'CN', kycStatus: 'verified',
+  riskLevel: 'critical', riskScore: 92, kind: 'center',
+  lastLoginAt: '2026-05-13T10:00:00Z', createdAt: '2024-06-01T00:00:00Z'
+};
+
+const NODES = [
+  // 全关联 — 同时有 5 种关系（理论上，这里模拟 mixed）
+  { id: 'user-003', uid: 'U10003', name: '王芳', email: 'wangfang@example.com', phone: '+86 13900139001', country: 'CN', kycStatus: 'pending', riskLevel: 'high', riskScore: 78, kind: 'mixed', lastLoginAt: '2026-05-12T08:00:00Z', createdAt: '2024-03-15T00:00:00Z' },
+  // shared_device + shared_payment
+  { id: 'user-004', uid: 'U10004', name: '陈强', email: 'chenqiang@example.com', phone: '+86 13700137002', country: 'CN', kycStatus: 'verified', riskLevel: 'medium', riskScore: 45, kind: 'mixed', lastLoginAt: '2026-05-10T14:00:00Z', createdAt: '2024-02-20T00:00:00Z' },
+  // shared_ip + ib_invited
+  { id: 'user-005', uid: 'U10005', name: '李娜', email: 'lina@example.com', phone: '+86 13600136003', country: 'CN', kycStatus: 'verified', riskLevel: 'low', riskScore: 22, kind: 'mixed', lastLoginAt: '2026-05-11T09:00:00Z', createdAt: '2024-04-10T00:00:00Z' },
+  // same_id + shared_payment
+  { id: 'user-006', uid: 'U10006', name: '赵敏', email: 'zhaomin@example.com', phone: '+86 13500135004', country: 'CN', kycStatus: 'rejected', riskLevel: 'critical', riskScore: 88, kind: 'mixed', lastLoginAt: '2026-05-08T11:00:00Z', createdAt: '2024-01-05T00:00:00Z' },
+  // shared_ip only
+  { id: 'user-008', uid: 'U10008', name: '周杰', email: 'zhoujie@example.com', phone: '+86 13300133005', country: 'CN', kycStatus: 'verified', riskLevel: 'low', riskScore: 15, kind: 'shared_ip', lastLoginAt: '2026-05-13T07:00:00Z', createdAt: '2024-07-20T00:00:00Z' },
+  // shared_device only
+  { id: 'user-009', uid: 'U10009', name: '吴倩', email: 'wuqian@example.com', phone: '+86 13200132006', country: 'CN', kycStatus: 'pending', riskLevel: 'medium', riskScore: 55, kind: 'shared_device', lastLoginAt: '2026-05-09T16:00:00Z', createdAt: '2024-08-12T00:00:00Z' },
+  // same_id only
+  { id: 'user-010', uid: 'U10010', name: '刘洋', email: 'liuyang.alt@example.com', phone: '+86 13100131007', country: 'CN', kycStatus: 'not_submitted', riskLevel: 'high', riskScore: 72, kind: 'same_id', lastLoginAt: '2026-04-20T10:00:00Z', createdAt: '2024-09-01T00:00:00Z' },
+  // ib_invited only
+  { id: 'user-011', uid: 'U10011', name: '孙涛', email: 'suntao@example.com', phone: '+86 13000130008', country: 'CN', kycStatus: 'verified', riskLevel: 'low', riskScore: 18, kind: 'ib_relation', lastLoginAt: '2026-05-12T20:00:00Z', createdAt: '2024-05-18T00:00:00Z' },
+];
+
+const EDGES = [
+  { source: 'user-007', target: 'user-003', kind: 'shared_ip', label: 'Shared IP: 103.21.244.15' },
+  { source: 'user-007', target: 'user-003', kind: 'shared_device', label: 'Shared device: DEV-ABC123' },
+  { source: 'user-007', target: 'user-003', kind: 'same_id', label: 'Same name: 刘洋' },
+  { source: 'user-007', target: 'user-004', kind: 'shared_device', label: 'Shared device: DEV-XYZ789' },
+  { source: 'user-007', target: 'user-004', kind: 'shared_payment', label: 'Shared bank: 6222 **** 8888' },
+  { source: 'user-007', target: 'user-005', kind: 'shared_ip', label: 'Shared IP: 47.242.25.110' },
+  { source: 'user-007', target: 'user-005', kind: 'ib_invited', label: 'IB: U10007 → U10005' },
+  { source: 'user-007', target: 'user-006', kind: 'same_id', label: 'Same name: 刘洋' },
+  { source: 'user-007', target: 'user-006', kind: 'shared_payment', label: 'Shared crypto: 0x3a2b...1c4d' },
+  { source: 'user-007', target: 'user-008', kind: 'shared_ip', label: 'Shared IP: 185.220.101.42' },
+  { source: 'user-007', target: 'user-009', kind: 'shared_device', label: 'Shared device: DEV-VPN001' },
+  { source: 'user-007', target: 'user-010', kind: 'same_id', label: 'Same name: 刘洋' },
+  { source: 'user-007', target: 'user-011', kind: 'ib_invited', label: 'IB: U10007 → U10011' },
+  // 额外的 shared_ip 给王芳
+  { source: 'user-007', target: 'user-003', kind: 'shared_ip', label: 'Shared IP: 47.242.25.110' },
+];
+
+const NODE_COLOR = {
+  center: '#3b82f6', shared_ip: '#f59e0b', shared_device: '#10b981',
+  same_id: '#ef4444', shared_payment: '#8b5cf6', ib_relation: '#0ea5e9', mixed: '#a855f7'
+};
+const EDGE_COLOR = {
+  shared_ip: '#f59e0b', shared_device: '#10b981', same_id: '#ef4444',
+  shared_payment: '#8b5cf6', ib_invited: '#0ea5e9'
+};
+const KYC_COLOR = {
+  verified: { text: '#059669', bg: '#fff', label: 'verified' },
+  pending:  { text: '#d97706', bg: '#fff', label: 'pending' },
+  rejected: { text: '#dc2626', bg: '#fff', label: 'rejected' },
+  not_submitted: { text: '#94a3b8', bg: '#fff', label: 'not_submitted' }
+};
+const RISK_CLASS = {
+  low: { text: '#047857', bg: '#d1fae5' },
+  medium: { text: '#b45309', bg: '#fef3c7' },
+  high: { text: '#c2410c', bg: '#ffedd5' },
+  critical: { text: '#b91c1c', bg: '#fee2e2' }
+};
+
+// ====== Force-directed layout (simplified) ======
+const canvas = document.getElementById('graphCanvas');
+const ctx = canvas.getContext('2d');
+const container = document.querySelector('.canvas-wrap');
+
+function resize() {
+  const rect = container.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Initialize node positions
+const allNodes = [CENTER, ...NODES];
+const W = 1200, H = 700;
+const cx = W / 2, cy = H / 2;
+
+allNodes.forEach((n, i) => {
+  if (n.kind === 'center') {
+    n.x = cx; n.y = cy; n.vx = 0; n.vy = 0;
+  } else {
+    const angle = (i - 1) / NODES.length * Math.PI * 2;
+    const r = 220 + Math.random() * 80;
+    n.x = cx + Math.cos(angle) * r;
+    n.y = cy + Math.sin(angle) * r;
+    n.vx = 0; n.vy = 0;
+  }
+});
+
+let hoveredNode = null;
+let selectedNode = null;
+let searchTerm = '';
+let mouse = { x: 0, y: 0 };
+
+// Physics params
+const REPULSION = 4000;
+const SPRING_K = 0.003;
+const SPRING_LENGTH = 200;
+const DAMPING = 0.88;
+const CENTER_PULL = 0.001;
+
+function step() {
+  // Repulsion
+  for (let i = 0; i < allNodes.length; i++) {
+    for (let j = i + 1; j < allNodes.length; j++) {
+      const a = allNodes[i], b = allNodes[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const force = REPULSION / (dist * dist);
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      if (a.kind !== 'center') { a.vx -= fx; a.vy -= fy; }
+      if (b.kind !== 'center') { b.vx += fx; b.vy += fy; }
+    }
+  }
+  // Spring (edges)
+  EDGES.forEach(e => {
+    const a = allNodes.find(n => n.id === e.source);
+    const b = allNodes.find(n => n.id === e.target);
+    if (!a || !b) return;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const force = (dist - SPRING_LENGTH) * SPRING_K;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    if (a.kind !== 'center') { a.vx += fx; a.vy += fy; }
+    if (b.kind !== 'center') { b.vx -= fx; b.vy -= fy; }
+  });
+  // Center pull for all non-center nodes
+  allNodes.forEach(n => {
+    if (n.kind === 'center') return;
+    const dx = cx - n.x, dy = cy - n.y;
+    n.vx += dx * CENTER_PULL;
+    n.vy += dy * CENTER_PULL;
+    n.vx *= DAMPING;
+    n.vy *= DAMPING;
+    n.x += n.vx;
+    n.y += n.vy;
+    // Bounds
+    n.x = Math.max(40, Math.min(W - 40, n.x));
+    n.y = Math.max(40, Math.min(H - 40, n.y));
+  });
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Match search
+  const q = searchTerm.toLowerCase().trim();
+  const match = (n) => !q || n.name.toLowerCase().includes(q) || n.uid.toLowerCase().includes(q) || n.email.toLowerCase().includes(q);
+
+  // Draw edges
+  EDGES.forEach(e => {
+    const a = allNodes.find(n => n.id === e.source);
+    const b = allNodes.find(n => n.id === e.target);
+    if (!a || !b) return;
+    const aDim = q && !match(a);
+    const bDim = q && !match(b);
+    ctx.globalAlpha = (aDim || bDim) ? 0.15 : 0.7;
+    ctx.strokeStyle = EDGE_COLOR[e.kind];
+    ctx.lineWidth = 1.6;
+    if (e.kind === 'shared_ip') ctx.setLineDash([5, 5]);
+    else if (e.kind === 'same_id') ctx.setLineDash([2, 3]);
+    else if (e.kind === 'shared_payment') ctx.setLineDash([3, 3]);
+    else ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    // Label on edge (midpoint)
+    if (!q) {
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      ctx.save();
+      ctx.fillStyle = EDGE_COLOR[e.kind];
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.globalAlpha = 0.5;
+      ctx.fillText(e.label.split(':')[0], mx, my - 2);
+      ctx.restore();
+    }
+  });
+  ctx.setLineDash([]);
+
+  // Draw nodes
+  allNodes.forEach(n => {
+    const isCenter = n.kind === 'center';
+    const r = isCenter ? 16 : 10;
+    const isMatch = match(n);
+    const isDim = q && !isMatch;
+    ctx.globalAlpha = isDim ? 0.25 : 1;
+
+    // Highlight ring
+    if (q && isMatch && !isCenter) {
+      ctx.strokeStyle = '#0ea5e9';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Node fill
+    ctx.fillStyle = NODE_COLOR[n.kind];
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White border
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Text label
+    ctx.fillStyle = '#1e293b';
+    ctx.font = `${isCenter ? 600 : 500} 12px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(n.name, n.x, n.y + r + 4);
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(n.uid, n.x, n.y + r + 18);
+
+    ctx.globalAlpha = 1;
+  });
+}
+
+function animate() {
+  for (let i = 0; i < 3; i++) step();
+  draw();
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ====== Interactions ======
+function getNodeAt(x, y) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = x - rect.left;
+  const sy = y - rect.top;
+  for (let i = allNodes.length - 1; i >= 0; i--) {
+    const n = allNodes[i];
+    const r = n.kind === 'center' ? 16 : 10;
+    const dx = sx - n.x, dy = sy - n.y;
+    if (dx * dx + dy * dy <= (r + 8) * (r + 8)) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousemove', e => {
+  const n = getNodeAt(e.clientX, e.clientY);
+  hoveredNode = n;
+  const tt = document.getElementById('tooltip');
+  if (n) {
+    tt.classList.add('show');
+    document.getElementById('ttDot').style.background = NODE_COLOR[n.kind];
+    document.getElementById('ttName').textContent = n.name;
+    document.getElementById('ttUid').textContent = n.uid;
+    document.getElementById('ttEmail').textContent = n.email;
+    const kyc = KYC_COLOR[n.kycStatus] || KYC_COLOR.not_submitted;
+    const kycEl = document.getElementById('ttKyc');
+    kycEl.textContent = kyc.label;
+    kycEl.style.color = kyc.text;
+    kycEl.style.background = kyc.bg;
+    kycEl.style.border = '1px solid #e2e8f0';
+    const risk = RISK_CLASS[n.riskLevel] || RISK_CLASS.low;
+    const riskEl = document.getElementById('ttRisk');
+    riskEl.textContent = `${n.riskLevel} (${n.riskScore})`;
+    riskEl.style.color = risk.text;
+    riskEl.style.background = risk.bg;
+    canvas.style.cursor = 'pointer';
+  } else {
+    tt.classList.remove('show');
+    canvas.style.cursor = 'grab';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  const n = getNodeAt(e.clientX, e.clientY);
+  selectedNode = n;
+  const panel = document.getElementById('detailPanel');
+  if (n) {
+    panel.classList.add('show');
+    const kyc = KYC_COLOR[n.kycStatus] || KYC_COLOR.not_submitted;
+    const risk = RISK_CLASS[n.riskLevel] || RISK_CLASS.low;
+    const rels = EDGES.filter(e => e.source === n.id || e.target === n.id);
+    const relKinds = [...new Set(rels.map(e => e.kind))];
+    document.getElementById('detailContent').innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${NODE_COLOR[n.kind]}"></span>
+        <span style="font-weight:600;font-size:14px;color:#0f172a;">${n.name}</span>
+        <span style="font-size:11px;color:#94a3b8;">${n.uid}</span>
+      </div>
+      <div style="font-size:12px;color:#475569;margin-bottom:8px;">${n.email} · ${n.phone}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:500;color:${kyc.text};background:#fff;border:1px solid #e2e8f0;">${n.kycStatus}</span>
+        <span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:500;color:${risk.text};background:${risk.bg};">${n.riskLevel} (${n.riskScore})</span>
+        <span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:500;color:#475569;background:#f1f5f9;">${n.country || '—'}</span>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;">
+        Registered ${new Date(n.createdAt).toLocaleDateString()} · Last login ${new Date(n.lastLoginAt).toLocaleDateString()}
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#64748b;">
+        <strong>关联类型:</strong> ${relKinds.map(k => `<span style="color:${EDGE_COLOR[k]}">●</span> ${k}`).join(' &nbsp;')}
+      </div>
+    `;
+  } else {
+    panel.classList.remove('show');
+  }
+});
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('show');
+  selectedNode = null;
+}
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerm = e.target.value;
+});
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Toggle visual only for preview
+    btn.classList.toggle('inactive');
+    const isInactive = btn.classList.contains('inactive');
+    const baseClass = btn.dataset.kind === 'shared_ip' ? 'active-amber' :
+                      btn.dataset.kind === 'shared_device' ? 'active-emerald' : 'active-red';
+    if (isInactive) {
+      btn.classList.remove(baseClass);
+    } else {
+      btn.classList.add(baseClass);
+      btn.classList.remove('inactive');
+    }
+  });
+});
+</script>
+</body>
+</html>

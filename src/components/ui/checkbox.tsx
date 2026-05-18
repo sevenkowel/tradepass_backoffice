@@ -1,40 +1,71 @@
 "use client";
 
-import * as React from "react";
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { Check } from "lucide-react";
+import React, { useState } from "react";
 
-const Checkbox = React.forwardRef<
-  React.ElementRef<typeof CheckboxPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <CheckboxPrimitive.Root
-    ref={ref}
-    className={[
-      "peer h-4 w-4 shrink-0 rounded-[4px] border-2 border-slate-300 bg-white",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tp-primary)] focus-visible:ring-offset-2",
-      "disabled:cursor-not-allowed disabled:opacity-50",
-      "data-[state=checked]:bg-[var(--tp-primary)] data-[state=checked]:border-[var(--tp-primary)]",
-      "hover:border-slate-400",
-      "data-[state=checked]:hover:bg-[var(--tp-primary)]/90",
-      "transition-all duration-150 ease-in-out",
-      className,
-    ]
-      .filter(Boolean)
-      .join(" ")}
-    {...props}
-  >
-    <CheckboxPrimitive.Indicator
-      className={[
-        "flex items-center justify-center h-full w-full",
-        "data-[state=checked]:animate-in data-[state=checked]:fade-in data-[state=checked]:zoom-in-50",
-        "data-[state=unchecked]:animate-out data-[state=unchecked]:fade-out data-[state=unchecked]:zoom-out-50",
-      ].join(" ")}
+interface CheckboxProps {
+  id?: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  disabled?: boolean;
+  className?: string;
+}
+
+/**
+ * 自定义复选框
+ * 支持受控（checked）和非受控（defaultChecked）两种模式
+ */
+export function Checkbox({
+  id,
+  checked: controlledChecked,
+  defaultChecked = false,
+  onCheckedChange,
+  disabled = false,
+  className = "",
+}: CheckboxProps) {
+  const isControlled = controlledChecked !== undefined;
+  const [internalChecked, setInternalChecked] = useState(defaultChecked);
+  const checked = isControlled ? controlledChecked : internalChecked;
+
+  const handleClick = () => {
+    if (disabled) return;
+    const next = !checked;
+    if (!isControlled) setInternalChecked(next);
+    onCheckedChange?.(next);
+  };
+
+  return (
+    <span
+      id={id}
+      className={`inline-flex items-center justify-center h-4 w-4 shrink-0 rounded-[4px] border-2 transition-all duration-150 ease-in-out cursor-pointer ${
+        disabled ? "opacity-50 cursor-not-allowed" : ""
+      } ${
+        checked
+          ? "bg-tp-accent border-[var(--tp-accent)]"
+          : "bg-white border-slate-300 hover:border-slate-400"
+      } ${className}`}
+      onClick={handleClick}
+      role="checkbox"
+      aria-checked={checked}
+      aria-disabled={disabled}
     >
-      <Check className="h-3 w-3 stroke-[3] text-white" />
-    </CheckboxPrimitive.Indicator>
-  </CheckboxPrimitive.Root>
-));
-Checkbox.displayName = "Checkbox";
-
-export { Checkbox };
+      {checked && (
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          className="block"
+        >
+          <path
+            d="M2.5 6L5 8.5L9.5 3.5"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+    </span>
+  );
+}

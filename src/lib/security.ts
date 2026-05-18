@@ -1,5 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// ─── Cookie Helpers ───────────────────────────────────────────────────────────
+
+/**
+ * 判断当前环境是否应该使用 Secure 标志
+ * production 模式且不是本地 localhost 时才启用 Secure
+ */
+export function shouldSecureCookie(): boolean {
+  return process.env.NODE_ENV === "production" && !process.env.DEV_HTTP;
+}
+
+export function setSecureCookie(
+  res: NextResponse,
+  name: string,
+  value: string,
+  options: {
+    httpOnly?: boolean;
+    sameSite?: "lax" | "strict" | "none";
+    maxAge?: number;
+    path?: string;
+    domain?: string;
+  } = {}
+): void {
+  res.cookies.set(name, value, {
+    httpOnly: options.httpOnly ?? false,
+    secure: shouldSecureCookie(),
+    sameSite: options.sameSite ?? "lax",
+    maxAge: options.maxAge ?? 60 * 60 * 24 * 7,
+    path: options.path ?? "/",
+    ...(options.domain ? { domain: options.domain } : {}),
+  });
+}
+
 // ─── CSRF Protection ──────────────────────────────────────────────────────────
 
 const CSRF_COOKIE = "csrf_token";
@@ -14,7 +46,7 @@ export function generateCsrfToken(): string {
 export function setCsrfCookie(res: NextResponse, token: string): void {
   res.cookies.set(CSRF_COOKIE, token, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldSecureCookie(),
     sameSite: "strict",
     maxAge: 60 * 60 * 24 * 7,
     path: "/",

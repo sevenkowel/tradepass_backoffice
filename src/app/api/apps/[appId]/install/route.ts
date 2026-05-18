@@ -44,7 +44,7 @@ export async function POST(
     },
   });
 
-  // Create license for the app (link to broker_os subscription)
+  // Create license for the app (link to TradePass Business subscription)
   const subscription = await prisma.subscription.findFirst({
     where: { tenantId: tenant.id, status: "active" },
   });

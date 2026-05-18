@@ -1,0 +1,298 @@
+"use client";
+
+/**
+ * Wallet Deposits — list page (v2.2)
+ *
+ * External → Client wallet. 2 approval steps: Treasury confirm → Finance post.
+ * Layout mirrors Wallet Withdrawals (Client List pattern).
+ */
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowDownCircle, Clock, AlertTriangle, ShieldAlert, Download, SlidersHorizontal,
+  Zap,
+} from "lucide-react";
+import { Breadcrumb } from "@/components/crm/layout";
+import { Card, PageHeader, EnhancedDataTable, type Column } from "@/components/crm/ui";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
+import {
+  mockWalletDeposits, walletDepositStats,
+  type WalletDeposit,
+} from "@/lib/mock/funds/v2/deposits-wallet";
+import { STATUS_FG, currentStep, type MoneyRequestStatus } from "@/lib/mock/funds/v2/approvals";
+import { RISK_FG, KYC_TIER_FG } from "@/lib/mock/funds/v2/entities";
+import { channelById, CHANNEL_CATEGORY_FG, walletChannels } from "@/lib/mock/funds/v2/channels";
+import { FundsFilterDrawer, type FilterField } from "@/components/crm/funds/FundsFilterDrawer";
+import { demoExport } from "@/components/crm/funds/use-funds-toast";
+
+const AML_FG = {
+  Pass:    { text: "text-emerald-700", dot: "bg-emerald-500" },
+  Hit:     { text: "text-red-700",     dot: "bg-red-500"     },
+  Pending: { text: "text-slate-600",   dot: "bg-slate-400"   },
+} as const;
+
+interface FiltersState {
+  status: MoneyRequestStatus | "all";
+  risk: "Critical" | "High" | "Medium" | "Low" | "all";
+  aml: "Pass" | "Hit" | "Pending" | "all";
+  channelIds: string[];
+  amount: { min?: number; max?: number };
+  onlyOverdue: boolean;
+  onlyAmlHit: boolean;
+  onlyConfirmPending: boolean;
+}
+
+const DEFAULT_FILTERS: FiltersState = {
+  status: "all", risk: "all", aml: "all",
+  channelIds: [], amount: {},
+  onlyOverdue: false, onlyAmlHit: false, onlyConfirmPending: false,
+};
+
+const FILTER_FIELDS: FilterField[] = [
+  { key: "status", label: "状态", type: "select", options: [
+    { value: "Pending", label: "Pending" }, { value: "In Progress", label: "In Progress" },
+    { value: "On Hold", label: "On Hold" }, { value: "Completed", label: "Completed" },
+    { value: "Rejected", label: "Rejected" },
+  ]},
+  { key: "risk", label: "风险等级", type: "select", options: [
+    { value: "Critical", label: "Critical" }, { value: "High", label: "High" },
+    { value: "Medium", label: "Medium" }, { value: "Low", label: "Low" },
+  ]},
+  { key: "aml", label: "AML 状态", type: "select", options: [
+    { value: "Pass", label: "Pass" }, { value: "Hit", label: "Hit" }, { value: "Pending", label: "Pending" },
+  ]},
+  { key: "channelIds", label: "通道", type: "multiselect",
+    options: walletChannels.map((c) => ({ value: c.id, label: c.name })),
+  },
+  { key: "amount", label: "金额范围 (USD)", type: "range", rangeHint: "$0 - $100k" },
+  { key: "onlyConfirmPending", label: "仅显示等待链上确认", type: "toggle" },
+  { key: "onlyOverdue", label: "仅显示超 SLA", type: "toggle" },
+  { key: "onlyAmlHit",  label: "仅显示 AML 命中", type: "toggle" },
+];
+
+export default function WalletDepositsListPage() {
+  const router = useRouter();
+  const [rows] = useState<WalletDeposit[]>(mockWalletDeposits);
+  const [filters, setFilters] = useState<FiltersState>(DEFAULT_FILTERS);
+  const [search, setSearch] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const stats = useMemo(() => walletDepositStats(rows), [rows]);
+
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      if (filters.status !== "all" && r.status !== filters.status) return false;
+      if (filters.risk   !== "all" && r.riskLevel !== filters.risk) return false;
+      if (filters.aml    !== "all" && r.aml !== filters.aml) return false;
+      if (filters.channelIds.length > 0 && !filters.channelIds.includes(r.channelId)) return false;
+      if (filters.amount.min !== undefined && r.amountUsd < filters.amount.min) return false;
+      if (filters.amount.max !== undefined && r.amountUsd > filters.amount.max) return false;
+      if (filters.onlyOverdue && r.slaElapsedMinutes <= r.slaMinutes) return false;
+      if (filters.onlyAmlHit  && r.aml !== "Hit") return false;
+      if (filters.onlyConfirmPending && !(r.cryptoConfirms && r.cryptoConfirms.current < r.cryptoConfirms.required)) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const hay = `${r.id} ${r.client.id} ${r.client.name} ${r.merchantName} ${r.merchantOrderId}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [rows, filters, search]);
+
+  const patchFilters = (p: Partial<FiltersState>) => setFilters((prev) => ({ ...prev, ...p }));
+
+  const columns: Column<WalletDeposit>[] = [
+    { key: "id", title: "Request", width: "150px",
+      render: (r) => <span className="text-xs font-mono text-primary">{r.id}</span> },
+    { key: "client", title: "Client", minWidth: "200px",
+      render: (r) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs font-medium text-slate-800">{r.client.name}</span>
+          <span className="text-[11px] text-slate-500">
+            <span className="font-mono">{r.client.id}</span>
+            <span className="mx-1.5">·</span>
+            <span className={KYC_TIER_FG[r.client.kycTier].text}>{r.client.kycTier}</span>
+            <span className="mx-1.5">·</span>
+            <span>{r.client.country}</span>
+          </span>
+        </div>
+      ) },
+    { key: "amount", title: "Amount", width: "140px", align: "right",
+      render: (r) => (
+        <div className="flex flex-col items-end">
+          <span className="text-xs font-semibold text-slate-900 tabular-nums">
+            {r.amount.toLocaleString()} {r.currency}
+          </span>
+          <span className="text-[11px] text-slate-500 tabular-nums">≈ ${r.amountUsd.toLocaleString()}</span>
+        </div>
+      ) },
+    { key: "channel", title: "Channel", width: "140px",
+      render: (r) => {
+        const ch = channelById(r.channelId);
+        if (!ch) return <span className="text-xs">{r.channelId}</span>;
+        const cat = CHANNEL_CATEGORY_FG[ch.category];
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-slate-700">{ch.name}</span>
+            <span className={cn("inline-flex items-center gap-1 text-[11px]", cat.text)}>
+              <span className={cn("w-1 h-1 rounded-full", cat.dot)} />
+              {ch.category}
+            </span>
+          </div>
+        );
+      } },
+    { key: "match", title: "Match", width: "150px",
+      render: (r) => {
+        if (r.cryptoConfirms) {
+          const done = r.cryptoConfirms.current >= r.cryptoConfirms.required;
+          return (
+            <span className={cn("text-xs tabular-nums", done ? "text-emerald-700" : "text-blue-700")}>
+              {r.cryptoConfirms.current}/{r.cryptoConfirms.required} confirms
+            </span>
+          );
+        }
+        if (r.matchConfidence !== undefined) {
+          const tone = r.matchConfidence >= 90 ? "text-emerald-700" : r.matchConfidence >= 70 ? "text-amber-700" : "text-red-700";
+          return <span className={cn("text-xs tabular-nums", tone)}>Match {r.matchConfidence}%</span>;
+        }
+        return <span className="text-xs text-slate-500">{r.matchMethod}</span>;
+      } },
+    { key: "merchant", title: "Merchant · Order", minWidth: "180px",
+      render: (r) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs text-slate-700">{r.merchantName}</span>
+          <span className="text-[11px] font-mono text-slate-500">{r.merchantOrderId}</span>
+        </div>
+      ) },
+    { key: "status", title: "Status", width: "130px",
+      render: (r) => {
+        const s = STATUS_FG[r.status];
+        const cs = currentStep(r.steps);
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className={cn("inline-flex items-center gap-1.5 text-xs", s.text)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", s.dot)} />
+              {r.status}
+            </span>
+            {cs && <span className="text-[11px] text-slate-500 truncate">@ {cs.role}</span>}
+          </div>
+        );
+      } },
+    { key: "risk", title: "Risk", width: "90px",
+      render: (r) => {
+        const c = RISK_FG[r.riskLevel];
+        return (
+          <span className={cn("inline-flex items-center gap-1.5 text-xs", c.text)}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", c.dot)} />
+            {r.riskLevel}
+          </span>
+        );
+      } },
+    { key: "aml", title: "AML", width: "90px",
+      render: (r) => {
+        const c = AML_FG[r.aml];
+        return (
+          <span className={cn("inline-flex items-center gap-1.5 text-xs", c.text)}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", c.dot)} />
+            {r.aml}
+          </span>
+        );
+      } },
+    { key: "sla", title: "SLA", width: "100px",
+      render: (r) => {
+        if (r.status === "Completed" || r.status === "Rejected") return <span className="text-xs text-slate-400">—</span>;
+        const left = r.slaMinutes - r.slaElapsedMinutes;
+        if (left < 0) return <span className="text-xs text-red-700 tabular-nums">{Math.abs(left)}m over</span>;
+        return <span className={cn("text-xs tabular-nums", left < 15 ? "text-orange-700" : "text-slate-500")}>{left}m left</span>;
+      } },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Breadcrumb items={[{ label: "Funds" }, { label: "Wallet Deposits" }]} />
+
+      <PageHeader
+        title="Wallet Deposits"
+        description="客户外部资金到钱包 · 2 步审批 (Treasury 确认 → Finance 入账)"
+      />
+
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <Kpi label="Total"        value={rows.length}                  icon={<ArrowDownCircle className="w-4 h-4 text-primary" />} onClick={() => setFilters(DEFAULT_FILTERS)} />
+        <Kpi label="Pending"      value={stats.pending}                icon={<Clock className="w-4 h-4 text-amber-600" />} tone="warn"  onClick={() => patchFilters({ status: "Pending" })} active={filters.status === "Pending"} />
+        <Kpi label="Awaiting Confirm" value={stats.awaitingConfirm}    icon={<Zap className="w-4 h-4 text-blue-600" />}             onClick={() => patchFilters({ onlyConfirmPending: !filters.onlyConfirmPending })} active={filters.onlyConfirmPending} />
+        <Kpi label="On Hold"      value={stats.onHold}                 icon={<Clock className="w-4 h-4 text-slate-600" />}          onClick={() => patchFilters({ status: "On Hold" })} active={filters.status === "On Hold"} />
+        <Kpi label="AML Hits"     value={stats.amlHits}                icon={<ShieldAlert className="w-4 h-4 text-red-600" />} tone="error" onClick={() => patchFilters({ onlyAmlHit: !filters.onlyAmlHit })} active={filters.onlyAmlHit} />
+        <Kpi label="Overdue SLA"  value={stats.overdue}                icon={<AlertTriangle className="w-4 h-4 text-orange-600" />} tone="warn" onClick={() => patchFilters({ onlyOverdue: !filters.onlyOverdue })} active={filters.onlyOverdue} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="relative w-80">
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索 Request ID / 客户 / Merchant Order..."
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <button onClick={() => patchFilters({ status: filters.status === "Pending" ? "all" : "Pending" })}
+          className={cn("inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border transition-colors",
+            filters.status === "Pending" ? "bg-amber-50 text-amber-700 border-amber-300" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50")}>
+          Pending {stats.pending}
+        </button>
+        <button onClick={() => patchFilters({ onlyConfirmPending: !filters.onlyConfirmPending })}
+          className={cn("inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border transition-colors",
+            filters.onlyConfirmPending ? "bg-blue-50 text-primary border-blue-300" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50")}>
+          Awaiting Confirm {stats.awaitingConfirm}
+        </button>
+        <button onClick={() => patchFilters({ onlyAmlHit: !filters.onlyAmlHit })}
+          className={cn("inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border transition-colors",
+            filters.onlyAmlHit ? "bg-red-50 text-red-700 border-red-300" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50")}>
+          AML Hit {stats.amlHits}
+        </button>
+        <div className="flex-1" />
+        <Button variant="secondary" onClick={() => setAdvancedOpen(!advancedOpen)}>
+          <SlidersHorizontal className="w-4 h-4" />高级筛选
+        </Button>
+        <Button variant="secondary" onClick={() => demoExport("钱包入金列表")}><Download className="w-4 h-4" />Export</Button>
+      </div>
+
+      <FundsFilterDrawer
+        open={advancedOpen}
+        onClose={() => setAdvancedOpen(false)}
+        fields={FILTER_FIELDS}
+        values={filters as unknown as Record<string, unknown>}
+        onChange={(k, v) => setFilters((prev) => ({ ...prev, [k]: v as never }))}
+        onApply={() => setAdvancedOpen(false)}
+        onReset={() => setFilters(DEFAULT_FILTERS)}
+      />
+
+      <Card padding="none">
+        <EnhancedDataTable<WalletDeposit>
+          columns={columns} data={filtered} keyExtractor={(r) => r.id}
+          pagination pageSize={20}
+          onRowClick={(r) => router.push(`/crm/funds/wallet-deposits/${r.id}`)}
+          tableId="funds-wallet-deposits"
+          emptyText="无匹配的钱包入金请求"
+        />
+      </Card>
+    </div>
+  );
+}
+
+function Kpi({ label, value, icon, tone, onClick, active }: { label: string; value: number; icon: React.ReactNode; tone?: "error" | "warn" | "info"; onClick?: () => void; active?: boolean }) {
+  const accent = tone === "error" ? "border-red-100" : tone === "warn" ? "border-amber-100" : "border-slate-200";
+  return (
+    <button onClick={onClick} className="text-left w-full">
+      <Card className={cn("!p-3 hover:shadow-md transition-shadow", accent, active && "ring-2 ring-blue-200")}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">{icon}</div>
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 truncate">{label}</p>
+            <p className="text-lg font-semibold text-slate-900 tabular-nums mt-0.5">{value.toLocaleString()}</p>
+          </div>
+        </div>
+      </Card>
+    </button>
+  );
+}
+
