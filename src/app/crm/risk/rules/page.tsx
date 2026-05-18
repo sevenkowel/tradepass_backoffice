@@ -271,7 +271,7 @@ export default function RiskRulesPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "风控" }, { label: "风控规则" }]} />
+      <Breadcrumb items={[{ label: "Risk Center" }, { label: "风控规则" }]} />
 
       <PageHeader
         title="风控规则"

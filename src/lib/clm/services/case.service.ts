@@ -40,6 +40,7 @@ const ACTION_SEVERITY: Record<CLMAuditAction, AuditSeverity> = {
   case_rejected: "warning",
   case_resubmission_requested: "warning",
   case_escalated: "warning",
+  case_released: "info",
   case_cancelled: "info",
   case_comment_added: "info",
   policy_updated: "info",
@@ -49,6 +50,7 @@ const ACTION_SEVERITY: Record<CLMAuditAction, AuditSeverity> = {
   customer_level_changed: "info",
   customer_frozen: "critical",
   customer_unfrozen: "warning",
+  case_batch_approved: "info",
 };
 
 const ACTION_LABEL: Record<CLMAuditAction, string> = {
@@ -59,6 +61,7 @@ const ACTION_LABEL: Record<CLMAuditAction, string> = {
   case_rejected: "Case Rejected",
   case_resubmission_requested: "Resubmission Requested",
   case_escalated: "Case Escalated",
+  case_released: "Case Released",
   case_cancelled: "Case Cancelled",
   case_comment_added: "Comment Added",
   policy_updated: "Policy Updated",
@@ -68,6 +71,7 @@ const ACTION_LABEL: Record<CLMAuditAction, string> = {
   customer_level_changed: "Customer Level Changed",
   customer_frozen: "Account Frozen",
   customer_unfrozen: "Account Unfrozen",
+  case_batch_approved: "Batch Approved",
 };
 
 class CaseService implements ICaseService {

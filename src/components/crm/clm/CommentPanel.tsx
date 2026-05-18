@@ -41,7 +41,7 @@ export function CommentPanel({ comments, onAddComment, className, hideHistory = 
 
         {comments.map((comment) => (
           <div key={comment.id} className="flex gap-3 p-3 bg-slate-50 rounded-xl">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 text-[10px] font-semibold flex-shrink-0">
               {comment.authorName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">

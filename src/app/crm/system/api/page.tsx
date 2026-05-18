@@ -227,7 +227,7 @@ export default function APIManagementPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "系统" }, { label: "API管理" }]} />
+      <Breadcrumb items={[{ label: "System" }, { label: "API管理" }]} />
 
       <PageHeader
         title="API管理"

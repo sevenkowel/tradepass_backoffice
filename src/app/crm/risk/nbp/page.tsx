@@ -219,7 +219,7 @@ export default function NBPProtectionPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "风控" }, { label: "负余额保护" }]} />
+      <Breadcrumb items={[{ label: "Risk Center" }, { label: "负余额保护" }]} />
 
       <PageHeader
         title="负余额保护"

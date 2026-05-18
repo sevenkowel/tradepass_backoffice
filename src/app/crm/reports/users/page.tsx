@@ -94,7 +94,7 @@ export default function UserReportsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "报表" }, { label: "用户报表" }]} />
+      <Breadcrumb items={[{ label: "Reports" }, { label: "用户报表" }]} />
 
       <PageHeader
         title="用户报表"

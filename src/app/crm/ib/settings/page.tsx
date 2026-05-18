@@ -73,7 +73,7 @@ export default function IBCommissionSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "返佣" }, { label: "返佣设置" }]} />
+      <Breadcrumb items={[{ label: "IB / Commission" }, { label: "返佣设置" }]} />
 
       <PageHeader
         title="返佣设置"

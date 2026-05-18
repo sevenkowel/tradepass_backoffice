@@ -30,4 +30,13 @@ export type {
   ClientGraphNode,
   ClientGraphEdge,
   ClientGraph,
+  EdgeCategory,
+  EvidenceStrength,
+  IdentityEdgeKind,
+  ContactEdgeKind,
+  NetworkEdgeKind,
+  DeviceEdgeKind,
+  PaymentEdgeKind,
+  BusinessEdgeKind,
+  ClientCluster,
 } from "./client-graph";

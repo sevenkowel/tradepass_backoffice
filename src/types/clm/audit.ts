@@ -11,6 +11,7 @@ export type CLMAuditAction =
   | "case_rejected"
   | "case_resubmission_requested"
   | "case_escalated"
+  | "case_released"
   | "case_cancelled"
   | "case_comment_added"
   | "policy_updated"
@@ -19,7 +20,8 @@ export type CLMAuditAction =
   | "workflow_changed"
   | "customer_level_changed"
   | "customer_frozen"
-  | "customer_unfrozen";
+  | "customer_unfrozen"
+  | "case_batch_approved";
 
 export type CLMAuditTargetType =
   | "case"

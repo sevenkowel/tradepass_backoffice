@@ -37,11 +37,11 @@ const FACTOR_ICON: Record<RiskFactorKey, typeof Globe> = {
   blacklist: Ban,
 };
 
-const LEVEL_TONE: Record<RiskLevel, { chip: string; bar: string }> = {
-  low:      { chip: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },
-  medium:   { chip: "bg-amber-100 text-amber-700",     bar: "bg-amber-500"   },
-  high:     { chip: "bg-orange-100 text-orange-700",   bar: "bg-orange-500"  },
-  critical: { chip: "bg-red-100 text-red-700",         bar: "bg-red-500"     },
+const LEVEL_TONE: Record<RiskLevel, { chip: string }> = {
+  low:      { chip: "bg-emerald-100 text-emerald-700" },
+  medium:   { chip: "bg-amber-100 text-amber-700"     },
+  high:     { chip: "bg-orange-100 text-orange-700"   },
+  critical: { chip: "bg-red-100 text-red-700"         },
 };
 
 const LEVEL_LABEL: Record<RiskLevel, string> = {
@@ -69,15 +69,12 @@ export function RiskFactorList({ factors, className, renderExtraExpanded }: Prop
               <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />
               <span className="font-medium text-slate-700 flex-1 truncate">{f.label}</span>
 
-              {/* Mini progress bar — consumes 60px, conveys magnitude visually. */}
-              <div className="hidden sm:block w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full transition-[width] duration-500", tone.bar)}
-                  style={{ width: `${Math.max(0, Math.min(100, f.score))}%` }}
-                />
-              </div>
+              {/* v2: the mini progress bar was removed — 6 stacked
+                  bars read as an "AI risk radar" infographic rather
+                  than a banking review table. Score + chip carry the
+                  same information without the visual noise. */}
 
-              <span className="font-mono tabular-nums text-xs text-slate-500 w-7 text-right">
+              <span className="font-mono tabular-nums text-xs text-slate-500 w-8 text-right">
                 {f.score}
               </span>
               <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", tone.chip)}>

@@ -13,8 +13,15 @@ export default function KYCTab({ data }: BaseTabProps) {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-slate-900">{t("clients.detail.kyc.title")}</h3>
 
-      {kycDocuments.map((doc) => (
-        <DocumentCard key={doc.id} doc={doc} riskIndicators={kycRiskIndicators} />
+      {kycDocuments.map((doc, i) => (
+        // Defensive key: `doc.id` is normally the KYCRecord cuid, but if the
+        // mapper / mock path ever returns an item without a stable id we fall
+        // back to the index so React doesn't warn about a missing key.
+        <DocumentCard
+          key={doc.id || `kyc-doc-${i}`}
+          doc={doc}
+          riskIndicators={kycRiskIndicators}
+        />
       ))}
     </div>
   );

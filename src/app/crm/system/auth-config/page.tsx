@@ -6,7 +6,7 @@ import { Save, RotateCcw, Loader2, Shield, Mail, Smartphone, Lock, FileText } fr
 import { PageHeader, Card, Button } from "@/components/crm/ui";
 import { Breadcrumb } from "@/components/crm/layout";
 import { useToast } from "@/components/ui";
-import type { AuthConfig, AuthFormField } from "@/lib/auth-config";
+import type { AuthConfig } from "@/lib/auth-config";
 import { defaultAuthConfig } from "@/lib/auth-config";
 
 function getCookie(name: string) {
@@ -119,7 +119,7 @@ function AuthConfigPageInner() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "系统管理" }, { label: "认证配置" }]} />
+      <Breadcrumb items={[{ label: "System" }, { label: "认证配置" }]} />
 
       <PageHeader
         title="认证配置"
@@ -383,3 +383,8 @@ function AuthConfigPageInner() {
     </div>
   );
 }
+
+/* duplicate AuthConfigPage wrapper removed during v1.0 merge —
+ * the top-of-file export (using AuthConfigPageInner) is the canonical
+ * entry. The second wrapper referenced AuthConfigContent which never
+ * existed under that name in the stashed work. */

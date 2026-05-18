@@ -97,7 +97,7 @@ export default function ReferralTreePage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "返佣" }, { label: "推荐树" }]} />
+      <Breadcrumb items={[{ label: "IB / Commission" }, { label: "推荐树" }]} />
 
       <PageHeader
         title="推荐树"

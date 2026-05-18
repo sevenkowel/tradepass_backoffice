@@ -1,419 +1,159 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowLeftRight,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  RefreshCw,
-  Download,
-  Wallet,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-} from "lucide-react";
-import { Card, PageHeader, Button, StatusBadge } from "@/components/crm/ui";
-import { EnhancedDataTable, type Column } from "@/components/crm/ui";
-import { FilterBar } from "@/components/crm/ui";
-import { Breadcrumb } from "@/components/crm/layout";
+/** Transactions — unified ledger view (read-only). Aggregates all 5 flow types. */
 
-// Types
-interface Transaction {
+import { useMemo, useState } from "react";
+import { Download, SlidersHorizontal, ArrowRightLeft, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Breadcrumb } from "@/components/crm/layout";
+import { Card, PageHeader, EnhancedDataTable, type Column } from "@/components/crm/ui";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
+import { mockWalletDeposits } from "@/lib/mock/funds/v2/deposits-wallet";
+import { mockWalletWithdrawals } from "@/lib/mock/funds/v2/withdrawals-wallet";
+import { mockTradingDeposits } from "@/lib/mock/funds/v2/deposits-trading";
+import { mockTradingWithdrawals } from "@/lib/mock/funds/v2/withdrawals-trading";
+import { mockTransfers } from "@/lib/mock/funds/v2/transfers";
+import { demoExport, demoAction } from "@/components/crm/funds/use-funds-toast";
+
+type TxnType = "Wallet Deposit" | "Wallet Withdrawal" | "Trading Deposit" | "Trading Withdrawal" | "Transfer";
+
+interface UnifiedTxn {
   id: string;
-  userId: string;
-  userName: string;
-  type: "deposit" | "withdrawal" | "transfer" | "refund" | "fee";
-  direction: "in" | "out";
+  type: TxnType;
+  client: string;
+  clientId: string;
   amount: number;
   currency: string;
-  status: "success" | "pending" | "failed" | "processing";
-  method?: string;
-  fromAccount?: string;
-  toAccount?: string;
-  description?: string;
-  createdAt: string;
-  completedAt?: string;
+  amountUsd: number;
+  channel: string;
+  merchant?: string;
+  merchantOrderId?: string;
+  status: string;
+  decision: "Auto" | "Manual";
+  riskLevel: string;
+  submittedAt: string;
+  href: string;
 }
 
-// Mock data
-const mockTransactions: Transaction[] = [
-  {
-    id: "TXN001",
-    userId: "USR001",
-    userName: "John Smith",
-    type: "deposit",
-    direction: "in",
-    amount: 5000,
-    currency: "USD",
-    status: "success",
-    method: "USDT-TRC20",
-    description: "用户入金",
-    createdAt: "2024-03-15 14:30",
-    completedAt: "2024-03-15 14:31",
-  },
-  {
-    id: "TXN002",
-    userId: "USR002",
-    userName: "Sarah Johnson",
-    type: "withdrawal",
-    direction: "out",
-    amount: 1200,
-    currency: "USD",
-    status: "success",
-    method: "Visa",
-    description: "用户出金",
-    createdAt: "2024-03-15 13:45",
-    completedAt: "2024-03-15 13:46",
-  },
-  {
-    id: "TXN003",
-    userId: "USR003",
-    userName: "Michael Brown",
-    type: "transfer",
-    direction: "out",
-    amount: 2500,
-    currency: "USD",
-    status: "success",
-    fromAccount: "MT5-8999999",
-    toAccount: "Wallet-USD",
-    description: "账户间转账",
-    createdAt: "2024-03-15 12:00",
-    completedAt: "2024-03-15 12:01",
-  },
-  {
-    id: "TXN004",
-    userId: "USR001",
-    userName: "John Smith",
-    type: "deposit",
-    direction: "in",
-    amount: 800,
-    currency: "USD",
-    status: "pending",
-    method: "PayPal",
-    description: "用户入金",
-    createdAt: "2024-03-15 10:30",
-  },
-  {
-    id: "TXN005",
-    userId: "USR004",
-    userName: "Emma Wilson",
-    type: "withdrawal",
-    direction: "out",
-    amount: 3500,
-    currency: "USD",
-    status: "failed",
-    method: "SWIFT",
-    description: "银行信息不符",
-    createdAt: "2024-03-14 16:00",
-    completedAt: "2024-03-14 17:00",
-  },
-  {
-    id: "TXN006",
-    userId: "USR005",
-    userName: "David Lee",
-    type: "fee",
-    direction: "out",
-    amount: 15,
-    currency: "USD",
-    status: "success",
-    description: "出金手续费",
-    createdAt: "2024-03-14 09:00",
-    completedAt: "2024-03-14 09:00",
-  },
-  {
-    id: "TXN007",
-    userId: "USR002",
-    userName: "Sarah Johnson",
-    type: "refund",
-    direction: "in",
-    amount: 200,
-    currency: "USD",
-    status: "success",
-    description: "交易退款",
-    createdAt: "2024-03-13 11:20",
-    completedAt: "2024-03-13 11:21",
-  },
-  {
-    id: "TXN008",
-    userId: "USR006",
-    userName: "Lisa Chen",
-    type: "deposit",
-    direction: "in",
-    amount: 10000,
-    currency: "USD",
-    status: "processing",
-    method: "BTC",
-    description: "用户入金",
-    createdAt: "2024-03-13 08:00",
-  },
-  {
-    id: "TXN009",
-    userId: "USR003",
-    userName: "Michael Brown",
-    type: "withdrawal",
-    direction: "out",
-    amount: 500,
-    currency: "USD",
-    status: "pending",
-    method: "Skrill",
-    description: "用户出金",
-    createdAt: "2024-03-12 15:30",
-  },
-  {
-    id: "TXN010",
-    userId: "USR007",
-    userName: "Robert Taylor",
-    type: "transfer",
-    direction: "out",
-    amount: 3000,
-    currency: "USD",
-    status: "success",
-    fromAccount: "Wallet-USD",
-    toAccount: "MT4-7845321",
-    description: "账户间转账",
-    createdAt: "2024-03-12 10:00",
-    completedAt: "2024-03-12 10:01",
-  },
-];
-
-const typeConfig: Record<string, { label: string; icon: typeof ArrowDownLeft; color: string; bg: string }> = {
-  deposit: { label: "入金", icon: ArrowDownLeft, color: "text-emerald-600", bg: "bg-emerald-100" },
-  withdrawal: { label: "出金", icon: ArrowUpRight, color: "text-red-600", bg: "bg-red-100" },
-  transfer: { label: "转账", icon: ArrowLeftRight, color: "text-blue-600", bg: "bg-blue-100" },
-  refund: { label: "退款", icon: RefreshCw, color: "text-violet-600", bg: "bg-violet-100" },
-  fee: { label: "手续费", icon: DollarSign, color: "text-slate-600", bg: "bg-slate-100" },
-};
+function buildUnified(): UnifiedTxn[] {
+  const all: UnifiedTxn[] = [];
+  mockWalletDeposits.forEach((r) => all.push({
+    id: r.id, type: "Wallet Deposit", client: r.client.name, clientId: r.client.id,
+    amount: r.amount, currency: r.currency, amountUsd: r.amountUsd,
+    channel: r.channelId, merchant: r.merchantName, merchantOrderId: r.merchantOrderId,
+    status: r.status, decision: r.matchMethod.startsWith("Auto") ? "Auto" : "Manual",
+    riskLevel: r.riskLevel, submittedAt: r.submittedAt,
+    href: `/crm/funds/wallet-deposits/${r.id}`,
+  }));
+  mockWalletWithdrawals.forEach((r) => all.push({
+    id: r.id, type: "Wallet Withdrawal", client: r.client.name, clientId: r.client.id,
+    amount: r.amount, currency: r.currency, amountUsd: r.amountUsd,
+    channel: r.channelId, merchant: r.merchantName, merchantOrderId: r.merchantOrderId,
+    status: r.status, decision: "Manual", riskLevel: r.riskLevel,
+    submittedAt: r.submittedAt, href: `/crm/funds/wallet-withdrawals/${r.id}`,
+  }));
+  mockTradingDeposits.forEach((r) => all.push({
+    id: r.id, type: "Trading Deposit", client: r.client.name, clientId: r.client.id,
+    amount: r.amount, currency: r.currency, amountUsd: r.amountUsd,
+    channel: r.channelId || "Internal", merchant: r.merchantName, merchantOrderId: r.merchantOrderId,
+    status: r.status, decision: r.source === "Wallet (Internal)" ? "Auto" : "Manual",
+    riskLevel: r.riskLevel, submittedAt: r.submittedAt,
+    href: `/crm/funds/trading-deposits/${r.id}`,
+  }));
+  mockTradingWithdrawals.forEach((r) => all.push({
+    id: r.id, type: "Trading Withdrawal", client: r.client.name, clientId: r.client.id,
+    amount: r.amount, currency: r.currency, amountUsd: r.amountUsd,
+    channel: r.channelId || "Internal", merchant: r.merchantName, merchantOrderId: r.merchantOrderId,
+    status: r.status, decision: "Manual", riskLevel: r.riskLevel,
+    submittedAt: r.submittedAt, href: `/crm/funds/trading-withdrawals/${r.id}`,
+  }));
+  mockTransfers.forEach((r) => all.push({
+    id: r.id, type: "Transfer", client: r.fromClient.name, clientId: r.fromClient.id,
+    amount: r.amount, currency: r.currency, amountUsd: r.amountUsd,
+    channel: r.scenario, status: r.status, decision: "Manual",
+    riskLevel: r.riskLevel, submittedAt: r.submittedAt,
+    href: `/crm/funds/transfers/${r.id}`,
+  }));
+  return all.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+}
 
 export default function TransactionsPage() {
-  const [transactions] = useState<Transaction[]>(mockTransactions);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterType, setFilterType] = useState<string>("all");
+  const [data] = useState(() => buildUnified());
+  const [type, setType] = useState<TxnType | "all">("all");
+  const [search, setSearch] = useState("");
 
-  const stats = useMemo(() => {
-    const totalIn = transactions
-      .filter((t) => t.direction === "in" && t.status === "success")
-      .reduce((acc, t) => acc + t.amount, 0);
-    const totalOut = transactions
-      .filter((t) => t.direction === "out" && t.status === "success")
-      .reduce((acc, t) => acc + t.amount, 0);
-    return {
-      total: transactions.length,
-      totalIn,
-      totalOut,
-      netFlow: totalIn - totalOut,
-    };
-  }, [transactions]);
+  const filtered = useMemo(() => data.filter((r) => {
+    if (type !== "all" && r.type !== type) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!`${r.id} ${r.clientId} ${r.client} ${r.merchant || ""} ${r.merchantOrderId || ""}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [data, type, search]);
 
-  const filteredData = useMemo(() => {
-    return transactions.filter((t) => {
-      if (filterStatus !== "all" && t.status !== filterStatus) return false;
-      if (filterType !== "all" && t.type !== filterType) return false;
-      return true;
-    });
-  }, [transactions, filterStatus, filterType]);
-
-  const columns: Column<Transaction>[] = [
-    {
-      key: "id",
-      title: "交易ID",
-      width: "120px",
-      render: (row) => <span className="font-mono text-xs text-slate-500">{row.id}</span>,
-    },
-    {
-      key: "type",
-      title: "类型",
-      width: "140px",
-      render: (row) => {
-        const config = typeConfig[row.type];
-        const Icon = config.icon;
-        return (
-          <div className="flex items-center gap-2">
-            <div className={`w-7 h-7 rounded-lg ${config.bg} flex items-center justify-center`}>
-              <Icon className={`w-3.5 h-3.5 ${config.color}`} />
-            </div>
-            <span className="text-sm font-medium">{config.label}</span>
-          </div>
-        );
-      },
-    },
-    {
-      key: "userName",
-      title: "用户",
-      render: (row) => (
-        <div>
-          <p className="text-sm font-medium">{row.userName}</p>
-          <p className="text-xs text-slate-500 font-mono">{row.userId}</p>
-        </div>
-      ),
-    },
-    {
-      key: "amount",
-      title: "金额",
-      width: "140px",
-      align: "right",
-      sortable: true,
-      render: (row) => (
-        <span className={`text-sm font-bold ${row.direction === "in" ? "text-emerald-600" : "text-red-600"}`}>
-          {row.direction === "in" ? "+" : "-"}${row.amount.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: "method",
-      title: "方式",
-      width: "120px",
-      render: (row) => (
-        <span className="text-sm text-slate-600">{row.method || "-"}</span>
-      ),
-    },
-    {
-      key: "status",
-      title: "状态",
-      width: "100px",
-      render: (row) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: "createdAt",
-      title: "时间",
-      width: "160px",
-      sortable: true,
-      render: (row) => (
-        <div>
-          <p className="text-sm text-slate-700">{row.createdAt.split(" ")[0]}</p>
-          <p className="text-xs text-slate-400">{row.createdAt.split(" ")[1]}</p>
-        </div>
-      ),
-    },
-    {
-      key: "description",
-      title: "备注",
-      render: (row) => <span className="text-sm text-slate-500">{row.description}</span>,
-    },
+  const cols: Column<UnifiedTxn>[] = [
+    { key: "id", title: "Txn ID", width: "150px", render: (r) => (
+      <a href={r.href} className="text-xs font-mono text-primary hover:underline">{r.id}</a>
+    ) },
+    { key: "type", title: "Type", width: "150px", render: (r) => {
+      const Icon = r.type.includes("Deposit") ? ArrowDownCircle : r.type.includes("Withdrawal") ? ArrowUpCircle : ArrowRightLeft;
+      const tone = r.type.includes("Deposit") ? "text-emerald-700" : r.type.includes("Withdrawal") ? "text-orange-700" : "text-blue-700";
+      return <span className={cn("inline-flex items-center gap-1.5 text-xs", tone)}><Icon className="w-3 h-3" />{r.type}</span>;
+    } },
+    { key: "client", title: "Client", minWidth: "180px", render: (r) => (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs font-medium text-slate-800">{r.client}</span>
+        <span className="text-[11px] font-mono text-slate-500">{r.clientId}</span>
+      </div>
+    ) },
+    { key: "amount", title: "Amount", width: "140px", align: "right", render: (r) => (
+      <div className="flex flex-col items-end">
+        <span className="text-xs font-semibold tabular-nums">{r.amount.toLocaleString()} {r.currency}</span>
+        <span className="text-[11px] text-slate-500 tabular-nums">≈ ${r.amountUsd.toLocaleString()}</span>
+      </div>
+    ) },
+    { key: "channel", title: "Channel", width: "150px", render: (r) => <span className="text-xs text-slate-700">{r.channel}</span> },
+    { key: "merchant", title: "Merchant · Order", minWidth: "180px", render: (r) => r.merchant ? (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs text-slate-700">{r.merchant}</span>
+        <span className="text-[11px] font-mono text-slate-500">{r.merchantOrderId || "—"}</span>
+      </div>
+    ) : <span className="text-xs text-slate-400">—</span> },
+    { key: "decision", title: "Lane", width: "100px", render: (r) => <span className="text-xs">{r.decision}</span> },
+    { key: "status", title: "Status", width: "130px", render: (r) => <span className="text-xs text-slate-700">{r.status}</span> },
+    { key: "risk", title: "Risk", width: "90px", render: (r) => <span className="text-xs">{r.riskLevel}</span> },
+    { key: "submitted", title: "Time", width: "160px", render: (r) => <span className="text-xs text-slate-500 font-mono">{new Date(r.submittedAt).toLocaleString()}</span> },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb items={[{ label: "资金管理" }, { label: "交易记录" }]} />
-
-      {/* Page Header */}
-      <PageHeader
-        title="交易记录"
-        description="查看所有资金交易明细，包括入金、出金、转账和手续费"
-        actions={
-          <div className="flex gap-3">
-            <Button variant="secondary">
-              <Download className="w-4 h-4" />
-              导出
-            </Button>
-          </div>
-        }
+    <div className="space-y-4">
+      <Breadcrumb items={[{ label: "Funds" }, { label: "Transactions" }]} />
+      <PageHeader title="Transactions" description="统一资金流水中心 (ledger 视图，只读)"
+        actions={<Button variant="secondary" onClick={() => demoExport("资金流水")}><Download className="w-4 h-4" />Export</Button>}
       />
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-slate-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-              <p className="text-sm text-slate-500">总交易数</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-600">+${stats.totalIn.toLocaleString()}</p>
-              <p className="text-sm text-slate-500">总流入</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-red-600">-${stats.totalOut.toLocaleString()}</p>
-              <p className="text-sm text-slate-500">总流出</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="!p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className={`text-2xl font-bold ${stats.netFlow >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                {stats.netFlow >= 0 ? "+" : ""}${stats.netFlow.toLocaleString()}
-              </p>
-              <p className="text-sm text-slate-500">净流量</p>
-            </div>
-          </div>
-        </Card>
+      <div className="flex items-center gap-2">
+        <div className="relative w-80">
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索 Txn ID / 客户 / Merchant Order..."
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100" />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <select value={type} onChange={(e) => setType(e.target.value as any)}
+          className="h-9 px-3 rounded-lg border border-slate-200 text-sm bg-white">
+          <option value="all">All Types</option>
+          <option>Wallet Deposit</option><option>Wallet Withdrawal</option>
+          <option>Trading Deposit</option><option>Trading Withdrawal</option>
+          <option>Transfer</option>
+        </select>
+        <div className="flex-1" />
+        <Button variant="secondary" onClick={() => demoAction("打开高级筛选")}>
+          <SlidersHorizontal className="w-4 h-4" />高级筛选
+        </Button>
       </div>
-
-      {/* Filter Bar */}
-      <FilterBar
-        searchable
-        searchPlaceholder="搜索交易ID、用户或备注..."
-        searchKeys={["id", "userName", "userId", "description"]}
-        filters={[
-          {
-            key: "type",
-            label: "交易类型",
-            type: "select",
-            value: filterType,
-            onChange: setFilterType,
-            options: [
-              { label: "全部类型", value: "all" },
-              { label: "入金", value: "deposit" },
-              { label: "出金", value: "withdrawal" },
-              { label: "转账", value: "transfer" },
-              { label: "退款", value: "refund" },
-              { label: "手续费", value: "fee" },
-            ],
-          },
-          {
-            key: "status",
-            label: "状态",
-            type: "select",
-            value: filterStatus,
-            onChange: setFilterStatus,
-            options: [
-              { label: "全部状态", value: "all" },
-              { label: "成功", value: "success" },
-              { label: "处理中", value: "processing" },
-              { label: "待处理", value: "pending" },
-              { label: "失败", value: "failed" },
-            ],
-          },
-        ]}
-      />
-
-      {/* Data Table */}
-      <EnhancedDataTable
-        columns={columns}
-        data={filteredData}
-        keyExtractor={(row) => row.id}
-        searchable={false}
-        pagination
-        pageSize={10}
-        emptyText="暂无交易记录"
-        emptyIcon={<Wallet className="w-12 h-12" />}
-        exportable
-      />
+      <Card padding="none">
+        <EnhancedDataTable<UnifiedTxn> columns={cols} data={filtered} keyExtractor={(r) => `${r.type}-${r.id}`}
+          pagination pageSize={30} tableId="funds-transactions" emptyText="无流水" />
+      </Card>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button, PageHeader, Card, EmptyState } from "@/components/crm/ui/PageHeader";
 import { Drawer, DrawerFooter } from "@/components/crm/ui/Drawer";
+import { Breadcrumb } from "@/components/crm/layout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -296,19 +297,9 @@ export default function BannersPage() {
     setSelected(prev => prev ? { ...prev, status: prev.status === "active" ? "inactive" : "active" } : null);
   };
 
-  const breadcrumbs = [{ label: "后台管理" }, { label: "营销管理" }, { label: "Banner 管理" }];
-
-  return (
+    return (
     <div className="p-6 space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--tp-fg-muted)]">
-        {breadcrumbs.map((b, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <ChevronRight className="w-3.5 h-3.5" />}
-            <span className={i === breadcrumbs.length - 1 ? "text-[var(--tp-fg)] font-medium" : ""}>{b.label}</span>
-          </React.Fragment>
-        ))}
-      </nav>
+      <Breadcrumb items={[{ label: "Marketing" }, { label: "Banners" }]} />
 
       <PageHeader
         title="Banner 管理"

@@ -185,7 +185,7 @@ export default function TagsPage() {
 
   return (
     <div className="space-y-3">
-      <Breadcrumb items={[{ label: t("clients.crumb.root") }, { label: t("clients.crumb.tags") }]} />
+      <Breadcrumb items={[{ label: "Clients" }, { label: t("clients.crumb.tags") }]} />
 
       <PageHeader
         title={t("clients.tags.title")}

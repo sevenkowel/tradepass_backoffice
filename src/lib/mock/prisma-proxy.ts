@@ -3,10 +3,27 @@
  * Used when MOCK_DB=true. All API routes work transparently.
  */
 
+import { mockClientSegments as crmMockSegments } from "@/lib/crm/mock-clients";
+
 // ─── Mock DB rows (Prisma shape) ────────────────────────────────────────────
 
 const now = new Date();
 const d = (s: string) => new Date(s);
+
+/**
+ * Build an array of N MT accounts with the same total equity / balance
+ * shape the mapper expects (`{ equity, balance }`). Used to fake a
+ * realistic "trading-account count" distribution per user.
+ */
+function mkAccounts(n: number, totalBalance: number, pnlPct = 0.02): { equity: number; balance: number }[] {
+  if (n <= 0) return [];
+  const per = totalBalance / n;
+  return Array.from({ length: n }, (_, i) => ({
+    balance: Math.round(per),
+    // Slight P/L variation between accounts so total equity != total balance.
+    equity: Math.round(per * (1 + ((i % 3) - 1) * pnlPct)),
+  }));
+}
 
 const mockUsers = [
   {
@@ -17,7 +34,7 @@ const mockUsers = [
     lastLoginAt: d("2026-05-08T14:20:00Z"), onboardingCompletedAt: d("2024-01-16"),
     onboardingLocked: false, createdAt: d("2024-01-15T08:30:00Z"), updatedAt: now,
     wallets: [{ balance: 52840.5, frozen: 0, currency: "USD" }],
-    mtAccounts: [{ equity: 53120.3, balance: 52840.5 }],
+    mtAccounts: mkAccounts(3, 52840.5),
     kycRecord: { amlRiskScore: 15, kycLevel: "enhanced", status: "approved" },
   },
   {
@@ -28,7 +45,7 @@ const mockUsers = [
     lastLoginAt: d("2026-05-07T18:30:00Z"), onboardingCompletedAt: null,
     onboardingLocked: false, createdAt: d("2026-03-10T09:15:00Z"), updatedAt: now,
     wallets: [{ balance: 3250, frozen: 0, currency: "USD" }],
-    mtAccounts: [{ equity: 3200, balance: 3250 }],
+    mtAccounts: mkAccounts(1, 3250),
     kycRecord: { amlRiskScore: 45, kycLevel: "standard", status: "pending" },
   },
   {
@@ -39,7 +56,7 @@ const mockUsers = [
     lastLoginAt: d("2025-09-01T10:00:00Z"), onboardingCompletedAt: null,
     onboardingLocked: false, createdAt: d("2025-08-20T11:00:00Z"), updatedAt: now,
     wallets: [{ balance: 0, frozen: 0, currency: "USD" }],
-    mtAccounts: [],
+    mtAccounts: [],  // none — mapper falls back to mockAccountCountFor
     kycRecord: { amlRiskScore: 72, kycLevel: "basic", status: "rejected" },
   },
   {
@@ -50,7 +67,7 @@ const mockUsers = [
     lastLoginAt: d("2026-05-09T09:00:00Z"), onboardingCompletedAt: d("2025-11-02"),
     onboardingLocked: false, createdAt: d("2025-11-01T07:00:00Z"), updatedAt: now,
     wallets: [{ balance: 128000, frozen: 5000, currency: "USD" }],
-    mtAccounts: [{ equity: 135000, balance: 128000 }],
+    mtAccounts: mkAccounts(8, 128000),
     kycRecord: { amlRiskScore: 8, kycLevel: "enterprise", status: "approved" },
   },
   {
@@ -61,8 +78,63 @@ const mockUsers = [
     lastLoginAt: d("2026-05-06T11:00:00Z"), onboardingCompletedAt: d("2025-06-16"),
     onboardingLocked: false, createdAt: d("2025-06-15T08:00:00Z"), updatedAt: now,
     wallets: [{ balance: 18500, frozen: 0, currency: "USD" }],
-    mtAccounts: [{ equity: 19200, balance: 18500 }],
+    mtAccounts: mkAccounts(2, 18500),
     kycRecord: { amlRiskScore: 12, kycLevel: "standard", status: "approved" },
+  },
+  {
+    id: "user-006", email: "anna.mueller@example.com", passwordHash: "mock",
+    name: "Anna Müller", phone: "+49 175 234 5678", status: "active",
+    kycStatus: "approved", emailVerifiedAt: d("2025-07-10"), phoneVerified: true,
+    twoFactorSecret: null, twoFactorEnabled: true,
+    lastLoginAt: d("2026-05-10T16:00:00Z"), onboardingCompletedAt: d("2025-07-11"),
+    onboardingLocked: false, createdAt: d("2025-07-10T10:00:00Z"), updatedAt: now,
+    wallets: [{ balance: 42000, frozen: 0, currency: "USD" }],
+    mtAccounts: mkAccounts(5, 42000),
+    kycRecord: { amlRiskScore: 18, kycLevel: "enhanced", status: "approved" },
+  },
+  {
+    id: "user-007", email: "tanaka.ken@example.com", passwordHash: "mock",
+    name: "田中 健", phone: "+81 90 1234 5678", status: "pending",
+    kycStatus: "in_review", emailVerifiedAt: d("2026-04-25"), phoneVerified: true,
+    twoFactorSecret: null, twoFactorEnabled: false,
+    lastLoginAt: d("2026-05-11T03:20:00Z"), onboardingCompletedAt: null,
+    onboardingLocked: false, createdAt: d("2026-04-25T05:45:00Z"), updatedAt: now,
+    wallets: [{ balance: 1200, frozen: 0, currency: "USD" }],
+    mtAccounts: mkAccounts(1, 1200),
+    kycRecord: { amlRiskScore: 32, kycLevel: "basic", status: "pending" },
+  },
+  {
+    id: "user-008", email: "mohammed.alhassan@example.com", passwordHash: "mock",
+    name: "Mohammed Al-Hassan", phone: "+971 50 123 4567", status: "active",
+    kycStatus: "approved", emailVerifiedAt: d("2024-09-12"), phoneVerified: true,
+    twoFactorSecret: null, twoFactorEnabled: true,
+    lastLoginAt: d("2026-05-12T09:30:00Z"), onboardingCompletedAt: d("2024-09-13"),
+    onboardingLocked: false, createdAt: d("2024-09-12T06:00:00Z"), updatedAt: now,
+    wallets: [{ balance: 320000, frozen: 15000, currency: "USD" }],
+    mtAccounts: mkAccounts(12, 320000),
+    kycRecord: { amlRiskScore: 22, kycLevel: "enterprise", status: "approved" },
+  },
+  {
+    id: "user-009", email: "james.obrien@example.com", passwordHash: "mock",
+    name: "James O'Brien", phone: "+44 7700 900123", status: "active",
+    kycStatus: "approved", emailVerifiedAt: d("2025-03-22"), phoneVerified: true,
+    twoFactorSecret: null, twoFactorEnabled: true,
+    lastLoginAt: d("2026-05-09T20:10:00Z"), onboardingCompletedAt: d("2025-03-23"),
+    onboardingLocked: false, createdAt: d("2025-03-22T09:00:00Z"), updatedAt: now,
+    wallets: [{ balance: 87500, frozen: 0, currency: "USD" }],
+    mtAccounts: mkAccounts(6, 87500),
+    kycRecord: { amlRiskScore: 10, kycLevel: "enhanced", status: "approved" },
+  },
+  {
+    id: "user-010", email: "lin.wei@example.com", passwordHash: "mock",
+    name: "林 偉", phone: "+886 912 345 678", status: "active",
+    kycStatus: "approved", emailVerifiedAt: d("2023-12-05"), phoneVerified: true,
+    twoFactorSecret: null, twoFactorEnabled: true,
+    lastLoginAt: d("2026-05-12T14:50:00Z"), onboardingCompletedAt: d("2023-12-06"),
+    onboardingLocked: false, createdAt: d("2023-12-05T10:00:00Z"), updatedAt: now,
+    wallets: [{ balance: 1_250_000, frozen: 0, currency: "USD" }],
+    mtAccounts: mkAccounts(18, 1_250_000),  // institutional / VIP — max-tier
+    kycRecord: { amlRiskScore: 5, kycLevel: "enterprise", status: "approved" },
   },
 ];
 
@@ -148,10 +220,158 @@ const mockTags = [
   { id: "tag-004", name: "新客户", color: "#10b981", isSystem: false, tenantId: "tenant-demo", createdAt: d("2024-01-01"), updatedAt: now, _count: { assignments: 1 } },
 ];
 
-const mockNotes = [
-  { id: "note-001", userId: "user-001", authorId: "admin", content: "客户表示有意向增加仓位", createdAt: d("2026-05-08"), updatedAt: now, author: { name: "Admin", email: "admin@demo.com" } },
-  { id: "note-002", userId: "user-002", authorId: "admin", content: "等待KYC补充材料", createdAt: d("2026-05-07"), updatedAt: now, author: { name: "Admin", email: "admin@demo.com" } },
+/* ─── Notes mock — 80+ 条多样化备注（覆盖 4 种类型 / 多个客户 / @mention）─── */
+
+const NOTE_AUTHORS = [
+  { id: "staff-001", name: "Alice Chen",  email: "alice.chen@demo.com" },
+  { id: "staff-002", name: "Bob Martin",  email: "bob.martin@demo.com" },
+  { id: "staff-003", name: "Carol Wong",  email: "carol.wong@demo.com" },
+  { id: "staff-004", name: "David Liu",   email: "david.liu@demo.com" },
+  { id: "staff-005", name: "Emma Park",   email: "emma.park@demo.com" },
+  { id: "admin",     name: "Admin",       email: "admin@demo.com" },
 ];
+
+const NOTE_TEMPLATES: { type: "general" | "risk" | "sales" | "followup"; templates: string[] }[] = [
+  {
+    type: "sales",
+    templates: [
+      "客户表示有意向增加仓位 — 计划下周完成第二笔入金",
+      "VIP 客户经理回访 — 客户对 ECN 账户类型很满意，建议推介 PRO",
+      "客户咨询信用卡入金通道，已发送 Stripe 链接",
+      "讨论了高杠杆开通，客户需先升级 KYC L2",
+      "客户对 XAUUSD 点差敏感，已申请 spread 优化",
+      "邀请客户参加亚太 webinar，已确认出席",
+      "推荐了我们的 IB 项目，客户有意向引荐 2-3 个朋友",
+      "客户咨询 MAM/PAMM 账户，约下周一详谈",
+    ],
+  },
+  {
+    type: "risk",
+    templates: [
+      "保证金水平连续 3 天 < 200%，触发风控审查",
+      "AML 名单复查 — 名字相似但生日不符，已确认非 PEP",
+      "短时间内多笔大额入金，疑似洗钱，已上报合规组",
+      "客户从高风险国家登录，要求二次验证",
+      "异常 VPN 流量检测 — 客户使用 Tor 出口节点",
+      "同设备登录的另一账户已被冻结，建议关联监控",
+      "客户提交 KYC 时填写的地址与 IP 地理位置严重不符",
+      "高频交易 + scalping 行为，已加入风控观察名单",
+      "夜间大额出金尝试，已暂停审核等人工复审",
+      "客户共享 IP 与其他 3 个账户，需要关系网络复核",
+    ],
+  },
+  {
+    type: "followup",
+    templates: [
+      "等待 KYC 补充材料 — 地址证明",
+      "出金审核通过后回访客户，确认到账时效",
+      "下周一拨打客户跟进 30 天未交易情况",
+      "客户答应明天补充护照背面照片",
+      "证件即将过期，已发送续期提醒邮件，5 天后跟进",
+      "客户反馈出金延迟，已升级到风控组，预计 2 天内回复",
+      "VIP 升级流程进行中，等客户经理分配确认",
+      "首次交易奖金已发放，需电话回访确认满意度",
+      "客户投诉 spread 异常，已申请技术组日志分析",
+      "周五约客户做风险测评问卷",
+    ],
+  },
+  {
+    type: "general",
+    templates: [
+      "客户来电询问账户余额查询方式 — 已发送指南链接",
+      "记录客户偏好交易时段：UTC 02:00-06:00（亚洲早盘）",
+      "客户对中文客服满意度高，建议保留同一客户经理",
+      "客户使用 macOS + Chrome，无需考虑 Windows 兼容性问题",
+      "更新客户联系方式 — 新电话号码 +86 138-****-6789",
+      "客户希望邮件通知改为每周摘要而非每日",
+      "客户已加入官方 Telegram 群，活跃度高",
+      "推荐了 IOS 移动 App，客户反馈界面流畅",
+      "客户对 demo 账户的过期时间询问，已说明 90 天自动续期",
+      "记录：客户对资金安全很看重，反复确认账户分隔",
+      "客户咨询了平台是否支持 Apple Pay，已说明暂不支持",
+      "更新客户的固定 IP 白名单（出于安全考虑）",
+    ],
+  },
+];
+
+function buildMockNotes() {
+  const result: Array<{
+    id: string; userId: string; authorId: string; authorName: string;
+    content: string; noteType: string; isPinned: boolean;
+    mentions: string;
+    createdAt: Date; updatedAt: Date;
+    author: { name: string; email: string };
+  }> = [];
+
+  const userIds = ["user-001", "user-002", "user-003", "user-004", "user-005", "user-006", "user-007", "user-008"];
+  const now = Date.now();
+  let id = 1;
+
+  // 用 deterministic 派生避免每次刷新洗牌
+  let seed = 12345;
+  const rng = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rng() * arr.length)];
+
+  // 每种类型生成对应数量
+  const typeQuotas: Record<string, number> = {
+    sales: 22,
+    risk: 18,
+    followup: 28,
+    general: 20,
+  };
+
+  for (const tpl of NOTE_TEMPLATES) {
+    const quota = typeQuotas[tpl.type] ?? 10;
+    for (let i = 0; i < quota; i++) {
+      const author = pick(NOTE_AUTHORS);
+      const userId = pick(userIds);
+      const content = pick(tpl.templates);
+      const daysAgo = Math.floor(rng() * 90); // 过去 90 天
+      const isPinned = rng() < 0.1; // 10% pinned
+      const hasMention = rng() < 0.3; // 30% with @mention
+      const mentionTarget = hasMention ? pick(NOTE_AUTHORS.filter((a) => a.id !== author.id)) : null;
+
+      result.push({
+        id: `note-${String(id).padStart(3, "0")}`,
+        userId,
+        authorId: author.id,
+        authorName: author.name,
+        content: mentionTarget ? `@${mentionTarget.name} ${content}` : content,
+        noteType: tpl.type,
+        isPinned,
+        mentions: mentionTarget ? JSON.stringify([mentionTarget.id]) : "[]",
+        createdAt: new Date(now - daysAgo * 86400_000 - Math.floor(rng() * 86400_000)),
+        updatedAt: new Date(now),
+        author: { name: author.name, email: author.email },
+      });
+      id++;
+    }
+  }
+
+  // 按时间倒序
+  return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+const mockNotes = buildMockNotes();
+
+/* Segments — pulled from mock-clients.ts. The route handler stores
+ * `filter` as a JSON string, so we serialise here on seed and the
+ * handler parses it back out via `safeJSON`. Keeping a single source
+ * of truth (mock-clients) avoids drift between the front-end's
+ * directly-imported list and the API-routed list. */
+const mockSegments = crmMockSegments.map((s) => ({
+  id: s.id,
+  name: s.name,
+  description: s.description ?? null,
+  filter: JSON.stringify(s.filter ?? {}),
+  userCount: s.userCount,
+  isDynamic: s.isDynamic,
+  createdAt: d(s.createdAt),
+  updatedAt: now,
+}));
 
 // ─── Model mock factory ───────────────────────────────────────────────────────
 
@@ -247,7 +467,7 @@ const models: Record<string, ReturnType<typeof createModelMock>> = {
   ]),
   blacklistEntry: createModelMock([]),
   clientTagAssignment: createModelMock([]),
-  clientSegment: createModelMock([]),
+  clientSegment: createModelMock(mockSegments as unknown as AnyRecord[]),
   crmAuditLog: createModelMock([]),
   crmTimelineEvent: createModelMock([]),
   emailVerification: createModelMock([]),

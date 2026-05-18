@@ -67,7 +67,8 @@ class ClientService {
         level: params.level,
         riskLevel: params.riskLevel,
         lifecycleStage: params.lifecycleStage,
-        country: params.country,
+        // Multi-select countries → comma-separated wire format
+        country: params.country && params.country.length > 0 ? params.country.join(",") : undefined,
         startDate: params.startDate,
         endDate: params.endDate,
         sortBy: params.sortBy,

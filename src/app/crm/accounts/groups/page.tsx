@@ -278,7 +278,7 @@ export default function AccountGroupsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "账户" }, { label: "账户分组" }]} />
+      <Breadcrumb items={[{ label: "Accounts" }, { label: "账户分组" }]} />
 
       <PageHeader
         title="账户分组"

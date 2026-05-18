@@ -8,12 +8,16 @@ import type { BaseTabProps } from "@/types/backoffice/client";
 import type { RiskRelationship } from "@/types/backoffice/client-detail";
 import { RiskScoreRing } from "@/components/crm/clm/risk/RiskScoreRing";
 import { RiskFactorList } from "@/components/crm/clm/risk/RiskFactorList";
+import { RiskTrendCard } from "@/components/crm/clm/case-detail/risk-trend-card";
 import { lookupRiskProfile } from "@/lib/risk-engine/mock-risk-profiles";
 import { NODE_COLOR, EDGE_COLOR } from "@/lib/risk-engine/graph";
 import type { ClientGraphEdgeKind, ClientGraphNodeKind } from "@/types/core";
 
-/** Pair an edge kind with the node kind to colour the connected node. */
-const EDGE_TO_NODE_KIND: Record<ClientGraphEdgeKind, ClientGraphNodeKind> = {
+/** Pair an edge kind with the node kind to colour the connected node.
+ *  Legacy 5-kind mapping for the existing RiskTab echarts force graph —
+ *  new sub-kinds added in v2 fall through to `mixed`. The full
+ *  6-category model lives on /crm/clients/relationships. */
+const EDGE_TO_NODE_KIND: Partial<Record<ClientGraphEdgeKind, ClientGraphNodeKind>> = {
   shared_ip: "shared_ip",
   shared_device: "shared_device",
   same_id: "same_id",
@@ -85,7 +89,7 @@ export default function RiskTab({ data }: BaseTabProps) {
           id: rel.targetClientId,
           name: rel.targetClientName,
           symbolSize: 40,
-          itemStyle: { color: NODE_COLOR[nodeKind] ?? NODE_COLOR.mixed },
+          itemStyle: { color: nodeKind ? NODE_COLOR[nodeKind] : NODE_COLOR.mixed },
           label: { fontSize: 12 },
         };
       }),
@@ -145,14 +149,12 @@ export default function RiskTab({ data }: BaseTabProps) {
           Detail uses, so a high-risk client looks the same wherever
           it's shown. */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-slate-100">
           <RiskScoreRing
             score={riskProfile.overallScore}
             level={riskProfile.riskLevel}
-            size={72}
-            strokeWidth={6}
           />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 mt-2">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               {t("clients.detail.risk.score")}
             </p>
@@ -183,6 +185,12 @@ export default function RiskTab({ data }: BaseTabProps) {
         </div>
         <RiskFactorList factors={riskProfile.factors} />
       </div>
+
+      {/* 30 天风险评分趋势（P2-23）— 复用 case detail 的 RiskTrendCard */}
+      <RiskTrendCard
+        customerId={data.user.id}
+        currentScore={user.riskScore ?? riskProfile.overallScore ?? 0}
+      />
 
       {/* Relationship graph — kept from the previous design (echarts
           force layout). Future: merge into ClientGraph in M7. */}

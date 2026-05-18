@@ -3,7 +3,7 @@
  *
  * Pulls from every domain that emits audit records and projects each to
  * `GlobalAuditLog`. Used by:
- *   - `/crm/clm/audit-trail` (the "global" timeline view)
+ *   - `/crm/approvals/audit-trail` (the "global" timeline view)
  *   - Client Detail Logs tab (filtered by `clientId`)
  *   - Case Detail history strip (filtered by `targetId`)
  *

@@ -79,6 +79,47 @@ export function ClientDetailProvider({ clientId, children }: ProviderProps) {
     };
   }, [clientId]);
 
+  /**
+   * 后台轮询刷新 (P2-13)。
+   *   - 间隔 30s，仅在 document.visibility 为 "visible" 时触发
+   *   - 离开 Tab → 自动暂停（节省带宽 + 避免不必要的告警）
+   *   - 真后端实装 SSE/websocket 时把这段换成 useEventSource
+   */
+  useEffect(() => {
+    if (!clientId) return;
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const tick = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const data = await clientService.getDetail(clientId);
+        if (!cancelled) setDetail(data);
+      } catch { /* ignore polling errors */ }
+    };
+
+    const start = () => {
+      if (timer != null) return;
+      timer = window.setInterval(tick, 30_000);
+    };
+    const stop = () => {
+      if (timer != null) { clearInterval(timer); timer = null; }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") start();
+      else stop();
+    };
+
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [clientId]);
+
   const value = useMemo<ClientDetailContextValue>(
     () => ({ detail, loading, refreshing, refresh, setDetail }),
     [detail, loading, refreshing, refresh]

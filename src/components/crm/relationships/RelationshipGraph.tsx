@@ -1,42 +1,64 @@
 "use client";
 
 /**
- * Force-directed relationship graph rooted at one client.
+ * Relationship Kanban board (v2) rooted at one client.
  *
- * Real data via `/api/crm/clients/[id]/graph`. Rendering via
- * `react-force-graph-2d` (loaded through ForceGraphWrapper, which keeps
- * the canvas off the SSR pass).
+ * v2 reorganises the 5-kind column layout into the **6 factor categories**
+ * (Identity / Contact / Network / Device / Payment / Business) that the
+ * relationship engine reports. Each card now also shows per-edge
+ * evidence-strength badges (HARD / MEDIUM / SOFT / INFO).
+ *
+ * Data: GET /api/crm/clients/[id]/graph (real) or `mockData` prop (demo).
  */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Search,
-  Filter,
-  Maximize2,
-  Minimize2,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
   ArrowUpRight,
   Loader2,
+  Mail,
+  Phone,
+  Globe,
+  Shield,
+  Fingerprint,
+  Wifi,
+  CreditCard,
+  UserCheck,
+  Smartphone,
+  Building,
+  AtSign,
+  Network as NetworkIcon,
+  Coins,
+  GitBranch,
+  Briefcase,
+  Users,
+  ArrowDownUp,
   type LucideIcon,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/LocaleProvider";
-import ForceGraph2D from "./ForceGraphWrapper";
 import type {
   ClientGraph,
   ClientGraphEdge,
   ClientGraphEdgeKind,
   ClientGraphNode,
+  EdgeCategory,
+  EvidenceStrength,
 } from "@/types/core";
 import {
-  EDGE_COLOR,
-  EDGE_DASH,
-  NODE_COLOR,
-  countEdgesByKind,
+  EDGE_CATEGORY,
+  EDGE_STRENGTH,
+  edgeKindLabel,
+  pairScore,
 } from "@/lib/risk-engine/graph";
+
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 interface GraphResponse extends ClientGraph {
   success: boolean;
@@ -46,11 +68,13 @@ interface GraphResponse extends ClientGraph {
 interface RelationshipGraphProps {
   clientId?: string;
   onPickClient?: () => void;
+  mockData?: ClientGraph;
 }
 
-/** Wire format from `/api/crm/clients/[id]/graph` still uses the legacy
- *  `type` (node) and `type` (edge) field names. Convert on read so the
- *  component itself only operates on the unified `kind` shape. */
+/* -------------------------------------------------------------------------- */
+/* API wire formats                                                           */
+/* -------------------------------------------------------------------------- */
+
 interface ApiNode {
   id: string;
   uid: string;
@@ -71,6 +95,10 @@ interface ApiEdge {
   target: string;
   type: ClientGraphEdgeKind;
   label: string;
+  /** v2 — server may now include strength + lastSeenAt. */
+  strength?: EvidenceStrength;
+  detectedAt?: string;
+  lastSeenAt?: string;
 }
 
 interface ApiResponse {
@@ -83,71 +111,131 @@ interface ApiResponse {
 
 function apiNodeToCore(n: ApiNode): ClientGraphNode {
   return {
-    id: n.id,
-    uid: n.uid,
-    name: n.name,
-    email: n.email,
-    phone: n.phone,
-    country: n.country,
-    kycStatus: n.kycStatus,
+    id: n.id, uid: n.uid, name: n.name, email: n.email, phone: n.phone,
+    country: n.country, kycStatus: n.kycStatus,
     riskLevel: (n.riskLevel as ClientGraphNode["riskLevel"]) ?? "low",
     riskScore: n.riskScore,
-    lastLoginAt: n.lastLoginAt,
-    createdAt: n.createdAt,
+    lastLoginAt: n.lastLoginAt, createdAt: n.createdAt,
     kind: n.type,
   };
 }
 
 function apiEdgeToCore(e: ApiEdge): ClientGraphEdge {
   return {
-    source: e.source,
-    target: e.target,
-    kind: e.type,
-    label: e.label,
+    source: e.source, target: e.target, kind: e.type, label: e.label,
+    strength: e.strength ?? EDGE_STRENGTH[e.type] ?? "soft",
+    detectedAt: e.detectedAt,
+    lastSeenAt: e.lastSeenAt,
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Tokens                                                                     */
+/* -------------------------------------------------------------------------- */
+
 const KYC_ICONS: Record<string, LucideIcon> = {
-  verified: CheckCircle,
-  pending: Clock,
-  rejected: XCircle,
-  not_submitted: AlertTriangle,
+  verified: CheckCircle, pending: Clock, rejected: XCircle, not_submitted: AlertTriangle,
 };
-
 const KYC_COLORS: Record<string, string> = {
-  verified: "text-emerald-600",
-  pending: "text-amber-600",
-  rejected: "text-red-600",
-  not_submitted: "text-slate-400",
+  verified: "text-emerald-600", pending: "text-amber-600",
+  rejected: "text-red-600", not_submitted: "text-slate-400",
+};
+const RISK_BADGE: Record<string, string> = {
+  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  high: "bg-orange-50 text-orange-700 border-orange-200",
+  critical: "bg-red-50 text-red-700 border-red-200",
 };
 
-const RISK_COLORS: Record<string, string> = {
-  low: "bg-emerald-100 text-emerald-700",
-  medium: "bg-amber-100 text-amber-700",
-  high: "bg-orange-100 text-orange-700",
-  critical: "bg-red-100 text-red-700",
+const STRENGTH_PILL: Record<EvidenceStrength, string> = {
+  hard:   "bg-red-100 text-red-700 border-red-200",
+  medium: "bg-amber-100 text-amber-700 border-amber-200",
+  soft:   "bg-slate-100 text-slate-600 border-slate-200",
+  info:   "bg-sky-50 text-sky-700 border-sky-200",
+};
+const STRENGTH_LABEL: Record<EvidenceStrength, string> = {
+  hard: "HARD", medium: "MED", soft: "SOFT", info: "INFO",
 };
 
-const GRAPH_W = 1200;
-const GRAPH_H = 700;
+/** Lucide icon per edge kind. Partial lookup with fallback handled below. */
+const KIND_ICON: Partial<Record<ClientGraphEdgeKind, LucideIcon>> = {
+  // Identity
+  same_id_document: Shield, same_passport: Shield, same_tax_id: Shield,
+  same_name_dob: Users, same_id: Shield,
+  // Contact
+  same_email: AtSign, same_phone: Phone, email_pattern_sim: AtSign,
+  // Network
+  shared_ip: Wifi, same_ip_subnet: NetworkIcon, same_isp_geo: Globe,
+  // Device
+  shared_device: Fingerprint, shared_browser_fp: Fingerprint, shared_mobile_id: Smartphone,
+  // Payment
+  shared_payment: CreditCard, shared_bank_account: Building,
+  shared_crypto_wallet: Coins, shared_e_wallet: CreditCard,
+  fund_flow_link: ArrowDownUp,
+  // Business
+  ib_invited: UserCheck, referral_chain: GitBranch, copy_trading: Briefcase,
+};
 
-export default function RelationshipGraph({ clientId, onPickClient }: RelationshipGraphProps) {
+/* -------------------------------------------------------------------------- */
+/* Category columns                                                           */
+/* -------------------------------------------------------------------------- */
+
+interface CategoryDef {
+  cat: EdgeCategory;
+  labelKey: string;        // i18n key
+  fallback: string;        // display fallback if i18n missing
+  icon: LucideIcon;
+  pill: string;
+  dot: string;
+  border: string;
+  headerBg: string;
+}
+
+const CATEGORIES: CategoryDef[] = [
+  { cat: "identity", labelKey: "clients.relationships.cat.identity", fallback: "Identity",
+    icon: Shield,
+    pill: "bg-red-100 text-red-700 border-red-200",
+    dot: "bg-red-500", border: "border-red-200", headerBg: "bg-red-50" },
+  { cat: "payment",  labelKey: "clients.relationships.cat.payment",  fallback: "Payment",
+    icon: CreditCard,
+    pill: "bg-violet-100 text-violet-700 border-violet-200",
+    dot: "bg-violet-500", border: "border-violet-200", headerBg: "bg-violet-50" },
+  { cat: "device",   labelKey: "clients.relationships.cat.device",   fallback: "Device",
+    icon: Fingerprint,
+    pill: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500", border: "border-emerald-200", headerBg: "bg-emerald-50" },
+  { cat: "network",  labelKey: "clients.relationships.cat.network",  fallback: "Network",
+    icon: Wifi,
+    pill: "bg-amber-100 text-amber-700 border-amber-200",
+    dot: "bg-amber-500", border: "border-amber-200", headerBg: "bg-amber-50" },
+  { cat: "contact",  labelKey: "clients.relationships.cat.contact",  fallback: "Contact",
+    icon: AtSign,
+    pill: "bg-orange-100 text-orange-700 border-orange-200",
+    dot: "bg-orange-500", border: "border-orange-200", headerBg: "bg-orange-50" },
+  { cat: "business", labelKey: "clients.relationships.cat.business", fallback: "Business",
+    icon: UserCheck,
+    pill: "bg-sky-100 text-sky-700 border-sky-200",
+    dot: "bg-sky-500", border: "border-sky-200", headerBg: "bg-sky-50" },
+];
+
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export default function RelationshipGraph({ clientId, onPickClient, mockData }: RelationshipGraphProps) {
   const { t } = useT();
   const [data, setData] = useState<GraphResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedKinds, setSelectedKinds] = useState<Set<ClientGraphEdgeKind>>(
-    new Set(["shared_ip", "shared_device", "same_id", "shared_payment", "ib_invited"])
-  );
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [hoveredNode, setHoveredNode] = useState<ClientGraphNode | null>(null);
-  const [selectedNode, setSelectedNode] = useState<ClientGraphNode | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch graph
   useEffect(() => {
+    if (mockData) {
+      setData({ success: true, ...mockData });
+      setLoading(false);
+      setError("");
+      return;
+    }
     if (!clientId) {
       setData(null);
       return;
@@ -156,103 +244,100 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
     setLoading(true);
     setError("");
     fetch(`/api/crm/clients/${encodeURIComponent(clientId)}/graph`, {
-      credentials: "include",
-      cache: "no-store",
+      credentials: "include", cache: "no-store",
     })
       .then((r) => r.json())
       .then((d: ApiResponse) => {
         if (cancelled) return;
         if (d.success) {
-          const core: GraphResponse = {
+          setData({
             success: true,
             center: apiNodeToCore(d.center),
             nodes: d.nodes.map(apiNodeToCore),
             edges: d.edges.map(apiEdgeToCore),
-          };
-          setData(core);
+          });
         } else setError(d.error || "Failed to load");
       })
       .catch((e) => !cancelled && setError(e instanceof Error ? e.message : String(e)))
       .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [clientId]);
+    return () => { cancelled = true; };
+  }, [clientId, mockData]);
 
-  const filteredEdges = useMemo(() => {
-    if (!data) return [];
-    return data.edges.filter((e) => selectedKinds.has(e.kind));
-  }, [data, selectedKinds]);
+  /* Derived: edges grouped by (target, category). */
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, ClientGraphNode>();
+    if (!data) return map;
+    for (const n of data.nodes) map.set(n.id, n);
+    return map;
+  }, [data]);
 
-  const visibleNodeIds = useMemo(() => {
-    if (!data) return new Set<string>();
-    const ids = new Set<string>([data.center.id]);
-    for (const e of filteredEdges) {
-      ids.add(e.source);
-      ids.add(e.target);
+  const edgesByTargetCategory = useMemo(() => {
+    const map = new Map<string, Map<EdgeCategory, ClientGraphEdge[]>>();
+    if (!data) return map;
+    for (const e of data.edges) {
+      const cat = EDGE_CATEGORY[e.kind];
+      if (!cat) continue;
+      const byCat = map.get(e.target) ?? new Map<EdgeCategory, ClientGraphEdge[]>();
+      const list = byCat.get(cat) ?? [];
+      list.push(e);
+      byCat.set(cat, list);
+      map.set(e.target, byCat);
     }
-    return ids;
-  }, [data, filteredEdges]);
+    return map;
+  }, [data]);
 
-  /**
-   * Force-graph data. Each node carries `__center` so we can size/colour
-   * it differently. Links keep their type so the link painter can pick a
-   * stroke colour. The center node is fixed at the canvas centre via
-   * `fx/fy` so the focus client doesn't drift.
-   */
-  const graphData = useMemo(() => {
-    if (!data) return { nodes: [], links: [] };
-    const centerFx = GRAPH_W / 2;
-    const centerFy = GRAPH_H / 2;
-    const nodes = [
-      { ...data.center, __center: true, fx: centerFx, fy: centerFy },
-      ...data.nodes
-        .filter((n) => visibleNodeIds.has(n.id))
-        .map((n) => ({ ...n, __center: false })),
-    ];
-    return { nodes, links: filteredEdges };
-  }, [data, filteredEdges, visibleNodeIds]);
+  /* Category counts — unique-target per category. */
+  const categoryCounts: Record<EdgeCategory, number> = useMemo(() => {
+    const c: Record<EdgeCategory, number> = {
+      identity: 0, contact: 0, network: 0, device: 0, payment: 0, business: 0,
+    };
+    for (const byCat of edgesByTargetCategory.values()) {
+      for (const cat of byCat.keys()) c[cat] += 1;
+    }
+    return c;
+  }, [edgesByTargetCategory]);
 
+  /* Strength counts across the whole graph. */
+  const strengthCounts: Record<EvidenceStrength, number> = useMemo(() => {
+    const c: Record<EvidenceStrength, number> = { hard: 0, medium: 0, soft: 0, info: 0 };
+    if (!data) return c;
+    for (const e of data.edges) {
+      const s = e.strength ?? EDGE_STRENGTH[e.kind] ?? "soft";
+      c[s] += 1;
+    }
+    return c;
+  }, [data]);
+
+  const searchQ = searchTerm.trim().toLowerCase();
   const matchesSearch = (n: ClientGraphNode) => {
-    if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
+    if (!searchQ) return true;
     return (
-      n.name.toLowerCase().includes(q) ||
-      n.uid.toLowerCase().includes(q) ||
-      n.email.toLowerCase().includes(q)
+      n.name.toLowerCase().includes(searchQ) ||
+      n.uid.toLowerCase().includes(searchQ) ||
+      n.email.toLowerCase().includes(searchQ)
     );
   };
 
-  const counts = useMemo(
-    () =>
-      data
-        ? countEdgesByKind(data.edges)
-        : { shared_ip: 0, shared_device: 0, same_id: 0, shared_payment: 0, ib_invited: 0 },
-    [data]
-  );
-
-  const toggleKind = (kind: ClientGraphEdgeKind) => {
-    setSelectedKinds((prev) => {
-      const next = new Set(prev);
-      if (next.has(kind)) next.delete(kind);
-      else next.add(kind);
-      return next;
+  /* Per-column items: each node appears in every category it has edges in. */
+  const boardColumns = useMemo(() => {
+    if (!data) return [];
+    return CATEGORIES.map((col) => {
+      const items: { node: ClientGraphNode; edges: ClientGraphEdge[]; score: number }[] = [];
+      for (const [targetId, byCat] of edgesByTargetCategory.entries()) {
+        const edges = byCat.get(col.cat);
+        if (!edges?.length) continue;
+        const node = nodeMap.get(targetId);
+        if (!node) continue;
+        if (!matchesSearch(node)) continue;
+        // Score across ALL edges for this pair, not just this category.
+        const allEdges = [...byCat.values()].flat();
+        items.push({ node, edges, score: pairScore(allEdges) });
+      }
+      items.sort((a, b) => b.score - a.score);
+      return { ...col, items };
     });
-  };
+  }, [data, edgesByTargetCategory, nodeMap, searchQ]);
 
-  const toggleFullscreen = async () => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (!document.fullscreenElement) {
-      await el.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      await document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
-    }
-  };
-
-  // Empty / picker state
   if (!clientId) {
     return (
       <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
@@ -273,7 +358,7 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
 
   if (loading) {
     return (
-      <div className="h-[700px] flex items-center justify-center bg-slate-50 rounded-2xl border border-slate-200">
+      <div className="h-[400px] flex items-center justify-center bg-slate-50 rounded-2xl border border-slate-200">
         <div className="flex items-center gap-3 text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin" />
           {t("clients.relationships.loading")}
@@ -293,10 +378,10 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
   if (!data) return null;
 
   return (
-    <div className="space-y-3" ref={containerRef}>
-      {/* Controls */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex-1 min-w-[240px] relative">
+    <div className="space-y-4">
+      {/* Search */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -306,198 +391,249 @@ export default function RelationshipGraph({ clientId, onPickClient }: Relationsh
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="w-4 h-4 text-slate-500" />
-          {(
-            [
-              { key: "shared_ip" as const, label: t("clients.relationships.filter.sharedIp"), color: "bg-amber-100 text-amber-700", count: counts.shared_ip },
-              { key: "shared_device" as const, label: t("clients.relationships.filter.sharedDevice"), color: "bg-emerald-100 text-emerald-700", count: counts.shared_device },
-              { key: "same_id" as const, label: t("clients.relationships.filter.sameId"), color: "bg-red-100 text-red-700", count: counts.same_id },
-            ]
-          ).map(({ key, label, color, count }) => (
-            <button
-              key={key}
-              onClick={() => toggleKind(key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                selectedKinds.has(key) ? color : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              {label} ({count})
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={toggleFullscreen}
-          className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
-          title={t("clients.relationships.fullscreen")}
-        >
-          {isFullscreen ? (
-            <Minimize2 className="w-4 h-4 text-slate-600" />
-          ) : (
-            <Maximize2 className="w-4 h-4 text-slate-600" />
-          )}
-        </button>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-slate-500 flex-wrap">
-        <Legend color={NODE_COLOR.center} label={t("clients.relationships.legend.center")} />
-        <Legend color={NODE_COLOR.shared_ip} label={`${t("clients.relationships.legend.sharedIp")} (${counts.shared_ip})`} />
-        <Legend color={NODE_COLOR.shared_device} label={`${t("clients.relationships.legend.sharedDevice")} (${counts.shared_device})`} />
-        <Legend color={NODE_COLOR.same_id} label={`${t("clients.relationships.legend.sameId")} (${counts.same_id})`} />
-        <Legend color={NODE_COLOR.mixed} label={t("clients.relationships.legend.mixed")} />
-        <div className="ml-auto flex items-center gap-2">
-          <span className="font-medium">{t("clients.relationships.totals.label")}</span>
-          <span>
-            {graphData.nodes.length} {t("clients.relationships.totals.nodes")}
+        {searchQ && (
+          <span className="text-xs text-slate-500">
+            {boardColumns.reduce((sum, c) => sum + c.items.length, 0)} results
           </span>
-          <span className="mx-1">|</span>
-          <span>
-            {filteredEdges.length} {t("clients.relationships.totals.links")}
-          </span>
-        </div>
-      </div>
-
-      {/* Force-directed graph */}
-      <div className="relative bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
-        {data.nodes.length === 0 ? (
-          <div className="h-[700px] flex flex-col items-center justify-center text-slate-500">
-            <p className="font-medium mb-1">{t("clients.relationships.empty.title")}</p>
-            <p className="text-sm">{t("clients.relationships.empty.desc")}</p>
-          </div>
-        ) : (
-          <ForceGraph2D
-            graphData={graphData}
-            width={GRAPH_W}
-            height={GRAPH_H}
-            backgroundColor="#f8fafc"
-            cooldownTicks={120}
-            nodeLabel={(node) => (node as unknown as ClientGraphNode).name}
-            nodeRelSize={8}
-            nodeVal={(node) => ((node as unknown as { __center: boolean }).__center ? 30 : 12)}
-            nodeColor={(node) => NODE_COLOR[(node as unknown as ClientGraphNode).kind]}
-            nodeCanvasObjectMode={() => "after"}
-            nodeCanvasObject={(node, ctx, scale) => {
-              const n = node as unknown as ClientGraphNode & { x?: number; y?: number; __center?: boolean };
-              if (n.x == null || n.y == null) return;
-              const fontSize = Math.max(10, 12 / scale);
-              const isHighlighted = searchTerm.trim().length > 0 && matchesSearch(n);
-              const isDimmed = searchTerm.trim().length > 0 && !matchesSearch(n);
-              ctx.globalAlpha = isDimmed ? 0.25 : 1;
-              if (isHighlighted) {
-                ctx.strokeStyle = "#0ea5e9";
-                ctx.lineWidth = 3 / scale;
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, (n.__center ? 14 : 10) + 4 / scale, 0, Math.PI * 2);
-                ctx.stroke();
-              }
-              ctx.font = `${n.__center ? 600 : 500} ${fontSize}px sans-serif`;
-              ctx.fillStyle = "#1e293b";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "top";
-              ctx.fillText(truncate(n.name, 18), n.x, n.y + (n.__center ? 18 : 14));
-              ctx.font = `${Math.max(8, 9 / scale)}px sans-serif`;
-              ctx.fillStyle = "#94a3b8";
-              ctx.fillText(n.uid, n.x, n.y + (n.__center ? 32 : 26));
-              ctx.globalAlpha = 1;
-            }}
-            linkColor={(link) => EDGE_COLOR[(link as unknown as ClientGraphEdge).kind]}
-            linkWidth={1.6}
-            linkDirectionalParticles={(link) =>
-              (link as unknown as ClientGraphEdge).kind === "same_id" ? 2 : 0
-            }
-            linkDirectionalParticleSpeed={0.006}
-            linkLineDash={(link) => EDGE_DASH[(link as unknown as ClientGraphEdge).kind]}
-            onNodeHover={(node) => setHoveredNode((node as ClientGraphNode | null) ?? null)}
-            onNodeClick={(node) => setSelectedNode(node as unknown as ClientGraphNode)}
-          />
-        )}
-
-        {/* Hover tooltip */}
-        {hoveredNode && (
-          <div className="absolute top-4 right-4 max-w-xs bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-xs pointer-events-none">
-            <NodeSummary node={hoveredNode} />
-          </div>
         )}
       </div>
 
-      {/* Selected node detail panel */}
-      {selectedNode && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <NodeSummary node={selectedNode} verbose />
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <Link
-                href={`/crm/clients/${selectedNode.id}`}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-              >
-                {t("clients.relationships.openDetail")}
-                <ArrowUpRight className="w-3 h-3" />
-              </Link>
-              <button
-                onClick={() => setSelectedNode(null)}
-                className="text-xs text-slate-500 hover:text-slate-700"
-              >
-                {t("clients.relationships.close")}
-              </button>
-            </div>
-          </div>
+      <CenterSummary
+        center={data.center}
+        categoryCounts={categoryCounts}
+        strengthCounts={strengthCounts}
+      />
+
+      {/* Kanban */}
+      {data.nodes.length === 0 ? (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-12 text-center text-slate-500">
+          <p className="font-medium mb-1">{t("clients.relationships.empty.title")}</p>
+          <p className="text-sm">{t("clients.relationships.empty.desc")}</p>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2">
+          {CATEGORIES.map((col) => {
+            const column = boardColumns.find((c) => c.cat === col.cat);
+            const items = column?.items ?? [];
+            const count = categoryCounts[col.cat];
+            if (searchQ && items.length === 0) return null;
+            const ColIcon = col.icon;
+
+            return (
+              <div key={col.cat} className="w-[300px] shrink-0 flex flex-col max-h-[calc(100vh-280px)]">
+                <div className={`rounded-t-xl border ${col.border} ${col.headerBg} px-3 py-2.5 flex items-center justify-between`}>
+                  <div className="flex items-center gap-2">
+                    <ColIcon className="w-3.5 h-3.5 text-slate-700" />
+                    <span className="text-sm font-semibold text-slate-800">
+                      {t(col.labelKey) || col.fallback}
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${col.pill}`}>
+                      {searchQ ? items.length : count}
+                    </span>
+                  </div>
+                </div>
+
+                <div className={`flex-1 overflow-y-auto border-x border-b ${col.border} rounded-b-xl bg-slate-50/50 p-2.5 space-y-2.5`}>
+                  {items.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-400">
+                      {t("clients.relationships.noRelated") || "No related clients"}
+                    </div>
+                  ) : (
+                    items.map(({ node, edges, score }) => (
+                      <RelationCard
+                        key={`${col.cat}-${node.id}`}
+                        node={node}
+                        edges={edges}
+                        col={col}
+                        pairScoreVal={score}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function NodeSummary({ node, verbose = false }: { node: ClientGraphNode; verbose?: boolean }) {
+/* -------------------------------------------------------------------------- */
+/* Center summary                                                             */
+/* -------------------------------------------------------------------------- */
+
+function CenterSummary({
+  center, categoryCounts, strengthCounts,
+}: {
+  center: ClientGraphNode;
+  categoryCounts: Record<EdgeCategory, number>;
+  strengthCounts: Record<EvidenceStrength, number>;
+}) {
+  const total = Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  const riskClass = RISK_BADGE[center.riskLevel] ?? RISK_BADGE.low;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+          {center.name.slice(0, 1).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-slate-900">{center.name}</span>
+            <span className="text-[11px] text-slate-400 font-mono">{center.uid}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${riskClass}`}>
+              {center.riskLevel} {center.riskScore}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-0.5 text-[11px] text-slate-500">
+            <span>{center.email}</span>
+            {center.phone && <span>{center.phone}</span>}
+          </div>
+        </div>
+        <div className="text-right shrink-0 hidden sm:flex gap-3">
+          {(["hard", "medium", "soft"] as const).map((s) => (
+            strengthCounts[s] > 0 && (
+              <div key={s} className="text-center">
+                <div className={`text-lg font-bold ${
+                  s === "hard" ? "text-red-600" : s === "medium" ? "text-amber-600" : "text-slate-500"
+                }`}>
+                  {strengthCounts[s]}
+                </div>
+                <div className="text-[9px] text-slate-500 uppercase tracking-wider">{STRENGTH_LABEL[s]}</div>
+              </div>
+            )
+          ))}
+          <div className="text-center border-l border-slate-200 pl-3">
+            <div className="text-lg font-bold text-slate-900">{total}</div>
+            <div className="text-[9px] text-slate-500 uppercase tracking-wider">Links</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Relation card                                                              */
+/* -------------------------------------------------------------------------- */
+
+function RelationCard({
+  node, edges, col, pairScoreVal,
+}: {
+  node: ClientGraphNode;
+  edges: ClientGraphEdge[];
+  col: CategoryDef;
+  pairScoreVal: number;
+}) {
   const KycIcon = KYC_ICONS[node.kycStatus] ?? AlertTriangle;
   const kycColor = KYC_COLORS[node.kycStatus] ?? "text-slate-400";
-  const riskClass = RISK_COLORS[node.riskLevel] ?? RISK_COLORS.low;
+  const riskClass = RISK_BADGE[node.riskLevel] ?? RISK_BADGE.low;
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleEdges = showAll ? edges : edges.slice(0, 2);
+  const hasMore = edges.length > 2;
+
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <div className="w-3 h-3 rounded-full" style={{ background: NODE_COLOR[node.kind] }} />
-        <p className="font-semibold text-slate-900">{node.name}</p>
-        <span className="text-[10px] text-slate-400">{node.uid}</span>
-      </div>
-      <p className="text-slate-600">{node.email}</p>
-      {verbose && <p className="text-slate-500 text-xs">{node.phone}</p>}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] ${kycColor} bg-white border border-slate-100`}>
-          <KycIcon className="w-3 h-3" />
-          {node.kycStatus}
-        </span>
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${riskClass}`}>
-          {node.riskLevel} ({node.riskScore})
-        </span>
-        {node.country && (
-          <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600">
-            {node.country}
+    <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900 truncate">{node.name}</p>
+          <p className="text-[10px] text-slate-400 font-mono truncate">{node.uid}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${riskClass}`}>
+            {node.riskScore}
           </span>
-        )}
+          {/* Pair score badge — composite from all categories. */}
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+            pairScoreVal >= 80 ? "bg-red-600 text-white"
+            : pairScoreVal >= 60 ? "bg-orange-500 text-white"
+            : pairScoreVal >= 30 ? "bg-amber-400 text-amber-900"
+            : "bg-slate-200 text-slate-700"
+          }`}>
+            link {pairScoreVal}
+          </span>
+        </div>
       </div>
-      {verbose && (
-        <p className="text-[11px] text-slate-400">
-          Registered {new Date(node.createdAt).toLocaleDateString()} · Last login{" "}
-          {new Date(node.lastLoginAt).toLocaleDateString()}
+
+      {/* Contact info */}
+      <div className="space-y-1 text-[11px] text-slate-600 mb-2">
+        <div className="flex items-center gap-1.5">
+          <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+          <span className="truncate">{node.email}</span>
+        </div>
+        {node.phone && (
+          <div className="flex items-center gap-1.5">
+            <Phone className="w-3 h-3 text-slate-400 shrink-0" />
+            <span>{node.phone}</span>
+          </div>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`inline-flex items-center gap-1 ${kycColor}`}>
+            <KycIcon className="w-3 h-3" />
+            {node.kycStatus}
+          </span>
+          {node.country && (
+            <span className="inline-flex items-center gap-1 text-slate-500">
+              <Globe className="w-3 h-3" />
+              {node.country}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Evidence */}
+      <div className="border-t border-slate-100 pt-2 mb-2">
+        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mb-1">
+          Evidence
         </p>
-      )}
+        <div className="space-y-1.5">
+          {visibleEdges.map((e, i) => {
+            const KindIcon = KIND_ICON[e.kind] ?? Shield;
+            const strength = e.strength ?? EDGE_STRENGTH[e.kind] ?? "soft";
+            return (
+              <div key={i} className="flex items-start gap-1.5 text-[11px]">
+                <KindIcon className="w-3 h-3 text-slate-400 mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-[10px] font-semibold text-slate-700">
+                      {edgeKindLabel(e.kind)}
+                    </span>
+                    <span className={`text-[9px] px-1 py-px rounded border ${STRENGTH_PILL[strength]}`}>
+                      {STRENGTH_LABEL[strength]}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 leading-snug">{e.label}</p>
+                </div>
+              </div>
+            );
+          })}
+          {hasMore && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="text-[10px] text-blue-600 hover:underline mt-0.5"
+            >
+              {showAll ? "Show less" : `+${edges.length - 2} more`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[10px] text-slate-400">
+          {new Date(node.createdAt).toLocaleDateString()}
+        </span>
+        <Link
+          href={`/crm/clients/${node.id}`}
+          className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+        >
+          View
+          <ArrowUpRight className="w-3 h-3" />
+        </Link>
+      </div>
     </div>
   );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="w-3 h-3 rounded-full" style={{ background: color }} />
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function truncate(str: string, max: number): string {
-  return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }

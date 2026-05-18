@@ -14,6 +14,7 @@ deviates either updates these docs first or is treated as a bug.
 | [`Design-Tokens.md`](./Design-Tokens.md) | Colors, typography, spacing, radius, shadow, transitions. The atom layer. |
 | [`Component-API.md`](./Component-API.md) | Public APIs of `@/components/ui` and `@/components/crm/ui`. The molecule layer. |
 | [`Usage-Guidelines.md`](./Usage-Guidelines.md) | Hard rules: do this, never do that. The "what to avoid" cheatsheet. |
+| [`Review-Detail-Layout.md`](./Review-Detail-Layout.md) | The 3-column + sticky-bottom-bar layout used by **every** approval / review detail page (CLM cases, Approval Center, future flows). |
 
 ## Quick start
 

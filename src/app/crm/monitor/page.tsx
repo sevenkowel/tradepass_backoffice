@@ -72,7 +72,7 @@ export default function MonitorPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "仪表盘" }, { label: "实时监控" }]} />
+      <Breadcrumb items={[{ label: "Dashboard" }, { label: "实时监控" }]} />
 
       <PageHeader
         title="实时监控"

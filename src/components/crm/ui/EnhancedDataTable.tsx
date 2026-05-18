@@ -81,9 +81,16 @@ export interface EnhancedDataTableProps<T> {
   /**
    * Rendered in the table toolbar when `selectedKeys.size > 0`. Lets the
    * page expose batch actions ("Assign to me", "Export selected", …)
-   * without a separate banner outside the table.
+   * without a separate banner outside the table. Buttons in this slot
+   * are auto-dimmed when no rows are selected.
    */
   bulkActions?: (selectedKeys: Set<string>) => React.ReactNode;
+  /**
+   * Primary CTA rendered at the **right end** of the toolbar — separate
+   * from `bulkActions` so it stays enabled regardless of selection. Use
+   * for "+ Add …" style buttons that act on the table as a whole.
+   */
+  primaryAction?: React.ReactNode;
   /**
    * Stable identifier used to scope the column-visibility preference
    * in `localStorage`. Different tables on the same domain (e.g.
@@ -117,6 +124,7 @@ export function EnhancedDataTable<T>({
   exportable = false,
   onExport,
   bulkActions,
+  primaryAction,
   tableId,
 }: EnhancedDataTableProps<T>) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -125,6 +133,38 @@ export function EnhancedDataTable<T>({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [actionsOpen, setActionsOpen] = useState<string | null>(null);
+  // Portal-positioned row-actions menu — mirrors the Columns popover pattern.
+  // Without this, the menu renders inside the table card's `overflow-hidden`
+  // wrapper and gets clipped vertically when opened on the last visible row.
+  const [actionsMenuPos, setActionsMenuPos] = useState<{
+    top: number; left: number; align: "down" | "up";
+  } | null>(null);
+
+  const openRowActionsAt = (rowKey: string, btn: HTMLElement) => {
+    const r = btn.getBoundingClientRect();
+    const MENU_HEIGHT_EST = 220; // 5 items × ~38px + padding
+    const MENU_WIDTH = 176;      // matches w-44
+    const fitsBelow = r.bottom + MENU_HEIGHT_EST + 12 <= window.innerHeight;
+    setActionsMenuPos({
+      top: fitsBelow ? r.bottom + 4 : r.top - 4 - MENU_HEIGHT_EST,
+      left: Math.max(8, r.right - MENU_WIDTH),
+      align: fitsBelow ? "down" : "up",
+    });
+    setActionsOpen(rowKey);
+  };
+
+  // Close on outside click / scroll while open.
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const onScroll = () => setActionsOpen(null);
+    const onResize = () => setActionsOpen(null);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [actionsOpen]);
 
   // ── Column visibility ─────────────────────────────────────────
   // Hidden keys live in state and (optionally) `localStorage`.
@@ -201,12 +241,26 @@ export function EnhancedDataTable<T>({
       if (columnsMenuRef.current?.contains(t)) return;
       setColumnsMenuOpen(false);
     };
-    const onScroll = () => setColumnsMenuOpen(false);
+    // Reposition the popover on scroll instead of closing it.
+    // Closing on any scroll was the previous behaviour, but `addEventListener(
+    // "scroll", …, true)` fires in capture phase for **every nested scroll** —
+    // including the popover's own internal `overflow-y-auto` column list —
+    // so mouse-wheeling inside the dropdown silently dismissed it. Re-
+    // anchoring follows the trigger button, which is what users expect.
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null;
+      // Ignore scrolls that originate inside the popover itself.
+      if (t && columnsMenuRef.current?.contains(t)) return;
+      const r = columnsBtnRef.current?.getBoundingClientRect();
+      if (r) setColumnsMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    };
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [columnsMenuOpen]);
 
@@ -311,7 +365,8 @@ export function EnhancedDataTable<T>({
   const hasBulkActions = !!bulkActions && selectable;
   // Columns menu is always available when at least one column is hideable.
   const hasColumnsMenu = columns.some((c) => c.hideable !== false);
-  const showToolbar = searchable || exportable || hasBulkActions || hasColumnsMenu;
+  const showToolbar =
+    searchable || exportable || hasBulkActions || hasColumnsMenu || !!primaryAction;
   const selectionCount = selectedKeys.size;
   const hasSelection = selectionCount > 0;
   const hasHidden = hiddenKeys.size > 0;
@@ -411,6 +466,12 @@ export function EnhancedDataTable<T>({
                     </span>
                   )}
                 </button>
+              )}
+              {/* Primary CTA — separate from bulkActions so it never dims. */}
+              {primaryAction && (
+                <div className="flex items-center gap-2 pl-1 ml-1 border-l border-slate-200">
+                  {primaryAction}
+                </div>
               )}
             </div>
           </div>
@@ -657,32 +718,30 @@ export function EnhancedDataTable<T>({
                         )}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="relative">
-                          <button
-                            onClick={() =>
-                              setActionsOpen(actionsOpen === rowKey ? null : rowKey)
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (actionsOpen === rowKey) {
+                              setActionsOpen(null);
+                            } else {
+                              openRowActionsAt(rowKey, e.currentTarget);
                             }
-                            className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
-                          >
-                            <MoreHorizontal className="w-4 h-4" />
-                          </button>
-                          {actionsOpen === rowKey && (
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        {actionsOpen === rowKey && actionsMenuPos && typeof document !== "undefined" &&
+                          createPortal(
                             <>
                               <div
-                                className="fixed inset-0 z-30"
-                                onClick={() => setActionsOpen(null)}
+                                className="fixed inset-0 z-[80]"
+                                onMouseDown={() => setActionsOpen(null)}
                               />
                               <div
-                                className={cn(
-                                  // z-50 sits inside the td's z-40 stacking
-                                  // context, so the menu always wins versus
-                                  // siblings (other rows' sticky cells).
-                                  "absolute right-0 w-40 bg-white rounded-lg border border-slate-200 shadow-lg z-50 py-1",
-                                  // last rows expand upward
-                                  index >= paginatedData.length - 2 && paginatedData.length > 2
-                                    ? "bottom-full mb-1"
-                                    : "top-full mt-1"
-                                )}
+                                className="fixed w-44 bg-white rounded-lg border border-slate-200 shadow-lg py-1 z-[90]"
+                                style={{ top: actionsMenuPos.top, left: actionsMenuPos.left }}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {rowActions.map((action, i) => (
                                   <button
@@ -705,9 +764,9 @@ export function EnhancedDataTable<T>({
                                   </button>
                                 ))}
                               </div>
-                            </>
+                            </>,
+                            document.body,
                           )}
-                        </div>
                       </td>
                     )}
                   </tr>

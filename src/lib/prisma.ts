@@ -16,6 +16,20 @@ function createClient(): PrismaClientType {
   return new PrismaClient();
 }
 
-export const prisma: PrismaClientType = globalForPrisma.prisma ?? createClient();
+/**
+ * In MOCK_DB mode the proxy is just an in-memory object — caching it on
+ * `globalForPrisma` is harmless for connection pooling but DOES hide
+ * module-level edits during HMR: changing `mockUsers` in
+ * `mock/prisma-proxy.ts` won't propagate because we're reading the
+ * stale reference captured at startup. Skip the global cache for the
+ * mock branch so HMR picks up data tweaks without a server restart.
+ */
+function resolveClient(): PrismaClientType {
+  if (process.env.MOCK_DB === "true") return createClient();
+  return globalForPrisma.prisma ?? createClient();
+}
+export const prisma: PrismaClientType = resolveClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production" && process.env.MOCK_DB !== "true") {
+  globalForPrisma.prisma = prisma;
+}

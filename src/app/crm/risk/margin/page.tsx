@@ -252,7 +252,7 @@ export default function MarginAlertsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "风控" }, { label: "保证金预警" }]} />
+      <Breadcrumb items={[{ label: "Risk Center" }, { label: "保证金预警" }]} />
 
       <PageHeader
         title="保证金预警"

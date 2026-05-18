@@ -1,46 +1,66 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+/**
+ * CLM Cases list page — canonical "tool" list pattern.
+ *
+ * Reference: `docs/05-UI-System/list-page-spec.md`.
+ *
+ * Layout: Breadcrumb → Toolbar (search + 3 chips + Advanced) → Table → Pagination.
+ *
+ * Design choices (intentionally minimal):
+ *   - **No KPI strip.** A 5-card stats grid duplicates information that's
+ *     already in the chips' counts and the table's status column.
+ *   - **3 chips, not 5.** The high-actionability filters at start of day:
+ *     Pending / AML hit / Overdue. The rest live in Advanced.
+ *   - **Neutral chip tones.** Active state uses the brand colour;
+ *     inactive chips stay slate so the page doesn't shout.
+ *   - **6 advanced fields.** Status / Case Type / Risk Level / AML
+ *     Status / SLA Status / Review Route. Operators who need to
+ *     narrow on AML pass-vs-pending or auto-vs-manual review go here.
+ *   - **Uniform cell typography.** All cell content is `text-xs` so
+ *     the row reads as a single tabular surface; chips keep their
+ *     own sizing. Both Created and Updated columns are visible by
+ *     default for case lifecycle reasoning.
+ */
+
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, User } from "lucide-react";
+import { CheckCircle2, UserCheck } from "lucide-react";
 import {
   Card,
-  PageHeader,
   EnhancedDataTable,
   type Column,
 } from "@/components/crm/ui";
-import { FilterBar } from "@/components/crm/ui/FilterBar";
-import { Breadcrumb } from "@/components/crm/layout";
 import { caseService } from "@/lib/clm/services";
-import { RiskBadge } from "@/components/crm/ui/RiskBadge";
-import { SLABadge } from "@/components/crm/ui/SLABadge";
-import { CaseTypeBadge } from "@/components/crm/ui/CaseTypeBadge";
-import { AMLStatusBadge } from "@/components/crm/ui/AMLStatusBadge";
-import { BadgeBase, type BadgeTone } from "@/components/crm/ui/BadgeBase";
 import { useListWithFilters } from "@/hooks/useListWithFilters";
-import type { CLMCase, CaseListParams, CLMCaseStatus } from "@/types/clm";
+import { useCurrentStaffId } from "@/hooks/useCurrentStaff";
+import { useToast } from "@/components/ui/use-toast";
+import type {
+  CLMCase, CaseListParams, CLMCaseStatus, CLMCaseType, RiskLevel, SLACaseStatus,
+} from "@/types/clm";
+import {
+  ListPageShell,
+  ListToolbar,
+  TablePagination,
+  AdvancedFilterDrawer,
+  type QuickChipDef,
+  type AdvancedField,
+} from "@/components/crm/list";
 
-/** Derive the resolved decision mode from a case row. Drives both the
- *  Decision column and the row icon when the case is closed. */
-type DecisionMode = "auto" | "manual" | "pending";
-function decisionModeOf(c: CLMCase): DecisionMode {
-  if (c.status === "auto_approved" || c.status === "auto_rejected") return "auto";
-  if (c.status === "approved" || c.status === "rejected") return "manual";
-  return "pending";
-}
-
-/** Map case status → badge tone (single source for the whole module). */
-const statusTone: Record<CLMCaseStatus, BadgeTone> = {
-  pending: "warning",
-  reviewing: "primary",
-  approved: "success",
-  rejected: "error",
-  escalated: "orange",
-  resubmission: "purple",
-  cancelled: "neutral",
-  auto_approved: "success",
-  auto_rejected: "error",
-  expired: "neutral",
+/** Map case status → dot + text colour. Plain colored text (no chip
+ *  background) — matches the Risk / AML / SLA columns so the whole
+ *  row reads at a single weight. */
+const STATUS_FG: Record<CLMCaseStatus, { text: string; dot: string }> = {
+  pending:       { text: "text-amber-700",   dot: "bg-amber-500"   },
+  reviewing:     { text: "text-blue-700",    dot: "bg-blue-500"    },
+  approved:      { text: "text-emerald-700", dot: "bg-emerald-500" },
+  rejected:      { text: "text-red-700",     dot: "bg-red-500"     },
+  escalated:     { text: "text-orange-700",  dot: "bg-orange-500"  },
+  resubmission:  { text: "text-purple-700",  dot: "bg-purple-500"  },
+  cancelled:     { text: "text-slate-500",   dot: "bg-slate-400"   },
+  auto_approved: { text: "text-emerald-700", dot: "bg-emerald-500" },
+  auto_rejected: { text: "text-red-700",     dot: "bg-red-500"     },
+  expired:       { text: "text-slate-500",   dot: "bg-slate-400"   },
 };
 
 const STATUS_LABEL: Record<CLMCaseStatus, string> = {
@@ -56,10 +76,141 @@ const STATUS_LABEL: Record<CLMCaseStatus, string> = {
   expired: "Expired",
 };
 
+/** Short, human labels for case types. Rendered as plain text, not chips —
+ *  Type is reference info, not a status signal that needs to flag the row. */
+const TYPE_LABEL: Record<CLMCaseType, string> = {
+  kyc: "KYC",
+  poa: "POA",
+  liveness: "Liveness",
+  video_verification: "Video",
+  edd: "EDD",
+  source_of_wealth: "SoW",
+  agreement_signing: "Agreement",
+  manual_review: "Manual",
+  re_verification: "Re-Verify",
+};
+
+/** Risk level → "dot + text" colour. Foreground only — no chip background.
+ *  All rows render at the same `text-xs` weight; colour alone conveys
+ *  severity. Bolding High / Critical was visually inconsistent vs the
+ *  Low / Medium rows in the same column. */
+const RISK_FG: Record<RiskLevel, { text: string; dot: string }> = {
+  low:      { text: "text-emerald-700", dot: "bg-emerald-500" },
+  medium:   { text: "text-amber-700",   dot: "bg-amber-500"   },
+  high:     { text: "text-orange-700",  dot: "bg-orange-500"  },
+  critical: { text: "text-red-700",     dot: "bg-red-500"     },
+};
+
+const RISK_LABEL: Record<RiskLevel, string> = {
+  low: "Low", medium: "Medium", high: "High", critical: "Critical",
+};
+
+/** SLA → dot + text. Same plain-text pattern as Risk / AML / Status. */
+const SLA_FG: Record<SLACaseStatus, { text: string; dot: string; label: string }> = {
+  normal:       { text: "text-emerald-700", dot: "bg-emerald-500", label: "Normal"       },
+  near_timeout: { text: "text-amber-700",   dot: "bg-amber-500",   label: "Near Timeout" },
+  timeout:      { text: "text-red-700",     dot: "bg-red-500",     label: "Timeout"      },
+};
+
+type Filters = Partial<CaseListParams>;
+
+/* Three quick chips for the high-actionability filters.
+ * Pending / AML hit / Overdue — the three rows an operator will most
+ * often want to bias toward at the start of their day. "Escalated"
+ * was demoted to Advanced because the population is small. */
+const QUICK_CHIPS: QuickChipDef<Filters>[] = [
+  { id: "pending", label: "Pending", apply: { status: "pending" }    as Filters, tone: "slate" },
+  { id: "amlHit",  label: "AML hit", apply: { amlStatus: "hit" }     as Filters, tone: "slate" },
+  { id: "overdue", label: "Overdue", apply: { slaStatus: "timeout" } as Filters, tone: "slate" },
+];
+
+/** Keys the advanced drawer manages — used to count the active badge. */
+const ADVANCED_KEYS = ["status", "caseType", "riskLevel", "amlStatus", "slaStatus", "decisionMode"] as const;
+
+/* Six advanced filters in priority order:
+ *   Status → Type → Risk → AML → SLA → Decision Mode
+ * Each chip group is multi-/single-select per the AdvancedField contract. */
+const ADVANCED_FIELDS: AdvancedField[] = [
+  {
+    type: "chips",
+    key: "status",
+    label: "Status",
+    options: Object.entries(STATUS_LABEL).map(([value, label]) => ({
+      label, value,
+      tone: value.includes("approved") ? "emerald"
+        : value.includes("rejected") ? "red"
+        : value === "escalated" ? "violet"
+        : "amber",
+    })),
+  },
+  {
+    type: "chips",
+    key: "caseType",
+    label: "Case Type",
+    options: [
+      { label: "KYC",        value: "kyc" },
+      { label: "POA",        value: "poa" },
+      { label: "Liveness",   value: "liveness" },
+      { label: "Video",      value: "video_verification" },
+      { label: "EDD",        value: "edd" },
+      { label: "SoW",        value: "source_of_wealth" },
+      { label: "Agreement",  value: "agreement_signing" },
+      { label: "Manual",     value: "manual_review" },
+      { label: "Re-Verify",  value: "re_verification" },
+    ],
+  },
+  {
+    type: "chips",
+    key: "riskLevel",
+    label: "Risk Level",
+    options: [
+      { label: "Low",      value: "low",      tone: "emerald" },
+      { label: "Medium",   value: "medium",   tone: "amber" },
+      { label: "High",     value: "high",     tone: "orange" },
+      { label: "Critical", value: "critical", tone: "red" },
+    ],
+  },
+  {
+    type: "chips",
+    key: "amlStatus",
+    label: "AML Status",
+    options: [
+      { label: "Pass",        value: "pass",        tone: "emerald" },
+      { label: "Pending",     value: "pending",     tone: "amber" },
+      { label: "Hit",         value: "hit",         tone: "red" },
+      { label: "Not Checked", value: "not_checked"                  },
+    ],
+  },
+  {
+    type: "chips",
+    key: "slaStatus",
+    label: "SLA Status",
+    options: [
+      { label: "Normal",       value: "normal",       tone: "emerald" },
+      { label: "Near Timeout", value: "near_timeout", tone: "amber"   },
+      { label: "Timeout",      value: "timeout",      tone: "red"     },
+    ],
+  },
+  {
+    type: "chips",
+    key: "decisionMode",
+    label: "Review Route",
+    options: [
+      { label: "Auto",    value: "auto",    tone: "emerald" },
+      { label: "Manual",  value: "manual",  tone: "amber"   },
+      { label: "Pending", value: "pending"                  },
+    ],
+  },
+];
+
 export default function CasesPage() {
   const router = useRouter();
+  const staffId = useCurrentStaffId();
+  const toast = useToast();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const list = useListWithFilters<CLMCase, Partial<CaseListParams>>({
+  const list = useListWithFilters<CLMCase, Filters>({
     fetcher: ({ page, pageSize, filters }) =>
       caseService
         .list({ page, pageSize, ...filters })
@@ -68,210 +219,226 @@ export default function CasesPage() {
     pageSize: 20,
   });
 
-  const handleFilterChange = useCallback(
-    (next: Record<string, unknown>) => {
-      list.setFilters({
-        status: (next.status as CLMCaseStatus) || undefined,
-        caseType: (next.caseType as Partial<CaseListParams>["caseType"]) || undefined,
-        riskLevel: (next.riskLevel as Partial<CaseListParams>["riskLevel"]) || undefined,
-        amlStatus: (next.amlStatus as Partial<CaseListParams>["amlStatus"]) || undefined,
-        decisionMode:
-          (next.decisionMode as Partial<CaseListParams>["decisionMode"]) || undefined,
+  /* P1-D3 批量 approve / assign — 只允许"低风险 + pending/reviewing"的 case
+   * 入选；高风险的 critical / AML hit 自动从选区剔除，避免一键过滤掉关键审核。 */
+  const eligibleForBatch = (c: CLMCase): boolean =>
+    (c.status === "pending" || c.status === "reviewing")
+    && c.riskLevel !== "critical"
+    && c.amlStatus !== "hit";
+
+  const handleBatchApprove = async () => {
+    const ids = Array.from(selected).filter((id) => {
+      const it = list.items.find((x) => x.id === id);
+      return it && eligibleForBatch(it);
+    });
+    if (ids.length === 0) {
+      toast.error("No eligible cases selected (excluded high-risk / AML hits).");
+      return;
+    }
+    if (!confirm(`Batch approve ${ids.length} case(s)? This cannot be undone.`)) return;
+    try {
+      await caseService.batchApprove(ids, staffId);
+      toast.success(`${ids.length} case(s) approved`);
+      setSelected(new Set());
+      list.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Please try again.", {
+        title: "Batch approve failed",
       });
-    },
-    [list]
-  );
+    }
+  };
+
+  const handleBatchAssignToMe = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    try {
+      await caseService.batchAssign(ids, staffId, staffId);
+      toast.success(`${ids.length} case(s) assigned to you`);
+      setSelected(new Set());
+      list.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Please try again.", {
+        title: "Batch assign failed",
+      });
+    }
+  };
+
+  // Note: we delegate ALL filter mutation to the hook's stable
+  // `patchFilters` (useCallback []). Wrapping it locally with our own
+  // `useCallback([list])` would re-create the callback on every render
+  // (since `list` is a fresh object literal each render), which would
+  // cascade into the ListToolbar's debounce effect re-firing and looping
+  // a fetch every 250ms. The hook's version is the single canonical
+  // patcher; treat it like Redux's dispatch.
+  const search = ((list.filters as { search?: string }).search) ?? "";
+
+  /* --------------------------- Advanced count -------------------------- */
+  const advancedCount = useMemo(() => {
+    let n = 0;
+    for (const k of ADVANCED_KEYS) {
+      const v = (list.filters as Record<string, unknown>)[k];
+      if (v !== undefined && v !== null && v !== "") n += 1;
+    }
+    return n;
+  }, [list.filters]);
+
+  /* --------------------------- Columns ---------------------------------
+   *
+   * Tool-grade table — chips are *only* used for the two columns that
+   * convey row-level signal: Status (the case's authoritative state)
+   * and SLA (urgency). Everything else renders as plain text — colour
+   * is used as foreground only, never as a chip background. This keeps
+   * the eye on the data, not the chrome.
+   *
+   * "Decision" column was removed: it duplicates Status (the case row
+   * already says `auto_approved` / `approved` / `pending`).
+   *
+   * Customer collapsed to one line: `name · UID`. The two-line layout
+   * inflated every row's height for low-density information.
+   *
+   * ------------------------------------------------------------------- */
+  /* All cell content is `text-xs` (12px) so the row reads as a flat
+   * tabular surface — no visual hierarchy bumps between identifier
+   * columns and data columns. Chips (Status / SLA) keep their own
+   * sizing via `BadgeBase` / `SLABadge`. `font-mono tabular-nums`
+   * stays on IDs, UIDs, and timestamps so columns align vertically. */
+  const fmtDateTime = (s: string) =>
+    new Date(s).toLocaleString("en-US", {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false,
+    });
 
   const columns: Column<CLMCase>[] = useMemo(
     () => [
       {
-        key: "caseNo",
-        title: "Case No",
-        width: "120px",
+        key: "caseNo", title: "Case No", width: "110px",
         render: (row) => (
-          <span className="font-mono tabular-nums text-sm text-primary">
+          <span className="font-mono tabular-nums text-xs text-primary">
             {row.caseNo}
           </span>
         ),
       },
       {
-        key: "customerName",
-        title: "Customer",
-        sortable: true,
+        key: "customer", title: "Customer", sortable: true, sortField: "customerName",
         render: (row) => (
-          <div>
-            <p className="text-sm font-medium text-slate-900">{row.customerName}</p>
-            <p className="text-xs text-slate-500 font-mono">{row.customerUid}</p>
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className="text-xs font-medium text-slate-900 truncate">{row.customerName}</span>
+            <span className="text-xs text-slate-400 font-mono tabular-nums whitespace-nowrap">{row.customerUid}</span>
           </div>
         ),
       },
       {
-        key: "type",
-        title: "Type",
-        width: "120px",
-        render: (row) => <CaseTypeBadge type={row.type} />,
-      },
-      {
-        key: "riskLevel",
-        title: "Risk",
-        width: "120px",
-        render: (row) => <RiskBadge level={row.riskLevel} />,
-      },
-      {
-        key: "amlStatus",
-        title: "AML",
-        width: "120px",
-        render: (row) => <AMLStatusBadge status={row.amlStatus} />,
-      },
-      {
-        key: "status",
-        title: "Status",
-        width: "130px",
+        key: "type", title: "Type", width: "100px",
         render: (row) => (
-          <BadgeBase tone={statusTone[row.status]}>
-            {STATUS_LABEL[row.status]}
-          </BadgeBase>
+          <span className="text-xs text-slate-600">{TYPE_LABEL[row.type] ?? row.type}</span>
         ),
       },
       {
-        // Decision column — chip showing who finalised the case. Auto =
-        // the engine resolved it; Manual = a reviewer did; Pending =
-        // still open. Lets operators QA the auto-decision rate at a glance.
-        key: "decision",
-        title: "Decision",
-        width: "140px",
-        sortField: "status",
+        key: "riskLevel", title: "Risk", width: "100px", sortable: true,
         render: (row) => {
-          const mode = decisionModeOf(row);
-          if (mode === "pending") {
-            return (
-              <span className="text-[11px] text-slate-400 italic">—</span>
-            );
-          }
-          if (mode === "auto") {
-            return (
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-violet-100 text-violet-700"
-                title={row.reviewReason ?? "Auto-resolved by the rule engine"}
-              >
-                <Bot className="w-3 h-3" />
-                Auto
-              </span>
-            );
-          }
+          const cfg = RISK_FG[row.riskLevel];
           return (
-            <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700"
-              title={row.reviewedBy ? `Reviewed by ${row.reviewedBy}` : "Manual review"}
-            >
-              <User className="w-3 h-3" />
-              {row.reviewedBy ? row.reviewedBy : "Manual"}
+            <span className={`inline-flex items-center gap-1.5 text-xs ${cfg.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} aria-hidden />
+              {RISK_LABEL[row.riskLevel]}
             </span>
           );
         },
       },
       {
-        key: "slaStatus",
-        title: "SLA",
-        width: "130px",
-        render: (row) => <SLABadge status={row.slaStatus} />,
+        key: "amlStatus", title: "AML", width: "90px",
+        render: (row) => {
+          /* Same dot + text pattern as Risk / Status / SLA so the
+           * whole row reads at a single weight. */
+          if (row.amlStatus === "hit") return (
+            <span className="inline-flex items-center gap-1.5 text-xs text-red-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" aria-hidden />
+              Hit
+            </span>
+          );
+          if (row.amlStatus === "pending") return (
+            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden />
+              Pending
+            </span>
+          );
+          if (row.amlStatus === "pass") return (
+            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" aria-hidden />
+              Pass
+            </span>
+          );
+          return <span className="text-xs text-slate-300">—</span>;
+        },
       },
       {
-        key: "updatedAt",
-        title: "Updated",
-        width: "140px",
-        sortable: true,
+        key: "status", title: "Status", width: "120px", sortable: true,
+        render: (row) => {
+          const cfg = STATUS_FG[row.status];
+          return (
+            <span className={`inline-flex items-center gap-1.5 text-xs ${cfg.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} aria-hidden />
+              {STATUS_LABEL[row.status]}
+            </span>
+          );
+        },
+      },
+      {
+        key: "slaStatus", title: "SLA", width: "120px", sortable: true,
+        render: (row) => {
+          const cfg = SLA_FG[row.slaStatus];
+          return (
+            <span className={`inline-flex items-center gap-1.5 text-xs ${cfg.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} aria-hidden />
+              {cfg.label}
+            </span>
+          );
+        },
+      },
+      {
+        key: "createdAt", title: "Created", width: "120px", sortable: true,
         render: (row) => (
           <span className="text-xs text-slate-500 font-mono tabular-nums">
-            {new Date(row.updatedAt).toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {fmtDateTime(row.createdAt)}
+          </span>
+        ),
+      },
+      {
+        key: "updatedAt", title: "Updated", width: "120px", sortable: true,
+        render: (row) => (
+          <span className="text-xs text-slate-500 font-mono tabular-nums">
+            {fmtDateTime(row.updatedAt)}
           </span>
         ),
       },
     ],
-    []
-  );
-
-  const filterFields = useMemo(
-    () => [
-      {
-        key: "status",
-        label: "Status",
-        type: "select" as const,
-        options: Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
-      },
-      {
-        key: "caseType",
-        label: "Case Type",
-        type: "select" as const,
-        options: [
-          { label: "KYC", value: "kyc" },
-          { label: "POA", value: "poa" },
-          { label: "Liveness", value: "liveness" },
-          { label: "Video", value: "video_verification" },
-          { label: "EDD", value: "edd" },
-          { label: "SoW", value: "source_of_wealth" },
-          { label: "Agreement", value: "agreement_signing" },
-          { label: "Manual", value: "manual_review" },
-          { label: "Re-Verify", value: "re_verification" },
-        ],
-      },
-      {
-        key: "riskLevel",
-        label: "Risk",
-        type: "select" as const,
-        options: [
-          { label: "Low", value: "low" },
-          { label: "Medium", value: "medium" },
-          { label: "High", value: "high" },
-          { label: "Critical", value: "critical" },
-        ],
-      },
-      {
-        key: "amlStatus",
-        label: "AML",
-        type: "select" as const,
-        options: [
-          { label: "Pass", value: "pass" },
-          { label: "Hit", value: "hit" },
-          { label: "Pending", value: "pending" },
-          { label: "Not Checked", value: "not_checked" },
-        ],
-      },
-      {
-        key: "decisionMode",
-        label: "Decision",
-        type: "select" as const,
-        options: [
-          { label: "Auto", value: "auto" },
-          { label: "Manual", value: "manual" },
-          { label: "Pending", value: "pending" },
-        ],
-      },
-    ],
-    []
+    [],
   );
 
   return (
-    <div className="space-y-3">
-      <Breadcrumb items={[{ label: "CLM Center" }, { label: "Cases" }]} />
-      <PageHeader
-        title="Cases"
-        description="All cases — including approved / rejected / cancelled. For active workload, use Review Queue."
-      />
+    <ListPageShell
+      breadcrumb={[{ label: "CLM Center" }, { label: "Cases" }]}
+    >
+      {/* No KPI strip — chip counts + the table itself carry the same
+          information without the visual weight of 5 stat cards. */}
 
-      <FilterBar
-        filters={filterFields}
-        searchable
-        searchKeys={["caseNo", "customerName", "customerUid"]}
+      {/* Filter toolbar — search + chips + advanced.
+          All filter mutation goes through the hook's stable patchFilters
+          to avoid the toolbar's debounce effect re-firing on every render. */}
+      <ListToolbar<Filters>
+        search={search}
+        onSearchChange={(q) =>
+          list.patchFilters({ search: q || undefined } as Partial<Filters>)
+        }
         searchPlaceholder="Search by case no / customer / UID…"
-        onSearch={handleFilterChange}
+        filters={list.filters}
+        onFilterChange={list.patchFilters}
+        quickChips={QUICK_CHIPS}
+        onOpenAdvanced={() => setDrawerOpen(true)}
+        advancedCount={advancedCount}
+        advancedLabel="Advanced filters"
       />
 
+      {/* Table — supports batch selection for approve/assign (P1-D3) */}
       <Card padding="none">
         <EnhancedDataTable<CLMCase>
           columns={columns}
@@ -281,35 +448,70 @@ export default function CasesPage() {
           onRowClick={(c) => router.push(`/crm/clm/cases/${c.id}`)}
           emptyText="No cases match the current filters"
           pagination={false}
+          tableId="crm.clm.cases.list"
+          selectable
+          selectedKeys={selected}
+          onSelectionChange={setSelected}
+          bulkActions={(sel) => {
+            const eligibleCount = list.items
+              .filter((it) => sel.has(it.id) && eligibleForBatch(it))
+              .length;
+            const ineligibleCount = sel.size - eligibleCount;
+            return (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">
+                  {sel.size} selected
+                  {ineligibleCount > 0 && (
+                    <span className="text-red-600 ml-1">({ineligibleCount} not eligible)</span>
+                  )}
+                </span>
+                <button
+                  onClick={handleBatchApprove}
+                  disabled={eligibleCount === 0}
+                  className="inline-flex items-center gap-1 px-2.5 h-7 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Critical / AML-hit cases are excluded from batch approve"
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  Batch approve {eligibleCount > 0 ? `(${eligibleCount})` : ""}
+                </button>
+                <button
+                  onClick={handleBatchAssignToMe}
+                  className="inline-flex items-center gap-1 px-2.5 h-7 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors"
+                >
+                  <UserCheck className="w-3 h-3" />
+                  Assign to me
+                </button>
+                <button
+                  onClick={() => setSelected(new Set())}
+                  className="px-2.5 h-7 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md text-xs font-medium"
+                >
+                  Clear
+                </button>
+              </div>
+            );
+          }}
         />
       </Card>
 
-      {list.total > 0 && (
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-500">
-            Showing {list.items.length} of <span className="tabular-nums">{list.total}</span> cases
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => list.setPage(Math.max(1, list.page - 1))}
-              disabled={list.page === 1}
-              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 text-sm text-slate-700 tabular-nums">
-              Page {list.page} of {Math.max(1, Math.ceil(list.total / list.pageSize))}
-            </span>
-            <button
-              onClick={() => list.setPage(list.page + 1)}
-              disabled={list.page >= Math.ceil(list.total / list.pageSize)}
-              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Pagination. `useListWithFilters` doesn't expose `setPageSize`, so
+          page-size is fixed for now — TODO: extend the hook. */}
+      <TablePagination
+        total={list.total}
+        page={list.page}
+        pageSize={list.pageSize}
+        onPageChange={list.setPage}
+      />
+
+      {/* Advanced filter drawer */}
+      <AdvancedFilterDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Advanced filters"
+        subtitle="Combine multiple conditions to narrow the list."
+        fields={ADVANCED_FIELDS}
+        filters={list.filters as Record<string, unknown>}
+        onApply={(patch) => list.patchFilters(patch as Partial<Filters>)}
+      />
+    </ListPageShell>
   );
 }

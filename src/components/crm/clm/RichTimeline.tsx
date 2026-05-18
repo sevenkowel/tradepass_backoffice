@@ -18,7 +18,7 @@
  */
 
 import {
-  Send, Cpu, UserPlus, MessageSquare, CheckCircle2, XCircle, Quote, ArrowUp, ShieldOff, Reply, CornerDownRight,
+  Send, Cpu, UserPlus, MessageSquare, CheckCircle2, XCircle, ArrowUp, ShieldOff, Reply, CornerDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -191,12 +191,15 @@ export function RichTimeline({ events, className, onReply, replyingTo, replyInpu
                 {highlightNumbers(evt.description)}
               </p>
 
-              {/* Reviewer reason — quoted block, visually separated. */}
+              {/* Reviewer reason — v2: plain text instead of an italic
+                  blockquote. The quoted style read as an "AI summary"
+                  callout; the reason is just operator-typed copy and
+                  should sit at the same weight as the description. */}
               {evt.metadata?.reason && (
-                <blockquote className="mt-2 flex gap-2 px-2.5 py-1.5 bg-slate-50 border-l-2 border-slate-300 rounded-r-md text-xs text-slate-700 italic">
-                  <Quote className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">{evt.metadata.reason}</span>
-                </blockquote>
+                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                  <span className="text-slate-400 mr-1">Reason:</span>
+                  {evt.metadata.reason}
+                </p>
               )}
 
               <div className="flex items-center justify-between mt-1">

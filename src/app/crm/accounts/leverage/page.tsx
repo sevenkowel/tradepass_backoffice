@@ -80,7 +80,7 @@ export default function LeverageSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "账户" }, { label: "杠杆设置" }]} />
+      <Breadcrumb items={[{ label: "Accounts" }, { label: "杠杆设置" }]} />
 
       <PageHeader
         title="杠杆设置"

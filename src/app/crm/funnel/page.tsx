@@ -68,7 +68,7 @@ export default function FunnelPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "仪表盘" }, { label: "转化漏斗" }]} />
+      <Breadcrumb items={[{ label: "Dashboard" }, { label: "转化漏斗" }]} />
 
       <PageHeader
         title="转化漏斗"

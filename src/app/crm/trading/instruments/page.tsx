@@ -266,7 +266,7 @@ export default function InstrumentsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "交易" }, { label: "交易品种" }]} />
+      <Breadcrumb items={[{ label: "Trading" }, { label: "交易品种" }]} />
 
       <PageHeader
         title="交易品种"

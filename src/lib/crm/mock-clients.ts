@@ -304,42 +304,179 @@ export const mockClientTags: ClientTag[] = [
   },
 ];
 
+/* Segments — saved filter presets shared across the org. `userCount`
+ * here is a stale persistence value; the Segments page recomputes it
+ * dynamically from `mockClients` at render time via
+ * `segment-evaluator.ts`. The number stays for the legacy API surface
+ * (and for read-only displays that don't import the evaluator). */
 export const mockClientSegments: ClientSegment[] = [
+  // — Funding lifecycle ———————————————————————
   {
     id: "seg-001",
     name: "未入金用户",
     description: "注册后尚未完成首存",
     filter: { hasFtd: false },
-    userCount: 1,
+    userCount: 2,
     isDynamic: true,
     createdAt: "2024-01-01T00:00:00Z",
   },
   {
     id: "seg-002",
-    name: "沉默用户",
-    description: "30 天未登录",
-    filter: {},
-    userCount: 0,
+    name: "已入金活跃",
+    description: "完成 FTD 且账户激活中",
+    filter: { hasFtd: true, status: "active" },
+    userCount: 6,
     isDynamic: true,
-    createdAt: "2024-01-01T00:00:00Z",
+    createdAt: "2024-01-05T00:00:00Z",
   },
+
+  // — Risk segmentation ——————————————————————
   {
     id: "seg-003",
-    name: "高价值用户",
-    description: "净入金超过 $10,000",
-    filter: {},
-    userCount: 4,
-    isDynamic: true,
-    createdAt: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: "seg-004",
     name: "高风险用户",
-    description: "风险等级为 High 或 Critical",
+    description: "riskLevel = high — 需运营 / 风控关注",
     filter: { riskLevel: "high" },
     userCount: 1,
     isDynamic: true,
-    createdAt: "2024-01-01T00:00:00Z",
+    createdAt: "2024-01-10T00:00:00Z",
+  },
+  {
+    id: "seg-004",
+    name: "极高风险（黑名单候选）",
+    description: "riskLevel = critical — 进入冻结审核流",
+    filter: { riskLevel: "critical" },
+    userCount: 0,
+    isDynamic: true,
+    createdAt: "2024-01-12T00:00:00Z",
+  },
+
+  // — Customer level / value ——————————————————
+  {
+    id: "seg-005",
+    name: "VIP 客户",
+    description: "level = vip — 享受专属服务",
+    filter: { level: "vip" },
+    userCount: 2,
+    isDynamic: true,
+    createdAt: "2024-02-01T00:00:00Z",
+  },
+  {
+    id: "seg-006",
+    name: "Premium 客户",
+    description: "level = premium — 高净值非 VIP",
+    filter: { level: "premium" },
+    userCount: 2,
+    isDynamic: true,
+    createdAt: "2024-02-05T00:00:00Z",
+  },
+  {
+    id: "seg-007",
+    name: "Enterprise 客户",
+    description: "level = enterprise — 机构 / 法人户",
+    filter: { level: "enterprise" },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-02-10T00:00:00Z",
+  },
+
+  // — Lifecycle stage ————————————————————————
+  {
+    id: "seg-008",
+    name: "新注册待激活",
+    description: "lifecycleStage = registered",
+    filter: { lifecycleStage: "registered" },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-03-01T00:00:00Z",
+  },
+  {
+    id: "seg-009",
+    name: "已认证未首存",
+    description: "lifecycleStage = verified, hasFtd = false",
+    filter: { lifecycleStage: "verified", hasFtd: false },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-03-05T00:00:00Z",
+  },
+  {
+    id: "seg-010",
+    name: "活跃交易客户",
+    description: "lifecycleStage = active",
+    filter: { lifecycleStage: "active" },
+    userCount: 5,
+    isDynamic: true,
+    createdAt: "2024-03-10T00:00:00Z",
+  },
+  {
+    id: "seg-011",
+    name: "流失客户",
+    description: "lifecycleStage = churn — 待召回",
+    filter: { lifecycleStage: "churn" },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-03-15T00:00:00Z",
+  },
+
+  // — KYC & account status ——————————————————
+  {
+    id: "seg-012",
+    name: "KYC 待审核",
+    description: "kycStatus = pending — 风控复核队列",
+    filter: { kycStatus: "pending" },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-04-01T00:00:00Z",
+  },
+  {
+    id: "seg-013",
+    name: "账户已冻结",
+    description: "status = frozen — 风险/合规临时冻结",
+    filter: { status: "frozen" },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-04-10T00:00:00Z",
+  },
+
+  // — Geography ————————————————————————————
+  {
+    id: "seg-014",
+    name: "大中华区客户",
+    description: "country ∈ {CN, HK, TW, SG}",
+    filter: { country: ["CN", "HK", "TW", "SG"] },
+    userCount: 5,
+    isDynamic: true,
+    createdAt: "2024-05-01T00:00:00Z",
+  },
+  {
+    id: "seg-015",
+    name: "中东客户",
+    description: "country ∈ {AE, SA} — 阿语市场",
+    filter: { country: ["AE", "SA"] },
+    userCount: 1,
+    isDynamic: true,
+    createdAt: "2024-05-10T00:00:00Z",
+  },
+
+  // — Trading volume / activity ————————————
+  {
+    id: "seg-016",
+    name: "多账户客户",
+    description: "minAccountCount = 3 — 持有 3+ 交易账户",
+    filter: { minAccountCount: 3 },
+    userCount: 3,
+    isDynamic: true,
+    createdAt: "2024-06-01T00:00:00Z",
+  },
+
+  // — Static curated example —————————————————
+  {
+    id: "seg-017",
+    name: "VIP 季度回访",
+    description: "本季度需定向回访的 VIP 名单（静态名单）",
+    filter: {},
+    userCount: 3,
+    isDynamic: false,
+    createdAt: "2024-07-01T00:00:00Z",
   },
 ];
 

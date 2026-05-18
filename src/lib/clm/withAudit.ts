@@ -1,7 +1,7 @@
 /**
  * `withAudit` — decorator that wraps a service method with audit-log emission.
  *
- * The CLM module ships an immutable audit trail (`/crm/clm/audit-trail`).
+ * The CLM module ships an immutable audit trail (`/crm/approvals/audit-trail`).
  * Every mutating service call should record an entry. Rather than
  * sprinkle `auditService.log(...)` around inside `case.service.ts`,
  * compose it at the call site:

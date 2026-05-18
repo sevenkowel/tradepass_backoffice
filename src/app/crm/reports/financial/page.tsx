@@ -92,7 +92,7 @@ export default function FinancialReportsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "报表" }, { label: "财务报表" }]} />
+      <Breadcrumb items={[{ label: "Reports" }, { label: "财务报表" }]} />
 
       <PageHeader
         title="财务报表"

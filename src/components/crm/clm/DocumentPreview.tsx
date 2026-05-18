@@ -179,42 +179,16 @@ export function DocumentPreview({ material, className, showUserComparison = fals
 
 /**
  * Watermark overlay component
- * Uses CSS to render a diagonal repeating watermark pattern
+ *
+ * v2: the diagonal CONFIDENTIAL text + diagonal stripe pattern was
+ * removed. The watermark added an "AI / digital vault" feel without
+ * carrying real compliance value (a watermark printed on screen is
+ * trivially defeated). The component is kept as a no-op so existing
+ * call sites don't need to be touched; if a genuine document-stamping
+ * requirement comes up, this is the place to put it back.
  */
-function Watermark({ large = false }: { large?: boolean }) {
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none select-none overflow-hidden"
-      style={{ zIndex: 10 }}
-    >
-      <div
-        className={cn(
-          "absolute inset-0 flex items-center justify-center",
-          large ? "opacity-[0.12]" : "opacity-[0.08]"
-        )}
-      >
-        <span
-          className={cn(
-            "font-bold tracking-widest uppercase text-slate-900 whitespace-nowrap",
-            large ? "text-6xl" : "text-2xl"
-          )}
-          style={{ transform: "rotate(-30deg)" }}
-        >
-          CONFIDENTIAL
-        </span>
-      </div>
-      {/* Additional scattered watermarks for density */}
-      <div className="absolute inset-0 opacity-[0.06]" style={{
-        backgroundImage: `repeating-linear-gradient(
-          -30deg,
-          transparent,
-          transparent 80px,
-          rgba(0,0,0,0.03) 80px,
-          rgba(0,0,0,0.03) 82px
-        )`,
-      }} />
-    </div>
-  );
+function Watermark(_props: { large?: boolean }) {
+  return null;
 }
 
 const OCR_FIELD_DEFS: { key: keyof OCRResult; label: string }[] = [
@@ -226,17 +200,39 @@ const OCR_FIELD_DEFS: { key: keyof OCRResult; label: string }[] = [
 ];
 
 function OcrCompareTable({ ocr, userFields }: { ocr: OCRResult; userFields: Record<string, string> }) {
-  const confidenceColor = ocr.confidence >= 0.9 ? "text-emerald-600" : ocr.confidence >= 0.7 ? "text-amber-600" : "text-red-600";
-  const confidenceBg   = ocr.confidence >= 0.9 ? "bg-emerald-50"    : ocr.confidence >= 0.7 ? "bg-amber-50"    : "bg-red-50";
+  /* v3 (P1-B2)：差异更醒目
+   *   - 顶部 banner 显示差异字段数
+   *   - 差异行 red-50 背景 + 左侧 red 4px border
+   *   - OCR 列差异值显示删除线 + slate-400
+   *   - 用户列差异值红粗 + → 箭头
+   *   - 已修改 chip 改红色，更刺眼
+   */
+  const diffs = OCR_FIELD_DEFS.filter(({ key }) => {
+    const ocrVal  = String(ocr[key] ?? "—");
+    const userVal = userFields[key] ?? ocrVal;
+    return ocrVal !== userVal;
+  });
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Extracted Data</h5>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${confidenceBg} ${confidenceColor}`}>
-          {(ocr.confidence * 100).toFixed(0)}%
+        <span className="text-[11px] text-slate-500">
+          OCR 系统识别 · 置信度 <span className="tabular-nums font-medium text-slate-700">{(ocr.confidence * 100).toFixed(0)}%</span>
         </span>
       </div>
+
+      {/* Diff banner */}
+      {diffs.length > 0 && (
+        <div className="mb-2 px-3 py-2 rounded-md bg-red-50 border border-red-200 flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+          <p className="text-[11px] text-red-700 leading-tight">
+            <b>{diffs.length}</b> 个字段在 OCR 和用户填写之间存在差异 —— 请逐条核对
+            {diffs.length > 0 && <span className="text-red-500"> · {diffs.map((d) => d.label).join(" / ")}</span>}
+          </p>
+        </div>
+      )}
+
       <div className="rounded-lg border border-slate-200 overflow-hidden text-xs">
         {/* Header */}
         <div className="grid grid-cols-[5rem_1fr_1fr] bg-slate-50 border-b border-slate-200">
@@ -253,13 +249,27 @@ function OcrCompareTable({ ocr, userFields }: { ocr: OCRResult; userFields: Reco
           const userVal = userFields[key] ?? ocrVal;
           const differs = ocrVal !== userVal;
           return (
-            <div key={key} className={`grid grid-cols-[5rem_1fr_1fr] border-b last:border-b-0 border-slate-100 ${differs ? "bg-amber-50/60" : ""}`}>
-              <div className="px-3 py-2 text-slate-500 font-medium">{label}</div>
-              <div className="px-3 py-2 border-l border-slate-100 text-slate-700 font-mono">{ocrVal}</div>
+            <div
+              key={key}
+              className={`grid grid-cols-[5rem_1fr_1fr] border-b last:border-b-0 border-slate-100 ${
+                differs ? "bg-red-50/60 border-l-4 border-l-red-500" : ""
+              }`}
+            >
+              <div className={`px-3 py-2 font-medium ${differs ? "text-red-700" : "text-slate-500"}`}>
+                {label}
+              </div>
+              <div className="px-3 py-2 border-l border-slate-100 font-mono">
+                {differs
+                  ? <span className="text-slate-400 line-through" title="OCR 原始识别">{ocrVal}</span>
+                  : <span className="text-slate-700">{ocrVal}</span>}
+              </div>
               <div className="px-3 py-2 border-l border-slate-100 flex items-center gap-2">
-                <span className={`font-mono ${differs ? "text-amber-800 font-semibold" : "text-slate-700"}`}>{userVal}</span>
+                {differs && <span className="text-red-400 text-xs">→</span>}
+                <span className={`font-mono ${differs ? "text-red-700 font-bold" : "text-slate-700"}`}>
+                  {userVal}
+                </span>
                 {differs && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-200 text-amber-800 flex-shrink-0">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-200 text-red-800 flex-shrink-0">
                     已修改
                   </span>
                 )}
@@ -290,15 +300,12 @@ function OcrTable({ ocr }: { ocr: OCRResult }) {
     { label: "Expiry", value: ocr.extractedExpiryDate },
   ];
 
-  const confidenceColor = ocr.confidence >= 0.9 ? "text-emerald-600" : ocr.confidence >= 0.7 ? "text-amber-600" : "text-red-600";
-  const confidenceBg = ocr.confidence >= 0.9 ? "bg-emerald-50" : ocr.confidence >= 0.7 ? "bg-amber-50" : "bg-red-50";
-
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
         <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Extracted Data</h5>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${confidenceBg} ${confidenceColor}`}>
-          {(ocr.confidence * 100).toFixed(0)}%
+        <span className="text-[11px] text-slate-500">
+          OCR 系统识别 · 置信度 <span className="tabular-nums font-medium text-slate-700">{(ocr.confidence * 100).toFixed(0)}%</span>
         </span>
       </div>
       <div className="border border-slate-200 rounded-lg overflow-hidden">

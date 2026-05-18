@@ -281,7 +281,7 @@ export default function CommissionRecordsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "返佣" }, { label: "佣金记录" }]} />
+      <Breadcrumb items={[{ label: "IB / Commission" }, { label: "佣金记录" }]} />
 
       <PageHeader
         title="佣金记录"

@@ -173,7 +173,7 @@ export default function TradingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "交易" }, { label: "交易设置" }]} />
+      <Breadcrumb items={[{ label: "Trading" }, { label: "交易设置" }]} />
 
       <PageHeader
         title="交易设置"

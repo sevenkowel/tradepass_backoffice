@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { approvalService } from "@/lib/approval/service";
 
 const REFRESH_MS = 60_000;
 
@@ -9,18 +8,18 @@ export function useApprovalCount(
   options: { enabled?: boolean } = {}
 ): { count: number; overdue: number; refresh: () => void } {
   const { enabled = true } = options;
-  const [count, setCount] = useState(0);
+  const [count,  setCount]  = useState(0);
   const [overdue, setOverdue] = useState(0);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     if (!enabled) return;
     try {
-      const total = approvalService.getTotalPending();
-      const summary = approvalService.getSummary();
-      const od =
-        summary.kyc.overdue + summary.deposit.overdue + summary.withdrawal.overdue;
-      setCount(total);
-      setOverdue(od);
+      const res  = await fetch("/api/approvals/stats");
+      const data = await res.json();
+      if (data.success) {
+        setCount(data.pendingCount  ?? 0);
+        setOverdue(data.overdueCount ?? 0);
+      }
     } catch {
       /* keep last known values */
     }

@@ -562,6 +562,169 @@ const routes: Record<string, RouteHandler> = {
   'GET /api/tenant/apps': async () => {
     return new MockResponse({ installedApps: ["copy_trading", "ai_signals", "ib_referral"] });
   },
+
+  // GET /api/apps — CRM 模块控制台
+  'GET /api/apps': async ({ headers }) => {
+    const user = await getCurrentUserFromToken(headers);
+    if (!user) {
+      return new MockResponse({ error: '未登录' }, 401);
+    }
+
+    // 产品配置（与 products.ts 保持一致）
+    const PRODUCT_CODES = [
+      'trade_pass_business',
+      'trade_pass_growth',
+      'trade_pass_engine',
+      'trade_pass_edge',
+      'trade_pass_media',
+      'trade_pass_ai',
+    ] as const;
+
+    const PRODUCT_CONFIG: Record<string, any> = {
+      trade_pass_business: {
+        name: 'TradePass Business',
+        shortName: 'Business',
+        basePrice: 7000,
+        currency: 'USD',
+        isBaseLayer: true,
+        modules: [
+          { id: 'portal_access', name: '客户门户 Portal', description: '终端客户交易与账户管理门户', icon: 'Globe', route: '/portal' },
+          { id: 'backoffice_access', name: '运营后台 Backoffice', description: '经纪商运营管理后台', icon: 'LayoutDashboard', route: '/backoffice' },
+          { id: 'kyc_system', name: 'KYC 身份认证', description: '多地区多级别身份验证系统', icon: 'ShieldCheck', route: '/backoffice/compliance/kyc-review' },
+          { id: 'funds_management', name: '资金管理', description: 'USDT/银行/信用卡多渠道出入金', icon: 'Wallet', route: '/backoffice/funds' },
+          { id: 'trading_accounts', name: '交易账户', description: 'MT5 账户分组、杠杆配置', icon: 'Briefcase', route: '/backoffice/accounts' },
+          { id: 'user_management', name: '用户管理', description: '用户列表、等级、标签管理', icon: 'Users', route: '/backoffice/users' },
+          { id: 'reports_basic', name: '基础报表', description: '财务、交易、用户基础报表', icon: 'BarChart3', route: '/backoffice/reports' },
+          { id: 'crm_support', name: 'CRM / 客服', description: '工单、反馈、交互记录', icon: 'Headphones', route: '/backoffice/crm' },
+        ],
+      },
+      trade_pass_growth: {
+        name: 'TradePass Growth',
+        shortName: 'Growth',
+        basePrice: 5000,
+        currency: 'USD',
+        isBaseLayer: false,
+        modules: [
+          { id: 'ib_referral', name: 'IB & 推荐系统', description: '多级代理佣金分层与推荐体系', icon: 'Network', route: '/backoffice/ib' },
+          { id: 'cdp', name: '客户数据平台 CDP', description: '客户画像、分群、行为分析', icon: 'Database', route: '/backoffice/marketing' },
+          { id: 'marketing_automation', name: '营销自动化', description: '活动、Banner、消息推送管理', icon: 'Megaphone', route: '/backoffice/marketing/campaigns' },
+          { id: 'promotions', name: '促销活动', description: '优惠券、返佣、积分活动', icon: 'Gift', route: '/backoffice/marketing' },
+        ],
+      },
+      trade_pass_engine: {
+        name: 'TradePass Engine',
+        shortName: 'Engine',
+        basePrice: 10000,
+        currency: 'USD',
+        isBaseLayer: false,
+        modules: [
+          { id: 'mt5_web_terminal', name: 'MT5 Web 终端', description: '网页版 MT5 交易终端', icon: 'Monitor', route: '/backoffice/trading' },
+          { id: 'order_management', name: '订单管理', description: '订单审核、持仓、交易品种管理', icon: 'TrendingUp', route: '/backoffice/trading/orders' },
+          { id: 'copy_trading', name: 'Copy Trading', description: '社交跟单交易与分润体系', icon: 'Copy', route: '/backoffice/copy-trading', isAddOn: true, addOnPrice: 3000 },
+          { id: 'api_integration', name: 'API 集成', description: 'REST API、Webhooks、第三方对接', icon: 'Plug', route: '/backoffice/system/api', isAddOn: true, addOnPrice: 2000 },
+          { id: 'social_trading', name: 'Social Trading', description: '交易员排行榜与信号分享', icon: 'Users', route: '/backoffice/copy-trading' },
+        ],
+      },
+      trade_pass_edge: {
+        name: 'TradePass Edge',
+        shortName: 'Edge',
+        basePrice: 9000,
+        currency: 'USD',
+        isBaseLayer: false,
+        modules: [
+          { id: 'risk_engine', name: '风控引擎', description: '实时风控规则、告警、NBP 保护', icon: 'Shield', route: '/backoffice/risk' },
+          { id: 'lp_management', name: 'LP 管理', description: '流动性提供商聚合与路由', icon: 'Route', route: '/backoffice/risk' },
+          { id: 'margin_management', name: '保证金管理', description: '保证金监控、强平、追加通知', icon: 'AlertTriangle', route: '/backoffice/risk/margin' },
+          { id: 'blacklist', name: '黑名单', description: '黑名单管理、自动拦截、AML', icon: 'Ban', route: '/backoffice/compliance/blacklist' },
+        ],
+      },
+      trade_pass_media: {
+        name: 'TradePass Media',
+        shortName: 'Media',
+        basePrice: 2000,
+        currency: 'USD',
+        isBaseLayer: false,
+        modules: [
+          { id: 'economic_calendar', name: '财经日历', description: '全球经济事件与市场影响', icon: 'Calendar', route: '/backoffice/marketing/news' },
+          { id: 'news_feed', name: '新闻快讯', description: '实时财经新闻与快讯推送', icon: 'Newspaper', route: '/backoffice/marketing/news' },
+          { id: 'market_commentary', name: '市场评论', description: '专业市场分析与评论', icon: 'MessageSquare', route: '/backoffice/marketing/news' },
+          { id: 'data_visualization', name: '数据可视化', description: '行情图表、热力图、数据面板', icon: 'BarChart3', route: '/backoffice/reports' },
+        ],
+      },
+      trade_pass_ai: {
+        name: 'TradePass AI',
+        shortName: 'AI',
+        basePrice: 5000,
+        currency: 'USD',
+        isBaseLayer: false,
+        modules: [
+          { id: 'ai_signals', name: 'AI 交易信号', description: 'AI 驱动的交易信号推送', icon: 'Brain', route: '/backoffice/ai-signals', isAddOn: true, addOnPrice: 2000 },
+          { id: 'ai_strategies', name: 'AI 交易策略', description: 'AI 生成的量化交易策略', icon: 'Cpu', route: '/backoffice/ai-signals' },
+          { id: 'ai_order_analysis', name: 'AI 订单分析', description: '历史订单深度分析与洞察', icon: 'Search', route: '/backoffice/reports/trading' },
+          { id: 'ai_reports', name: 'AI 报告', description: 'AI 日报、周报、月报自动生成', icon: 'FileText', route: '/backoffice/reports' },
+          { id: 'ai_risk_alerts', name: 'AI 风控预警', description: 'AI 驱动的异常检测与预警', icon: 'AlertTriangle', route: '/backoffice/risk' },
+        ],
+      },
+    };
+
+    const BASE_LAYER_CODE = 'trade_pass_business';
+
+    // Mock 订阅状态：基础层 + Growth + Engine 已订阅，其余未订阅
+    const subscribedCodes = new Set([BASE_LAYER_CODE, 'trade_pass_growth', 'trade_pass_engine']);
+
+    const groups = PRODUCT_CODES.map((code) => {
+      const config = PRODUCT_CONFIG[code];
+      const isSubscribed = subscribedCodes.has(code);
+
+      return {
+        productCode: code,
+        productName: config.name,
+        shortName: config.shortName,
+        isBaseLayer: config.isBaseLayer,
+        isSubscribed,
+        basePrice: config.basePrice,
+        currency: config.currency,
+        modules: config.modules.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          description: m.description,
+          icon: m.icon,
+          route: m.route,
+          isAvailable: isSubscribed,
+          isAddOn: m.isAddOn ?? false,
+          addOnPrice: m.addOnPrice,
+        })),
+      };
+    });
+
+    const installedCount = groups.reduce(
+      (sum, g) => sum + g.modules.filter((m: any) => m.isAvailable).length,
+      0
+    );
+    const totalModuleCount = groups.reduce(
+      (sum, g) => sum + g.modules.length,
+      0
+    );
+
+    return new MockResponse({
+      groups,
+      stats: {
+        installedModules: installedCount,
+        totalModules: totalModuleCount,
+        subscribedProducts: subscribedCodes.size,
+        totalProducts: PRODUCT_CODES.length,
+      },
+    });
+  },
+
+  /* ── Approval Center handlers removed in v2 ─────────────────────
+   * The full Approval Center API now lives as real Next.js Route
+   * Handlers under `src/app/api/approvals/*`. The mockFetch override
+   * intercepts the request, finds no handler in this map, and falls
+   * through to the native fetch — which hits the real route handler
+   * (server-side, sharing the same in-memory approvalService
+   * singleton). One implementation, one source of truth.
+   * See docs/Approval-Center-v2-Architecture.md §D5. */
 };
 
 // 辅助函数：从 token 获取当前用户
@@ -583,10 +746,13 @@ async function getCurrentUserFromToken(headers: Headers) {
     return mockDB.findById<MockUser>('users', session.userId);
   }
   
-  // Fallback: mock token 直接返回默认用户（Demo 模式）
-  if (token.startsWith('mock-token-')) {
-    const users = mockDB.find<MockUser>('users', (u: MockUser) => u.role === 'user');
+  // Fallback: demo/mock token 直接返回默认用户（Demo 模式）
+  if (token.startsWith('mock-token-') || token.startsWith('demo-token-')) {
+    const users = mockDB.find<MockUser>('users', (u: MockUser) => u.role === 'tenant_admin');
     if (users.length > 0) return users[0];
+    // 如果没有 tenant_admin，返回任意用户
+    const allUsers = mockDB.getCollection<MockUser>('users');
+    if (allUsers.length > 0) return allUsers[0];
   }
   
   return null;
@@ -597,29 +763,49 @@ export async function mockFetch(
   input: string | URL | Request,
   init?: RequestInit
 ): Promise<Response> {
-  const url = typeof input === 'string' ? new URL(input, 'http://localhost') : 
+  const url = typeof input === 'string' ? new URL(input, 'http://localhost') :
               input instanceof URL ? input : new URL(input.url);
-  
+
+  // CRITICAL: only intercept /api/* paths. Anything else — including
+  // Next.js RSC payload fetches for client-side navigation (which hit
+  // route URLs like `/crm/approvals/my-tasks` with an `RSC=1` header)
+  // — must pass through to the native fetch unchanged. Returning a
+  // MockResponse for those breaks `res.headers.get(...)` inside the
+  // App Router and the navigation silently falls back to a full
+  // browser reload + surfaces a red error overlay.
+  if (!url.pathname.startsWith('/api/')) {
+    const origFetch = (window as any).originalFetch as typeof fetch | undefined;
+    if (origFetch) return origFetch(input, init);
+    // Last resort: if originalFetch was somehow lost, recreate using
+    // the global Response via XHR-less means — but in practice this
+    // branch is never hit because enableMockFetch always stashes it.
+    return new Response(null, { status: 503 });
+  }
+
   const method = init?.method || 'GET';
   const body = init?.body ? JSON.parse(init.body as string) : undefined;
   const headers = new Headers(init?.headers);
-  
+
   const query: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {
     query[key] = value;
   });
-  
+
   // 查找匹配的路由
   const routeKey = `${method} ${url.pathname}`;
   const handler = routes[routeKey] || findDynamicRoute(routeKey);
 
   if (!handler) {
-    console.warn(`[MockFetch] No handler for: ${routeKey} — falling through to real fetch`);
-    const origFetch = (window as any).originalFetch;
+    // No handler for this /api/* path. Pass through to the real Next.js
+    // API route — Approval Center, for example, ships full server routes
+    // under /api/approvals/* that should run instead of being shadowed
+    // by an empty mock fallback.
+    const origFetch = (window as any).originalFetch as typeof fetch | undefined;
     if (origFetch) {
       return origFetch(input, init);
     }
-    return new MockResponse({ error: 'Not Found' }, 404) as unknown as Response;
+    console.warn(`[MockFetch] No handler for: ${routeKey} — returning empty fallback`);
+    return new MockResponse({ success: true, items: [], total: 0 }, 200) as unknown as Response;
   }
 
   // 模拟网络延迟（仅 mock 请求）
@@ -644,6 +830,13 @@ function findDynamicRoute(routeKey: string): RouteHandler | undefined {
 // 覆盖全局 fetch（仅在客户端）
 export function enableMockFetch(): void {
   if (typeof window !== 'undefined') {
+    // Guard against double-wrapping. React Strict Mode in dev mounts
+    // effects twice, and HMR reloads can trigger re-init paths. If we
+    // overwrite `originalFetch` with the already-wrapped fetch, we
+    // lose the only handle to the real fetch and non-/api/ paths
+    // (e.g. Next.js RSC navigation) start returning MockResponse.
+    if ((window as any).__mockFetchInstalled) return;
+    (window as any).__mockFetchInstalled = true;
     (window as any).originalFetch = window.fetch;
     window.fetch = mockFetch as any;
     console.log('[Mock] API mocking enabled');
@@ -654,6 +847,7 @@ export function enableMockFetch(): void {
 export function disableMockFetch(): void {
   if (typeof window !== 'undefined' && (window as any).originalFetch) {
     window.fetch = (window as any).originalFetch;
+    (window as any).__mockFetchInstalled = false;
     console.log('[Mock] API mocking disabled');
   }
 }

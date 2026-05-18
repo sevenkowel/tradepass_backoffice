@@ -332,7 +332,7 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "营销" }, { label: "活动管理" }]} />
+      <Breadcrumb items={[{ label: "Marketing" }, { label: "活动管理" }]} />
 
       <PageHeader
         title="活动管理"

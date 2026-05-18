@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button, PageHeader, Card, EmptyState } from "@/components/crm/ui/PageHeader";
 import { Drawer, DrawerFooter } from "@/components/crm/ui/Drawer";
+import { Breadcrumb } from "@/components/crm/layout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -299,19 +300,9 @@ export default function FeedbackPage() {
   const negativeCount = feedbacks.filter(f => f.sentiment === "negative").length;
   const avgRating = feedbacks.filter(f => f.rating).reduce((s, f) => s + (f.rating || 0), 0) / feedbacks.filter(f => f.rating).length;
 
-  const breadcrumbs = [{ label: "后台管理" }, { label: "CRM" }, { label: "用户反馈" }];
-
-  return (
+    return (
     <div className="p-6 space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--tp-fg-muted)]">
-        {breadcrumbs.map((b, i) => (
-          <React.Fragment key={i}>
-            {i > 0 && <ChevronRight className="w-3.5 h-3.5" />}
-            <span className={i === breadcrumbs.length - 1 ? "text-[var(--tp-fg)] font-medium" : ""}>{b.label}</span>
-          </React.Fragment>
-        ))}
-      </nav>
+      <Breadcrumb items={[{ label: "Support" }, { label: "Feedback" }]} />
 
       <PageHeader
         title="用户反馈"

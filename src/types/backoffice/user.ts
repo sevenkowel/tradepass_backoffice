@@ -5,6 +5,10 @@ export type UserLevel = 'standard' | 'vip' | 'premium' | 'enterprise';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type LifecycleStage = 'registered' | 'verified' | 'ftd' | 'active' | 'inactive' | 'churn';
 
+/** Role in the broker ecosystem — drives different surfaces / permissions.
+ *  See `User.role` in `schema.prisma`. */
+export type ClientRole = "client" | "partner" | "affiliate";
+
 export interface BackofficeUser {
   id: string;
   uid: string;
@@ -37,6 +41,21 @@ export interface BackofficeUser {
   deviceCount?: number;
   ipCount?: number;
   relatedUserIds?: string[];
+  // === v3: Client list display columns (2026-05-14) ===
+  /** How the client signed up — web / mobile_ios / mobile_android / affiliate / import. */
+  registrationSource?: string;
+  /** Short device label captured at registration. */
+  registrationDevice?: string;
+  /** Count of trading accounts (MT4/5) attached to this user. */
+  accountCount?: number;
+  /** Broker-ecosystem role. */
+  role?: ClientRole;
+
+  // === v3b: User Value extras (2026-05-14) ===
+  /** Cumulative commission earned (USD). For partners/affiliates only. */
+  commissionEarned?: number;
+  /** Cumulative negative-balance protection write-off (USD). */
+  negBalanceProtected?: number;
 }
 
 export interface UserListParams {
@@ -53,9 +72,19 @@ export interface UserListParams {
 export interface ClientListParams extends UserListParams {
   riskLevel?: RiskLevel;
   lifecycleStage?: LifecycleStage;
-  country?: string;
+  /** Multi-select country filter (ISO-3166 alpha-2, uppercase).
+   *  Wire format: comma-separated string in the URL (`?country=CN,HK,SG`). */
+  country?: string[];
   hasFtd?: boolean;
   tags?: string[];
+  /** Single tag name shortcut (advanced filter drawer single-input UX). */
+  tag?: string;
+  /** Filter on broker role. */
+  role?: ClientRole;
+  /** Inclusive lower bound on trading account count. */
+  minAccountCount?: number;
+  /** Inclusive upper bound on trading account count. */
+  maxAccountCount?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

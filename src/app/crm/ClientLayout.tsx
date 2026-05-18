@@ -34,12 +34,18 @@ function BackofficeContent({ children }: { children: React.ReactNode }) {
             CRM root so every page transition benefits. */}
         <NavigationProgress />
         <div className="min-h-screen bg-background">
+          {/* TopBar now hosts the first-level icon tabs inline — the
+              old standalone 48px TopNav row was removed so the chrome
+              stays at a single 64px band. See docs/Top-Plus-Side-Nav.md. */}
           <TopBar />
           <Sidebar brandInitials={brandInitials} />
           <main
             className={cn(
-              "min-h-[calc(100vh-64px)] transition-all duration-300",
-              sidebarCollapsed ? "lg:ml-[80px]" : "lg:ml-[260px]"
+              /* `pt-16` reserves space for the now-fixed TopBar (h-16);
+                 since TopBar is out of normal flow, main would start
+                 at y=0 and slide under it without this padding. */
+              "pt-16 min-h-screen transition-all duration-300",
+              sidebarCollapsed ? "lg:ml-[80px]" : "lg:ml-[220px]"
             )}
           >
             {/* Outer page padding — kept tight on purpose: the CRM is a

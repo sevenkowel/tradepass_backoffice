@@ -23,11 +23,10 @@ export function Breadcrumb({ items = [], className }: BreadcrumbProps) {
 
   return (
     // Breadcrumb doubles as the page heading: ancestor crumbs render as
-    // small grey links, the current page renders as a real <h1> at
-    // text-lg so it carries both the navigation path and the page
-    // title in a single line. Page-level `<PageHeader>` no longer
-    // renders its own H1 to avoid duplication.
-    <nav className={cn("flex items-center gap-1.5 mb-2", className)} aria-label="Breadcrumb">
+    // small grey links, the current page renders as a real <h1> with
+    // text-sm — keeps semantic heading + path in a single tight line
+    // (was text-lg before; reduced to save vertical space).
+    <nav className={cn("flex items-center gap-1.5 mb-1", className)} aria-label="Breadcrumb">
       <Link
         href="/crm"
         className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -50,7 +49,7 @@ export function Breadcrumb({ items = [], className }: BreadcrumbProps) {
               </Link>
             ) : isLast ? (
               <h1
-                className="text-lg font-semibold text-slate-900 tracking-tight truncate"
+                className="text-sm font-semibold text-slate-900 tracking-tight truncate"
                 aria-current="page"
               >
                 {item.label}

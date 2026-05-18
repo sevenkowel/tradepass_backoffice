@@ -17,6 +17,7 @@ import {
   Check,
   Settings,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/crm/ui";
@@ -41,12 +42,12 @@ const APP_LABEL_MAP: Record<string, string> = {
 };
 
 const APP_ROUTE_MAP: Record<string, string> = {
-  copy_trading: "/backoffice/copy-trading/traders",
-  ai_signals: "/backoffice/ai-signals",
-  ib_referral: "/backoffice/ib",
-  advanced_reports: "/backoffice/reports/financial",
-  risk_enhanced: "/backoffice/risk",
-  multi_terminal: "/backoffice/accounts",
+  copy_trading: "/crm/copy-trading/traders",
+  ai_signals: "/crm/ai-signals",
+  ib_referral: "/crm/ib",
+  advanced_reports: "/crm/reports/financial",
+  risk_enhanced: "/crm/risk",
+  multi_terminal: "/crm/accounts",
 };
 
 interface AppDetail {
@@ -68,6 +69,7 @@ export default function AppDetailPage() {
   const [app, setApp] = useState<AppDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApp();
@@ -75,11 +77,37 @@ export default function AppDetailPage() {
 
   const fetchApp = async () => {
     setLoading(true);
-    const res = await fetch("/api/apps");
-    const data = await res.json();
-    const found = (data.apps || []).find((a: AppDetail) => a.appId === appId);
-    setApp(found || null);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/apps");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error ${res.status}: ${text.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      // Flatten groups.modules into app-like structure
+      const apps: AppDetail[] = [];
+      for (const group of data.groups || []) {
+        for (const mod of group.modules || []) {
+          apps.push({
+            id: mod.id,
+            appId: mod.id,
+            name: mod.name,
+            description: mod.description,
+            icon: mod.icon,
+            category: group.productName,
+            isInstalled: mod.isAvailable,
+            installedAt: mod.isAvailable ? new Date().toISOString() : null,
+          });
+        }
+      }
+      const found = apps.find((a) => a.appId === appId);
+      setApp(found || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const uninstall = async () => {
@@ -97,6 +125,25 @@ export default function AppDetailPage() {
     return (
       <div className="p-6 flex items-center justify-center h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <PageHeader title="应用详情" description="" />
+        <div className="mt-10 flex flex-col items-center justify-center text-muted-foreground">
+          <AlertTriangle className="w-12 h-12 mb-4 text-red-400" />
+          <p className="text-lg font-medium text-red-600">加载失败</p>
+          <p className="text-sm mt-1 max-w-md text-center">{error}</p>
+          <div className="flex gap-3 mt-4">
+            <Button variant="outline" onClick={() => router.push("/crm/apps")}>
+              返回应用中心
+            </Button>
+            <Button onClick={fetchApp}>重试</Button>
+          </div>
+        </div>
       </div>
     );
   }

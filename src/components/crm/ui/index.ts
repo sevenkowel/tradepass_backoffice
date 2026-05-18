@@ -11,6 +11,7 @@
 export { PageHeader } from "./PageHeader";
 export { StatusBadge, LevelBadge, TypeBadge } from "./StatusBadge";
 export { Drawer, DrawerFooter } from "./Drawer";
+export { CenterModal } from "./CenterModal";
 export { FilterBar } from "./FilterBar";
 export { EnhancedDataTable, type Column, type RowAction } from "./EnhancedDataTable";
 export { PlaceholderPage } from "./PlaceholderPage";
@@ -21,6 +22,7 @@ export { KYCStatusBadge } from "./KYCStatusBadge";
 export { CaseTypeBadge } from "./CaseTypeBadge";
 export { SLABadge } from "./SLABadge";
 export { AMLStatusBadge } from "./AMLStatusBadge";
+export { Sparkline, pseudoSeries } from "./Sparkline";
 
 // Re-exports — single source of truth lives in `@/components/ui`
 export { Button, type ButtonProps } from "@/components/ui/Button";

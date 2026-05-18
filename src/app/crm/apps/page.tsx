@@ -110,6 +110,7 @@ export default function AppsPage() {
   const [groups, setGroups] = useState<ProductGroup[]>([]);
   const [stats, setStats] = useState<AppStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApps();
@@ -117,11 +118,21 @@ export default function AppsPage() {
 
   const fetchApps = async () => {
     setLoading(true);
-    const res = await fetch("/api/apps");
-    const data = await res.json();
-    setGroups(data.groups || []);
-    setStats(data.stats || null);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await fetch("/api/apps");
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API error ${res.status}: ${text.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      setGroups(data.groups || []);
+      setStats(data.stats || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "加载失败，请稍后重试");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -164,6 +175,24 @@ export default function AppsPage() {
           </p>
         </div>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>加载失败：{error}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-7 text-xs text-red-600 hover:bg-red-100"
+            onClick={fetchApps}
+          >
+            重试
+          </Button>
+        </div>
+      )}
 
       {/* Product Groups */}
       {loading ? (
@@ -328,6 +357,13 @@ export default function AppsPage() {
               </div>
             </motion.div>
           ))}
+          {groups.length === 0 && !error && (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Puzzle className="w-12 h-12 mb-4 opacity-30" />
+              <p className="text-lg font-medium">暂无产品模块</p>
+              <p className="text-sm mt-1">产品配置数据为空，请联系管理员</p>
+            </div>
+          )}
         </div>
       )}
     </div>

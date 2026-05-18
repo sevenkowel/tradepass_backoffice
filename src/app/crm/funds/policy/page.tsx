@@ -1,12 +1,16 @@
-"use client";
+/**
+ * Legacy route — `/crm/funds/policy` was a placeholder. The full
+ * Policies & Limits cockpit now lives at `/crm/funds/policies`.
+ *
+ * This file stays as a permanent redirect so any existing bookmarks
+ * or audit-log links don't 404.
+ */
 
-export default function PlaceholderPage() {
-  return (
-    <div className="flex items-center justify-center h-[60vh]">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">Coming Soon</h1>
-        <p className="text-slate-500">This page is under development.</p>
-      </div>
-    </div>
-  );
+import { redirect, permanentRedirect } from "next/navigation";
+
+export default function FundsPolicyRedirect() {
+  if (typeof permanentRedirect === "function") {
+    permanentRedirect("/crm/funds/policies");
+  }
+  redirect("/crm/funds/policies");
 }

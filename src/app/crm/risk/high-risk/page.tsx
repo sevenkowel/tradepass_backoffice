@@ -126,8 +126,6 @@ export default function HighRiskClientsPage() {
                     <RiskScoreRing
                       score={profile.overallScore}
                       level={profile.riskLevel}
-                      size={48}
-                      strokeWidth={4}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">

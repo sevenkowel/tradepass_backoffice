@@ -91,7 +91,7 @@ export default function TradingReportsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "报表" }, { label: "交易报表" }]} />
+      <Breadcrumb items={[{ label: "Reports" }, { label: "交易报表" }]} />
 
       <PageHeader
         title="交易报表"

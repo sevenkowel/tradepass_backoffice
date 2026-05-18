@@ -259,7 +259,7 @@ export default function OperationLogsPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumb items={[{ label: "系统" }, { label: "操作日志" }]} />
+      <Breadcrumb items={[{ label: "System" }, { label: "操作日志" }]} />
 
       <PageHeader
         title="操作日志"
